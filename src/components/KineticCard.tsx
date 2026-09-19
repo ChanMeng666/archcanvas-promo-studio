@@ -106,7 +106,7 @@ export const KineticCard: React.FC<{
           width: layout.stage.w,
           height: layout.stage.h,
           justifyContent: "center",
-          alignItems: centred ? "center" : "flex-start",
+          alignItems: "flex-start",
           opacity: out,
         }}
       >
@@ -323,7 +323,7 @@ export const SplitLine: React.FC<{ copy: CardCopy; dur: number; ink?: string; ru
         width: band.w,
         height: band.h,
         justifyContent: "center",
-        alignItems: centred ? "center" : "flex-start",
+        alignItems: "flex-start",
         opacity: out,
       }}
     >
@@ -372,15 +372,23 @@ export const SplitLine: React.FC<{ copy: CardCopy; dur: number; ink?: string; ru
  * landing page's chapter tabs carry, so the film is not inventing a vocabulary
  * for the product. It pops on the cut and holds; `pop` fires under it.
  *
- * Top-left in landscape, top-centre in portrait, always inside the TEXT-safe
- * area rather than the picture's — it is type, and the platform furniture rule
- * applies to type.
+ * Top-left in landscape, inside the TEXT-safe area rather than the picture's —
+ * it is type, and the platform furniture rule applies to type.
+ *
+ * ⚠ **Landscape only, and the stills are why.** The replica letterboxes in 16:9,
+ * so the chip's corner is empty canvas in every scene. It FILLS a 9:16 frame, so
+ * there is no empty corner to sit in: top-centre put "BRIEF" through the
+ * composer's own "Your Projects" heading and "EXPORT" in the middle of the
+ * drawing. Every other anchor collides with something in some scene — the
+ * bottom with the honesty band, the top-right with the export sheet — because
+ * the real answer is that a portrait frame has no margin to put film furniture
+ * in. In 9:16 the chapter is carried by the colour script and the type instead.
  */
 export const ChapterChip: React.FC<{ label: string }> = ({ label }) => {
   const frame = useCurrentFrame();
   const layout = useLayout();
   const p = easeOutCubic(clamp01(frame / FPS / (MOTION.enterSec * 1.3)));
-  const centred = layout.aspect === "portrait";
+  if (layout.aspect === "portrait") return null;
 
   return (
     <AbsoluteFill
@@ -389,7 +397,7 @@ export const ChapterChip: React.FC<{ label: string }> = ({ label }) => {
         top: layout.stage.y,
         width: layout.stage.w,
         height: layout.u(TYPE.caption * 2.2),
-        alignItems: centred ? "center" : "flex-start",
+        alignItems: "flex-start",
         justifyContent: "flex-start",
         pointerEvents: "none",
       }}
@@ -403,13 +411,11 @@ export const ChapterChip: React.FC<{ label: string }> = ({ label }) => {
           borderRadius: layout.u(RADIUS.pill),
           backgroundColor: APP.card,
           border: `${Math.max(1, layout.u(1.5))}px solid ${APP.hairline}`,
-          // A shadow, because in 9:16 the replica goes edge to edge and the chip
-          // is therefore always over the drawing. Without one it reads as a
-          // label ON the plan rather than as chrome above it — visible in the
-          // portrait receipt still, where "REVIEW" sat inside the building.
+          // A shadow, so the chip reads as chrome above the picture rather than
+          // as a label printed on it — the canvas is pale and so is the chip.
           boxShadow: `0 ${layout.u(6)}px ${layout.u(18)}px rgb(19 17 15 / 0.10)`,
           transform: `scale(${(0.82 + 0.18 * p).toFixed(4)})`,
-          transformOrigin: centred ? "50% 0%" : "0% 0%",
+          transformOrigin: "0% 0%",
           opacity: p,
         }}
       >

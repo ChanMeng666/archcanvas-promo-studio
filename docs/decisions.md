@@ -911,3 +911,25 @@ Mutation evidence, all four checks:
 | `CAPTION_SAFE_FILL.portrait` 1.01 → 0.72 | 4 `cropped` failures, the drafting card at **142 %** |
 | `TYPE.hero` 190 → 110 | 12 `small` failures |
 | the visible-frame fill and aim | 16 `cropped` failures, split scenes at 119–143 % |
+
+## D27. The chapter chip is landscape-only.
+
+A still pass finding, and a small one with a general shape behind it.
+
+In 16:9 the replica letterboxes, so the film's chapter chip sits in a corner of
+empty canvas in every scene. In 9:16 the replica goes edge to edge and there is
+no empty corner: top-centre put **"BRIEF" through the composer's own "Your
+Projects" heading** and **"EXPORT" in the middle of the drawing**. Every other
+anchor fails in some other scene — the bottom is the honesty band, the top-right
+is the export sheet, the top-left is the zoom toolbar since the replica moved it
+there in portrait.
+
+The general shape: a 9:16 frame has no margin to put film furniture in. So in
+portrait the chapter is carried by the colour script and the type, which is what
+they are for, and the chip is drawn only in landscape.
+
+Not gated. A collision between the film's own overlay and the product's UI is not
+a geometric claim about one rectangle — it is "does anything sit on anything" —
+and a gate that tried would either re-implement the replica's layout or check
+nothing. The still pass is the instrument, which is why it is part of the gate
+and not a nicety.
