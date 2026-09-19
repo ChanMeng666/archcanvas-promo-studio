@@ -972,3 +972,11 @@ Two things were tried on the way and are recorded because they look right:
   and a caption below the band but inside the frame is not gone — it is a second
   copy with five pixels showing. `verify:honesty` caught it as four `half`
   failures, which is the gate doing precisely its job.
+
+Mutation evidence for both, taken while the fix was being built rather than
+reconstructed afterwards:
+
+| revert | what reddens |
+|---|---|
+| `draftShare(win) > 0.5` guard removed (the film draws the band on the drafting beats again) | `verify:honesty` — 24 / 41 / 75 `doubled` frames in the 30, 60 and 120 cuts |
+| expulsion measured against `bounds` instead of the frame | `verify:honesty` — 4 `half` failures, the caption 5 px inside the bottom edge |
