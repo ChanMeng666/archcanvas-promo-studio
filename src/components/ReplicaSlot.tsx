@@ -95,7 +95,14 @@ export const ReplicaSlot: React.FC<{
           a scale >= 1 always covers the frame.
         */}
         <CanvasGround frame={frame} layout={layout} ground={ground} onDark={onDark} />
-        <ColourWipe from={prevGround} to={ground} frame={frame} seed={beat.index} width={layout.width} />
+        <ColourWipe
+          from={prevGround}
+          to={ground}
+          frame={frame}
+          seed={beat.index}
+          width={layout.width}
+          scale={push.scale}
+        />
         <div
           style={{
             position: "absolute",

@@ -34,7 +34,16 @@ export const ColourWipe: React.FC<{
   /** Alternates the direction. The beat's index. */
   seed: number;
   width: number;
-}> = ({ from, to, frame, seed, width }) => {
+  /**
+   * The scale of the layer this sits inside, if it is inside one.
+   *
+   * ⚠ A `translateX` inside a scaled layer travels by `distance x scale` on
+   * screen, so the same wipe left the frame in 8 frames on a wide beat and in 3
+   * on the money shot. Dividing by the scale makes the travel one FRAME WIDTH
+   * everywhere, which is what "the same wipe" means.
+   */
+  scale?: number;
+}> = ({ from, to, frame, seed, width, scale = 1 }) => {
   if (!from || from === to) return null;
   const p = easeOutExpo(clamp01(frame / FPS / (MOTION.cutSec * 0.9)));
   if (p >= 1) return null;
@@ -43,7 +52,7 @@ export const ColourWipe: React.FC<{
     <AbsoluteFill
       style={{
         backgroundColor: from,
-        transform: `translateX(${(dir * p * width).toFixed(1)}px)`,
+        transform: `translateX(${((dir * p * width) / Math.max(0.001, scale)).toFixed(1)}px)`,
       }}
     />
   );
