@@ -33,3 +33,4 @@ out/*
 #
 # Nothing else about the product is copied here, and this repo must never gain
 # an archcanvas git remote.
+.worktrees/

@@ -85,31 +85,126 @@ the derived frame counts are 450 / 900 / 1800 / 3600, that every scene in the ro
 used, and that `Root.tsx` still maps over `DELIVERABLES` with one derived length. A tenth
 of a second of drift per cut is how a vertical master ends up a beat short of its music.
 
-## D4. SFX provenance — **PENDING**, and this is the blocking kind.
+## D4. SFX provenance — **SETTLED 2026-09-19. The eight inherited cues are unusable.**
 
-WP-8 owns this and it is not settled yet. The facts, so the decision is made on evidence
-rather than on optimism:
+The eight ElevenLabs drafting-room cues are **not used and not copied into this repo.**
+All fourteen sound effects in this film are synthesised offline by `tools/synth-sfx.mjs`.
 
-- Eight drafting-room sound effects exist, generated on **2026-09-07** through
-  ElevenLabs. The sibling film deleted twelve assets on 2026-09-08 after finding the key
-  was on a **free** plan, whose terms say content created outside a paid subscription —
-  *before or after* — cannot be used commercially. Upgrading later does not license what
-  already exists.
-- **2026-09-07 falls inside that window.** So those eight are presumed unusable until
-  proven otherwise.
-- The check is one call: `GET /v1/user/subscription`, **before** spending any credits,
-  never before shipping.
-- The fallback is not a compromise: `tools/synth-sfx.mjs` synthesises the cues offline
-  with ffmpeg (`sine` / `anoisesrc` plus an envelope). Provenance is then unambiguous by
-  construction, which for a UI-sound palette is most of the job anyway.
+**The evidence, because this question had three different answers on record.**
+`../archcanvas-promo-remotion/docs/suno-prompt.md` carries a ticked box —
+*"ElevenLabs — Sound Effects: paid tier, commercial use permitted · confirmed
+2026-09-08"* — committed at 13:19 that day. At **16:38 the same day**, commit `490a306`
+in the same repo deleted all twelve ElevenLabs assets, saying the key they were generated
+on *"reports tier 'free', verified directly against `/v1/user/subscription`"*, and adding
+that *"the first film's eight effects came from the same pipeline and are no longer staged
+either."* The filesystem agrees with the commit: that repo's `public/audio/` holds one
+file, `bgm.mp3`, and the directory is not gitignored.
 
-The music bed is a separate question. The temporary track is `confident-arrival.mp3` and
-the founder generates the replacement in SUNO; `docs/suno-prompt.md` (WP-8) carries the
-prompt. **Beat grid derived, never hand-placed:** `tools/analyze-music.mjs` writes
-`src/data/music.json` and scene boundaries snap to the nearest strong beat within
-±150 ms.
+The eight cues in question carry their own timestamp —
+`../archcanvas-promo-video/audio/sfx-manifest.json` says
+`"generatedAt": "2026-09-07T13:53:11.727Z"` — which is inside the window, and that film's
+own licensing boxes were never ticked at all.
 
-Whatever WP-8 concludes, it is written here with the evidence, not remembered.
+The current tier could not be read: the key in all three sibling `.env` files now returns
+`401 invalid_api_key`. **That would not have settled it anyway** — rights attach to the
+tier active when an asset was *generated*, so a paid answer today says nothing about
+2026-09-07.
+
+The brief said to treat them as unusable unless the record positively showed a paid plan.
+It does not; it affirmatively shows the free one. Full chain: `docs/audio-provenance.md`.
+
+**The replacement is not a compromise.** Fourteen cues, ffmpeg primitives only, every
+noise source explicitly seeded, a sha256 of each filter graph in `src/data/sfx.json`, and
+`npm run audio:sfx:check` to catch a recipe that changed without its `.wav` being rebuilt.
+Ten consecutive full builds are byte-identical. Provenance is unambiguous *by
+construction* — there is no vendor in the chain to have terms.
+
+**The music is the one place the question can still arise**, and the ordering rule is
+therefore restated where the founder will read it (`docs/suno-prompt.md`): be on the paid
+plan **before** generating, not before shipping.
+
+## D7. The bed is chosen by measurement, and it is spliced, not faded.
+
+**Which take.** Three candidates were measured rather than auditioned:
+`confident-arrival.mp3` has a spectral centroid of 1386 Hz against 612 and 657 for the two
+`archcanvas-promo-video` takes, 22.4% of its energy above 2 kHz against 6.5% and 6.8%, and
+the highest onset density of the three. The founder's direction was "bright, lively,
+fast"; two of those three are numbers and the third — brightness — is a spectrum. Picking
+a bed by adjective is how the sibling film ended up re-briefing a lullaby. The other two
+also have blank licensing boxes, so two independent reasons reach the same answer.
+
+**Why each bed is two pieces.** Every cut must start clean *and* end on a resolution, and
+a window that does both does not exist: the take's good entries are not 15, 30, 60 and 120
+seconds before its ending. So each bed is a **body** starting on a measured re-entry, with
+the take's **own ending** — the final hit at 128.3 s and its ring-out — crossfaded on over
+one bar with equal-power (`qsin`) curves. The arithmetic is `total = body + ending −
+crossfade`, and the free variable that absorbs the remainder is the length of the ring-out,
+because a decaying tail has no beat in it and can be trimmed by a fraction of a second
+inaudibly. A bar of music cannot.
+
+The alternative was a fade-out on all four. Rejected: a fade pulled down mid-phrase is
+audible as a mistake once, and four of them across eight masters is audible as a habit.
+
+**Nothing is hand-typed.** `tools/plan-beds.mjs` measures the take and writes
+`audio/bed-plan.json`; `tools/prepare-bed.ps1` executes it; `tools/build-music.mjs`
+measures what was delivered. The founder replaces the track with one command.
+
+## D8. The downbeats are measured on the delivered mp3, never extrapolated.
+
+A grid computed from the source tempo would be wrong, and it took measuring to find out.
+On `confident-arrival.mp3` the best global beat phase **creeps about 0.2 s per 20 s
+block** — so a grid extrapolated across the 120s bed is most of a beat out by the end,
+four times the ±150 ms a scene boundary may snap within. A SUNO take is generated audio,
+not a sequenced click track. Two further shifts compound it: the beds are **spliced**, so
+the seam moves the grid, and MP3 encoder delay moves everything again by ~24 ms.
+
+So `tools/build-music.mjs` decodes the shipped MP3 the way the browser will and reports
+what is actually in it. The grid steps at the bar length measured over the ending region —
+a median of *all* onset gaps reads low, because subdivisions halve it, and that error
+produced bar lengths of 1.88–2.24 s against a true 2.36 s before it was caught. Each step
+then advances from the position it **snapped to**, not from the ideal grid, so the list
+follows the take's own drift instead of walking away from it. Result: 7/7, 13/13, 26/26 and
+52/52 downbeats land on real measured onsets.
+
+`snapToDownbeat` lives in `src/audio.ts` and returns `t` unchanged when the nearest
+downbeat is further than the tolerance — past that the correction is felt as the edit being
+in the wrong place, and the honest answer is to let the boundary fall off the beat rather
+than drag the picture a quarter-second to chase the music.
+
+## D9. Cues are WAV; beds are MP3.
+
+MP3 prepends encoder delay — on the order of 1152 samples, about 24 ms, and decoder
+dependent. On a 45 ms `click` that is half the sound arriving late, which is a sync bug
+nobody finds by looking. The cues are therefore sample-exact WAV, and at 3–75 KB each that
+costs nothing. The beds stay MP3 because a 120-second bed as WAV is 23 MB and git keeps
+every version forever; their downbeats are measured on the decoded MP3, so the delay is
+inside the measurement rather than unaccounted for.
+
+## D10. Two ffmpeg bugs that produced correct-looking, wrong files.
+
+Recorded because both were **silent** — right duration, right sample rate, right peak,
+wrong sound — and both cost real time.
+
+- **`amix` intermittently drops ragged inputs.** The swept cues were built as short noise
+  grains positioned with `adelay`, giving sixteen inputs of different lengths. On roughly
+  one build in six, `whoosh-in` or `whoosh-out` came out the correct total duration with
+  only the first grain audible — about 17% of the sound — from byte-identical inputs. The
+  fix is to give `amix` nothing ragged: every grain is now a full-length source positioned
+  by `afade` start times (`afade=t=in:st=X` is silent before X, so it places a grain exactly
+  as `adelay` did), and `assemble()` pads every layer to the cue's longest with `apad` +
+  `atrim`. Ten consecutive builds are now byte-identical.
+- **`silenceremove` was blamed first, and replacing it did not fix it.** That is the useful
+  half of the story: the trim was rewritten to measure the last audible sample in Node and
+  cut with `-t`, which is deterministic and one pass shorter, and the collapse happened
+  again — which is what finally pointed at the mixer. The in-Node trim was kept anyway.
+
+The collapse guard that caught both is still in `buildCue()` and stays there. A guard that
+has caught a real failure once is not removed because its cause was fixed.
+
+**The general lesson, which is this project's own rule restated:** every number about these
+files was right while the files were wrong. Length, sample rate, peak and loudness all
+passed. What caught it was looking at a spectrogram — and what caught the *intermittence*
+was running the build ten times instead of once.
 
 ## D5. This film cuts. The last one did not.
 
