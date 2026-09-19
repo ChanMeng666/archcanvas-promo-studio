@@ -980,3 +980,97 @@ reconstructed afterwards:
 |---|---|
 | `draftShare(win) > 0.5` guard removed (the film draws the band on the drafting beats again) | `verify:honesty` — 24 / 41 / 75 `doubled` frames in the 30, 60 and 120 cuts |
 | expulsion measured against `bounds` instead of the frame | `verify:honesty` — 4 `half` failures, the caption 5 px inside the bottom edge |
+
+## D29. FOUNDER CONSTRAINT: no violet-family field over 15 % of a frame.
+
+**This is a founder decision, not a taste call, and it is now a gate.** It has
+been reached three times from three directions, each time by someone reaching
+for a violet that was not on the last round's list:
+
+1. **Full-bleed plum cards** — asked for by the art direction, built, withdrawn
+   (D11 / D22 / D24).
+2. **The end card's wipe** — a full-bleed plum fill for nine frames, reduced to a
+   band (D24). The band was a fifth of the frame, which is still over the ceiling
+   this entry sets.
+3. **The STAGE tints behind the window** — periwinkle at 50 % and 70 %. In a
+   swatch they read as "a wash"; in a 9:16 split scene the band is **a third of
+   the frame**. A tint of a violet is still a violet, and a pale one covering a
+   third of the frame is precisely the case the objection is about.
+
+### The rule
+
+> No violet-family colour may cover more than **15 %** (`VIOLET_AREA_MAX`) of the
+> visible frame as a flat area, in any scene of any cut, in either frame shape.
+> Violet is a rule, a caret, a pin head, a chip, a band sweeping past. It is not
+> a field.
+>
+> **Aubergine keeps two approved uses** — the what-line card and the receipt
+> band — and they are counted, not exempted.
+
+### The re-colour
+
+The script is now built from the palette's non-violet members:
+
+| chapter | was | is |
+|---|---|---|
+| draw | `#D3CCF2` periwinkle 50 % | `#E2DED5` — the product's own hairline used as a FIELD, a warm sand |
+| render | `#C3BAF2` periwinkle 70 % | `#D7EFE4` — mint at 24 %, the lights coming up after the dark receipt |
+
+The two mints (`tweak` at 40 %, `render` at 24 %) are three chapters apart with
+the aubergine receipt between them, which is what keeps them from reading as a
+repeat. The montage cycles `edit / tweak / draw / export`, so it inherits the
+fix. Both new grounds clear 4.5:1 against the ink.
+
+### The gate
+
+`capture/verify-violet.mjs`, in the chain. It measures **from the layout rects**,
+with no pixel reads: every scene paints a ground over the whole frame
+(`scenes.ts` § `groundOf`), a replica or split scene mounts the window on top of
+it, so the ground's visible flat area is `frame − window`; the montage paints one
+of `MONTAGE_STAGES` full bleed; the end card sweeps `END_WIPE_BAND` of the frame
+width in plum.
+
+Violet is decided by **hue, not by a list** — anything in 235–300° at saturation
+≥ 0.06. A list only catches the violets someone has already thought of, and all
+three rounds above were introduced by a colour that was not on the previous
+list.
+
+Moving `groundOf`, `CARD_GROUND` and `MONTAGE_STAGES` out of the components and
+into `scenes.ts` is part of the gate, not tidying: the gates bundle only
+React-free code, so a colour table inside a component is a colour table the
+constraint cannot be checked against.
+
+| revert | what reddens |
+|---|---|
+| `STAGE.render` → `#C3BAF2` | 4 `field` failures |
+| `STAGE.draw` → `#D3CCF2` | 5 `field` failures, including the montage |
+| `END_WIPE_BAND` → 0.2 | 1 `field` failure on the end card's wipe |
+| the price card's tone → `deep` | 1 `aubergine` failure — a third use |
+
+## D30. The open finding card is closed outside the review beat.
+
+The 9:16 storey still showed a dashed violet leader running from a pin on screen
+to a finding card that is not in frame. The state machine is right — the card was
+opened at 25.95 s and nothing closes it — but a line pointing off the edge at
+nothing is a rendering bug to a viewer.
+
+`camera.ts` § `showOpenFinding` passes a state with `openPin: null` on every
+scene except `receipt`. **This is a host decision, not an edit to the replica**:
+`state` is a prop, a closed finding card is an ordinary product state (the user
+dismissed it), and the film already chooses which second of the screenplay to
+show. `src/replica/**` is untouched and no new prop is needed.
+
+### Upstream finding: `ReviewFinding` has no `level`
+
+The same still shows three pins on the **L1** drawing that were raised against
+**L0** rooms, sitting at positions that mean nothing on the upper floor and
+crowding the cursor on the storey chips. The film cannot fix this and should not
+try: it has no way to know which storey a finding belongs to, because
+`ReviewFinding` is `{ message, archId? }`.
+
+**What the product would need:** `ReviewFinding.level?: number` — the storey the
+finding was raised on, absent meaning sheet-wide — and `ReviewPins` showing only
+the findings whose `level` matches `state.plan.page`, plus the sheet-wide ones.
+That is a product-repo change; hiding the pins film-side would be the film
+editing the product's findings, which is a different and worse thing than
+choosing a framing.

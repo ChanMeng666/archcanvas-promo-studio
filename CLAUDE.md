@@ -89,7 +89,9 @@ src/layout-core.ts   FPS, cut lengths, the 8 DELIVERABLES, deriveLayout(),     [
 src/layout.ts        useLayout() — the hook every component reads
 src/cuts.ts          four EDLs, in SECONDS                                     [React-free]
 src/scenes.ts        the 13-scene roster, its four kinds, the pace rules,      [React-free]
-                     `camera.frame` (where the camera stands) + `camera.to`
+                     `camera.frame` (where the camera stands) + `camera.to`,
+                     groundOf() / CARD_GROUND / MONTAGE_STAGES — the ONE table
+                     of what colour a scene is, because the violet gate reads it
 src/copy.ts          every word the FILM says in its own voice, + COPY_FLAGS   [React-free]
 src/honesty.ts       the caption beat, the draw hand-over and the drafting     [React-free]
                      span — all DERIVED from the synced screenplay
@@ -144,11 +146,13 @@ npm run dev                                   # Remotion Studio
 
 npm run lint                                  # tsc --noEmit
 npm run verify                                # assets -> replica -> timeline -> copy -> numbers
-                                              #   -> audio -> honesty -> framing -> opening
+                                              #   -> audio -> honesty -> framing -> violet
+                                              #   -> opening
 npm run stills --  --comp Studio-30-Landscape-16x9   # six beats of one master
 for c in ...; do node capture/stills.mjs --comp $c; done   # a full sweep, per comp
 node capture/stills.mjs --sheet --comp <id>   # contact FRAMES for one cut
-npm run stills:sheet                          # tile them, once, from disk
+npm run stills:sheet                          # tile them, once, from disk —
+                                              #   BOTH aspects, grid aimed at 16:9
 node capture/stills.mjs --at 30-Land:7.4,9.1  # ad-hoc seconds, for a look-fix pass
 pwsh -File ./render.ps1 -ListOnly             # the plan + the orphan scan, renders nothing
 pwsh -File ./render.ps1                       # all eight, sequential

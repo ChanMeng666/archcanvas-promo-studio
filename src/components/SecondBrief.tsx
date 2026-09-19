@@ -4,10 +4,11 @@ import { AbsoluteFill, useCurrentFrame } from "remotion";
 import { FONT } from "../fonts";
 import { MONTAGE, MONTAGE_PAGES, MONTAGE_PANE_ENTRY_FLOOR, drawState } from "../film-demo";
 import { useLayout } from "../layout";
+import { MONTAGE_STAGES } from "../scenes";
 import { typedLength } from "../replica/at";
 import { PlanSvg } from "../replica/parts/PlanSvg";
 import { clamp01, easeOutCubic, easeOutExpo, frameToSec, type ResolvedBeat } from "../timeline";
-import { APP, CANVAS_DOT_PITCH, CANVAS_DRIFT_PX, RADIUS, SPOT, STAGE, TRACKING, TYPE, WEIGHT } from "../tokens";
+import { APP, CANVAS_DOT_PITCH, CANVAS_DRIFT_PX, RADIUS, SPOT, TRACKING, TYPE, WEIGHT } from "../tokens";
 import { fitLines } from "../typefit";
 
 /**
@@ -249,7 +250,6 @@ const MontagePane: React.FC<{
 };
 
 /** One stage per montage plan, from the film's own script. */
-const MONTAGE_STAGES = [STAGE.edit, STAGE.tweak, STAGE.draw, STAGE.export] as const;
 
 const size = (p: number): number => 0.4 + 0.6 * p;
 

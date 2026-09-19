@@ -4,7 +4,7 @@ import { AbsoluteFill } from "remotion";
 import { COPY_FLAGS } from "../copy";
 import { CHAPTER_LABELS } from "../film-demo";
 import { splitStage, useLayout } from "../layout";
-import { SCENES, type SceneId } from "../scenes";
+import { SCENES, groundOf } from "../scenes";
 import type { ResolvedBeat } from "../timeline";
 import { APP, BAND, SPOT, STAGE } from "../tokens";
 import { EndCard } from "./EndCard";
@@ -37,15 +37,6 @@ import { SecondBrief } from "./SecondBrief";
  * and a chip over the film's own voice would be labelling the wrong thing.
  */
 /** The ground a scene shows, whatever its kind — what a wipe leaves behind. */
-export const groundOf = (id: SceneId | null): string | null => {
-  if (!id) return null;
-  const s = SCENES[id];
-  if (s.chapter) return STAGE[s.chapter];
-  if (s.tone === "deep") return BAND.aubergine;
-  if (s.tone === "bright") return BAND.buttercream;
-  return APP.page;
-};
-
 export const SceneRouter: React.FC<{ beat: ResolvedBeat }> = ({ beat }) => {
   const scene = SCENES[beat.scene];
   const dur = beat.durationInFrames;
