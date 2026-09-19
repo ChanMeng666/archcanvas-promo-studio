@@ -11,10 +11,16 @@
  *
  * So: render frames with `stills.mjs --sheet`, as many times as it takes, then
  * tile once with this. It reads `out/stills/wp9/contact/`, groups by
- * composition, and writes one `contact-sheet-<comp>.png` per landscape cut.
+ * composition, and writes one `contact-sheet-<comp>.png` per composition.
  *
- * Landscape only, per the work package: a tiled 9:16 grid at a readable width is
- * taller than a screen, which defeats the purpose.
+ * ⚠ BOTH frame shapes. It was landscape-only, on the reasoning that a tiled 9:16
+ * grid at a readable width is taller than a screen — which is true of a square
+ * grid and not true of the right one. The founder reviews both aspects, and the
+ * two shapes differ in more than proportion: the chapter chip is landscape-only,
+ * the caption breaks into two lines, the split band is deeper, the replica fills
+ * the frame instead of letterboxing. A round of defects lived only in 9:16 and
+ * was found by looking at single stills one at a time. The grid is chosen from
+ * the FRAME's shape so the sheet comes out roughly 16:9 either way.
  *
  * Usage:  node capture/tile-contact.mjs
  */
@@ -25,9 +31,13 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { loadCore } from "./lib/load-core.mjs";
+
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const OUT = path.join(ROOT, "out", "stills", "wp9");
 const DIR = path.join(OUT, "contact");
+
+const { DELIVERABLES } = (await loadCore()).layout;
 
 if (!fs.existsSync(DIR)) {
   console.error("\ntile-contact: out/stills/wp9/contact/ does not exist. Run `node capture/stills.mjs --sheet --comp <id>` first.\n");
@@ -49,10 +59,20 @@ if (byComp.size === 0) {
 
 let written = 0;
 for (const [comp, list] of [...byComp.entries()].sort()) {
-  if (!comp.includes("Landscape")) continue;
   list.sort();
   const n = list.length;
-  const cols = Math.ceil(Math.sqrt(n * 1.6));
+  const d = DELIVERABLES.find((x) => x.id === comp);
+  if (!d) {
+    console.error(`  ${comp.padEnd(27)} is not a composition in DELIVERABLES — skipped`);
+    continue;
+  }
+  /*
+   * Aim the SHEET at 16:9, whatever the frame is. cols/rows * (frameW/frameH)
+   * = 16/9, solved for cols with rows = n/cols. A 9:16 cut therefore lays out
+   * wide and shallow (10 x 3) where a 16:9 one lays out 7 x 5 — the same thirty
+   * frames, both readable on one screen.
+   */
+  const cols = Math.min(n, Math.max(1, Math.round(Math.sqrt((n * (16 / 9)) / (d.width / d.height)))));
   const rows = Math.ceil(n / cols);
 
   /**
