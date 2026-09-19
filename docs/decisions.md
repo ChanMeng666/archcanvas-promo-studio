@@ -839,3 +839,75 @@ So:
 
 `tokens.ts` carries the note again, with the round trip in it, so the next person
 who reaches for a violet field finds out here rather than in review.
+
+## D25. The rest of the art-direction round: caption size, frame 0, per-aspect expulsion.
+
+Three smaller items from the same review, each with a gate so none of them can
+come back quietly.
+
+**The film's own caption sets at 1.42× `TYPE.caption`.** It was 1.15, which under
+the money shot's drawing read as small print — the wrong register for the one
+sentence in the film whose entire job is to be read. At 1.42 it is 36 px at 1920
+wide and 41 px at 1080 wide portrait. The number lives in `src/caption.ts`, alone
+in a React-free module, because `capture/verify-opening.mjs` asserts the floors
+(30 px landscape, 34 px portrait) and the gates bundle only React-free code. A
+constant a gate reads cannot live inside a component.
+
+**Frame 0 is a designed frame.** Platforms pick it for the thumbnail. D20 had
+already raised the card's accent rule off zero so the frame was not bare; a tiny
+plum dash on ivory is still not a frame anyone would have chosen. The rule now
+opens at 0.62 of its width and the first word is 50 % out of its mask
+(`WORD_FLOOR`), so the opening frame is a composition and the reveal still reads
+as a reveal — the remaining half happens in three frames.
+
+**The caption expulsion is decided PER ASPECT.** D23 made it per beat, which was
+right, and then applied the same fill threshold to both frame shapes, which was
+not. The replica letterboxes in 16:9 (a 1600×1000 design box against 1.78) so a
+tight fill costs a real push and the studio's caption rides up over the drafting
+sheet's own text; it FILLS a 9:16 frame (1000×1333 against 0.56) so the same fill
+needs no push and the replica's own layout holds. Expelling in portrait anyway
+costs a 1.61× push, and at 1.61 the drafting card came back at **142 % of the
+frame width** — cropped on both sides, in the cut whose whole job is to show a
+plan being drawn. `CAPTION_SAFE_FILL` is now `{ landscape: 0.72, portrait: 1.01 }`
+and `timelineFor(cut, aspect)` / `honestyWindow(cut, aspect)` resolve both. Only
+`expelsCaption` differs between the two; lengths and boundaries are identical,
+and `verify:timeline` asserts that.
+
+## D26. `verify:framing` — the subject has to fit the frame, and the card has to fill one.
+
+The 142 % crop was found by looking at a contact sheet, for the second time. A
+green timeline and a green honesty gate both said nothing, because the caption
+they check was perfectly placed on top of the wreckage. So the claim the stills
+were making now has a gate.
+
+`capture/verify-framing.mjs` asks the real `camera.js`, at the settled end of
+every replica beat in all eight masters, where the beat's subject actually lands,
+and fails if it is over 104 % of the frame the viewer can see. It also measures
+every hero card through `fitLines` — the same arithmetic the card sets itself
+with — against the floors the review set: 70 % of the frame width in 16:9, 84 %
+of the safe width in 9:16. Both currently clear by a margin (88–99 % subjects,
+84 % / 97 % cards).
+
+Writing it turned up **a real defect in every split scene**, which is what a gate
+is for. `camera.fill` is a fraction of the frame; a split scene gives its lower
+fifth to the type band, so a subject at `fill: 0.90` was landing at 136 % of the
+part of the frame a viewer can actually see — a plan cropped through its own room
+labels. And `framePush`'s recentre aimed at the frame's centre, which in a split
+scene is behind the band, pulling the subject down so the crop fell on its top
+edge. Two fixes, one idea: **the camera's frame is the VISIBLE frame.** The fill
+is measured against `clipBottom`, and the aim anchors on the centre of
+`protectBounds` rather than of the frame. Coverage still uses the whole frame —
+the page behind the picture must never show anywhere. `edit` and `export` gave up
+a few points of fill (0.90 → 0.86, 0.92 → 0.87) to land the last four beats
+inside the ceiling; every subject is now 88–99 % of the visible frame and none of
+them is cut.
+
+Mutation evidence, all four checks:
+
+| revert | what reddens |
+|---|---|
+| `CAPTION_SCALE` 1.42 → 1.15 | 8 `caption-size` failures, one per master |
+| `WORD_FLOOR` 0.5 → 0 | 8 `blank` failures on the card openings |
+| `CAPTION_SAFE_FILL.portrait` 1.01 → 0.72 | 4 `cropped` failures, the drafting card at **142 %** |
+| `TYPE.hero` 190 → 110 | 12 `small` failures |
+| the visible-frame fill and aim | 16 `cropped` failures, split scenes at 119–143 % |

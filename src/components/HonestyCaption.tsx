@@ -1,6 +1,7 @@
 import React from "react";
 import { AbsoluteFill, useCurrentFrame } from "remotion";
 
+import { CAPTION_SCALE } from "../caption";
 import { HONESTY, linesFor } from "../copy";
 import { FONT } from "../fonts";
 import { useLayout } from "../layout";
@@ -76,7 +77,7 @@ export const HonestyCaption: React.FC<{
   // Anchored to the BOTTOM OF THE STAGE, never to the bottom of the frame. In
   // 9:16 the last 390 px belong to Reels, TikTok and Shorts, and the film's one
   // mandatory sentence is the last thing that may sit behind a share sheet.
-  const height = layout.u(TYPE.caption * 1.15 * 1.3) * lines.length + layout.u(34);
+  const height = layout.u(TYPE.caption * CAPTION_SCALE * 1.3) * lines.length + layout.u(40);
 
   return (
     <AbsoluteFill
@@ -95,7 +96,7 @@ export const HonestyCaption: React.FC<{
           backgroundColor: APP.card,
           border: `${layout.u(1.5)}px solid ${APP.hairline}`,
           borderRadius: layout.u(RADIUS.pill),
-          padding: `${layout.u(14)}px ${layout.u(30)}px`,
+          padding: `${layout.u(18)}px ${layout.u(38)}px`,
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
@@ -107,7 +108,7 @@ export const HonestyCaption: React.FC<{
             key={line}
             style={{
               fontFamily: FONT.sans,
-              fontSize: layout.u(TYPE.caption * 1.15),
+              fontSize: layout.u(TYPE.caption * CAPTION_SCALE),
               fontWeight: WEIGHT.medium,
               letterSpacing: `${TRACKING.body}em`,
               lineHeight: 1.3,

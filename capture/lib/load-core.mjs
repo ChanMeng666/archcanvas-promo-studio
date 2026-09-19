@@ -52,6 +52,13 @@ export * as film from "./film-demo";
 export * as cues from "./cues";
 export * as honesty from "./honesty";
 export * as audio from "./audio";
+// The film caption's own type scale, which a gate has to check. The component is
+// React; the constant is not, and esbuild keeps only what is reachable.
+export * as caption from "./caption";
+// The authored lines and the size arithmetic that sets them, so the framing gate
+// can measure a card the way the card measures itself.
+export * as copy from "./copy";
+export * as typefit from "./typefit";
 `;
 
 let cached = null;

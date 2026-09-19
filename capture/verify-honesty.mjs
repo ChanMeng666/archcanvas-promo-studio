@@ -60,7 +60,7 @@ const fail = (kind, subject, detail) => failures.push({ kind, subject, detail })
 
 const film = await loadFilm();
 const { DELIVERABLES, deriveLayout, FPS, splitStage } = film.layout;
-const { TIMELINES } = film.timeline;
+const { timelineFor, honestyWindow } = film.timeline;
 const { HONESTY_MIN_SEC } = film.cuts;
 const { SCENES } = film.scenes;
 const { shotFor, insideFrame } = film.camera;
@@ -91,7 +91,7 @@ const report = {};
 
 for (const d of DELIVERABLES) {
   const layout = deriveLayout(d.width, d.height);
-  const resolved = TIMELINES[d.cut];
+  const resolved = timelineFor(d.cut, layout.aspect);
   const windowed = layout.aspect === "landscape";
 
   let opaqueFrames = 0;
@@ -109,15 +109,15 @@ for (const d of DELIVERABLES) {
    */
   const ink = new Float64Array(resolved.totalFrames);
   const filmInk = new Float64Array(resolved.totalFrames);
-  const honestyWindow = film.timeline.honestyWindowFor(resolved);
-  if (honestyWindow.source === "film") {
+  const win = honestyWindow(d.cut, layout.aspect);
+  if (win.source === "film") {
     // The band fades in over `MOTION.enterSec` (capped at a sixth of the window)
     // and does NOT fade out — `HonestyCaption`'s own arithmetic.
-    const fade = honestyWindow.hardIn ? 0 : Math.min(0.24, (honestyWindow.to - honestyWindow.from) / 6);
+    const fade = win.hardIn ? 0 : Math.min(0.24, (win.to - win.from) / 6);
     for (let f = 0; f < resolved.totalFrames; f += 1) {
       const sec = f / FPS;
-      if (sec < honestyWindow.from || sec > honestyWindow.to) continue;
-      filmInk[f] = fade <= 0 ? 1 : Math.min(1, Math.max(0, (sec - honestyWindow.from) / fade));
+      if (sec < win.from || sec > win.to) continue;
+      filmInk[f] = fade <= 0 ? 1 : Math.min(1, Math.max(0, (sec - win.from) / fade));
     }
   }
 
@@ -195,7 +195,7 @@ for (const d of DELIVERABLES) {
   }
 
   const replicaSec = opaqueRun(ink) / FPS;
-  const filmDraws = honestyWindow.source === "film";
+  const filmDraws = win.source === "film";
   const filmSec = filmDraws ? opaqueRun(filmInk) / FPS : 0;
   const total = longestRun / FPS;
 

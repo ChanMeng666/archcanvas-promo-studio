@@ -287,9 +287,13 @@ export const framePush = ({
 
   // A hold is a hold: the recentre fades in with the push, so a beat that barely
   // moves does not slide its subject across the frame to get there.
+  // Toward the middle of what a VIEWER CAN SEE, not the middle of the frame. In
+  // a split scene the lower fifth is the type band, so aiming at the frame's
+  // centre pulls the subject down behind it and crops its top edge off the
+  // screen — which is exactly what the split beats' stills showed.
   const aim = RECENTRE * clamp01((s - 1) / 0.2);
-  const anchorX = fx + (frameW / 2 - fx) * aim;
-  const anchorY = fy + (frameH / 2 - fy) * aim;
+  const anchorX = fx + (bounds.x + bounds.w / 2 - fx) * aim;
+  const anchorY = fy + (bounds.y + bounds.h / 2 - fy) * aim;
 
   let loX = -(s - 1) * frameW;
   let hiX = 0;
@@ -630,7 +634,15 @@ export const shotFor = (
   const focusRect = focusRectFor(beat.scene, ctx, span);
   const focusFilm = focusRect ? designRect(mount, focusRect) : mount.rect;
   const focus = centreOf(focusFilm);
-  const stand = fillScale(focusFilm, layout.width, layout.height, beat.fill);
+  /*
+   * `fill` is a fraction of the frame the VIEWER SEES. In a full-bleed scene
+   * that is the frame; in a split scene the picture stops at the type band, and
+   * measuring the fill against the whole frame pushed a 0.90 subject to 136 % of
+   * the visible half — a plan cropped through its own room labels in the beat
+   * whose job is to show a room changing.
+   */
+  const viewH = opts.clipBottom === undefined ? layout.height : Math.min(layout.height, opts.clipBottom);
+  const stand = fillScale(focusFilm, layout.width, viewH, beat.fill);
 
   const push = framePush({
     frameW: layout.width,

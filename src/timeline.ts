@@ -22,7 +22,7 @@
  * while `warnings` is non-empty.
  */
 
-import { CUT_IDS, CUT_SECONDS, FPS, type CutId } from "./layout-core";
+import { CUT_IDS, CUT_SECONDS, FPS, type Aspect, type CutId } from "./layout-core";
 import { CUTS, HONESTY_MIN_SEC, HONESTY_OVERLAY_SEC, type Edit } from "./cuts";
 import { DRAW_HANDOFF_SEC } from "./honesty";
 import { gridFor } from "./data/music-grid";
@@ -194,12 +194,69 @@ export interface ResolvedBeat {
 
 export interface ResolvedCut {
   cut: CutId;
+  /** Which frame shape this was resolved for — only `expelsCaption` differs. */
+  aspect: Aspect;
   beats: readonly ResolvedBeat[];
   totalFrames: number;
   totalSeconds: number;
   /** How many boundaries the beat grid actually moved. 0 with no grid. */
   snapped: number;
 }
+
+/**
+ * Does this beat frame past the product's own honesty caption?
+ *
+ * ⚠ PER ASPECT, and two conditions. The second one is what the art-direction
+ * review caught; the per-aspect part is what fixing it broke and then fixed.
+ *
+ * The obvious case is the money shot: framed on the building at 85 % of the
+ * frame, the caption is far below the edge, so the film draws the sentence in
+ * its own band instead.
+ *
+ * The case that was missed is the drafting beat. The product's caption sits
+ * under the command bar, the drafting sheet sits in the middle of the stage, and
+ * at a framing tight enough to make the sheet readable the caption rides UP over
+ * the sheet's own text. A caption on top of the interface it is captioning is
+ * not "in its designed place" — it is a collision — so any beat that frames the
+ * replica closer than `CAPTION_SAFE_FILL` hands the sentence to the film's band
+ * too. The band is above the camera; nothing can land on it.
+ *
+ * Below that fill the shot is wide enough that the replica's own layout holds,
+ * and the product says it itself.
+ */
+const CAPTION_SAFE_FILL: Record<Aspect, number> = {
+  /**
+   * The replica letterboxes in a 16:9 frame — a 1600 x 1000 design box is 1.60
+   * against the frame's 1.78 — so reaching any tight fill costs a real push. The
+   * drafting card at 0.85 is a 2.37x shot, and at 2.37 the caption rides up over
+   * the sheet's own text.
+   */
+  landscape: 0.72,
+  /**
+   * The replica FILLS a 9:16 frame — 1000 x 1333 is 0.75 against 0.56 — so the
+   * same fills need no push at all and the replica's own layout holds. Above 1
+   * so it never triggers, which is the honest way to say "never here" rather
+   * than a number that looks tuned.
+   *
+   * It matters that this is not simply set to the landscape value: expelling in
+   * portrait costs a 1.61x push (the caption sits at 78 % of the design height,
+   * and clearing the bottom edge from there is expensive), and at 1.61 the
+   * drafting card is 143 % of the frame width. Cropped on both sides — the exact
+   * defect the per-beat rule was introduced to fix.
+   */
+  portrait: 1.01,
+};
+
+const expels = (
+  id: SceneId,
+  win: { from: number; to: number } | null,
+  fill: number,
+  aspect: Aspect,
+): boolean => {
+  if (SCENES[id].filmCaption !== true || win === null) return false;
+  if (win.from >= DRAW_HANDOFF_SEC - 1e-9) return true;
+  return fill > CAPTION_SAFE_FILL[aspect] + 1e-9;
+};
 
 /** The replica window a beat plays: its own, or the scene's default. */
 const windowFor = (edit: Edit): { from: number; to: number } | null => {
@@ -221,14 +278,14 @@ const windowFor = (edit: Edit): { from: number; to: number } | null => {
  * also makes grid snapping safe: a snapped boundary moves two beats and changes
  * no total.
  */
-export const resolveCut = (cut: CutId, grid?: BeatGrid | null): ResolvedCut => {
+export const resolveCut = (cut: CutId, grid?: BeatGrid | null, aspect: Aspect = "landscape"): ResolvedCut => {
   const edits = CUTS[cut];
   const target = CUT_SECONDS[cut];
   const targetFrames = framesForCut(cut);
 
   if (edits.length === 0) {
     warn(`cut "${cut}" has an empty edit decision list — there is nothing to render.`);
-    return { cut, beats: [], totalFrames: 0, totalSeconds: 0, snapped: 0 };
+    return { cut, aspect, beats: [], totalFrames: 0, totalSeconds: 0, snapped: 0 };
   }
 
   const sum = edits.reduce((n, e) => n + e.sec, 0);
@@ -303,8 +360,7 @@ export const resolveCut = (cut: CutId, grid?: BeatGrid | null): ResolvedCut => {
       replicaTo: win?.to,
       push: edit.push ?? scene.camera?.to ?? 1,
       fill: edit.fill ?? scene.camera?.fill ?? 1,
-      expelsCaption:
-        scene.filmCaption === true && win !== null && win.from >= DRAW_HANDOFF_SEC - 1e-9,
+      expelsCaption: expels(edit.scene, win, edit.fill ?? scene.camera?.fill ?? 1, aspect),
       replicaRate: win && durationSec > 0 ? (win.to - win.from) / durationSec : null,
     };
   });
@@ -314,11 +370,27 @@ export const resolveCut = (cut: CutId, grid?: BeatGrid | null): ResolvedCut => {
     warn(`cut "${cut}" derives ${totalFrames} frames but must be ${targetFrames}.`);
   }
 
-  return { cut, beats, totalFrames, totalSeconds: frameToSec(totalFrames), snapped };
+  return { cut, aspect, beats, totalFrames, totalSeconds: frameToSec(totalFrames), snapped };
 };
 
 const built = {} as Record<CutId, ResolvedCut>;
 for (const id of CUT_IDS) built[id] = resolveCut(id, gridFor(id));
+
+/**
+ * The same four edits resolved for a 9:16 frame.
+ *
+ * ⚠ Only `expelsCaption` differs, and it has to: expelling the product's caption
+ * costs a 1.61x push in portrait and 2.37x is what a landscape drafting shot
+ * needs anyway, so the same rule applied to both crops the portrait drafting
+ * card on every side. Lengths, boundaries and windows are identical — the gates
+ * assert it.
+ */
+const builtPortrait = {} as Record<CutId, ResolvedCut>;
+for (const id of CUT_IDS) builtPortrait[id] = resolveCut(id, gridFor(id), "portrait");
+
+/** The resolved edit for a frame shape. `Film.tsx` and every gate read this. */
+export const timelineFor = (cut: CutId, aspect: Aspect): ResolvedCut =>
+  aspect === "portrait" ? builtPortrait[cut] : built[cut];
 
 /**
  * The four derived edits, keyed by cut, WITH the music's bar grid applied.
@@ -550,16 +622,29 @@ export const honestyWindowFor = (resolved: ResolvedCut): HonestyWindow => {
 
 const honestyBuilt = {} as Record<CutId, HonestyWindow>;
 for (const id of CUT_IDS) honestyBuilt[id] = honestyWindowFor(TIMELINES[id]);
+const honestyPortrait = {} as Record<CutId, HonestyWindow>;
+for (const id of CUT_IDS) honestyPortrait[id] = honestyWindowFor(builtPortrait[id]);
 
-/** The honesty window per cut, with no beat grid applied. */
+/** The honesty window per cut, landscape. */
 export const HONESTY_WINDOWS: Readonly<Record<CutId, HonestyWindow>> = honestyBuilt;
 
+/**
+ * The honesty window for a frame shape.
+ *
+ * It differs between the two, and it must: the band runs over exactly the beats
+ * that frame past the product's own caption, and which beats those are depends
+ * on the frame shape.
+ */
+export const honestyWindow = (cut: CutId, aspect: Aspect): HonestyWindow =>
+  aspect === "portrait" ? honestyPortrait[cut] : honestyBuilt[cut];
+
 for (const id of CUT_IDS) {
-  const h = HONESTY_WINDOWS[id];
-  if (h.coveredSec + 1e-9 < HONESTY_MIN_SEC) {
-    warn(
-      `cut "${id}" keeps the honesty caption on screen for ${h.coveredSec.toFixed(2)}s, under the ${HONESTY_MIN_SEC}s floor.`,
-    );
+  for (const h of [honestyBuilt[id], honestyPortrait[id]]) {
+    if (h.coveredSec + 1e-9 < HONESTY_MIN_SEC) {
+      warn(
+        `cut "${id}" keeps the honesty caption on screen for ${h.coveredSec.toFixed(2)}s, under the ${HONESTY_MIN_SEC}s floor.`,
+      );
+    }
   }
 }
 

@@ -257,7 +257,12 @@ export const SCENES: Readonly<Record<SceneId, Scene>> = {
     // and the hall gives up the strip, and from the fit a viewer cannot see it.
     // The kitchen and the command bar in one frame: the beat is the sentence
     // and the change it makes.
-    camera: { to: 1.06, fill: 0.9 },
+    //
+    // 0.86, not 0.90: a split scene's fill is measured against the part of the
+    // frame above the type band (`camera.ts` § shotFor), and the last few points
+    // were the difference between a subject that fits and one cut at its top
+    // edge. `verify:framing`.
+    camera: { to: 1.06, fill: 0.86 },
   },
 
   tweak: {
@@ -324,9 +329,9 @@ export const SCENES: Readonly<Record<SceneId, Scene>> = {
     // Not 35: the screenplay ends on the landing loop's fade-out and a film
     // cuts to its end card instead. See `cuts.ts` § LOOP_FADE_SEC.
     defaultReplica: { from: 31.5, to: LOOP_FADE_SEC },
-    // The open menu and the sheet it belongs to.
-    // The menu, readable, with the drawing it belongs to.
-    camera: { to: 1.04, fill: 0.92 },
+    // The menu, readable, with the drawing it belongs to. 0.87 rather than 0.92
+    // for the reason the `edit` beat gives.
+    camera: { to: 1.04, fill: 0.87 },
   },
 
   price: {

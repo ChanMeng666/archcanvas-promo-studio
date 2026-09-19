@@ -46,11 +46,13 @@ const fail = (kind, subject, detail) => failures.push({ kind, subject, detail })
 
 const film = await loadFilm();
 const { CUT_IDS, FPS } = film.layout;
-const { TIMELINES } = film.timeline;
+const { timelineFor } = film.timeline;
 const { SCENES } = film.scenes;
 const { entryOpacity, ENTRY_OPACITY_FLOOR } = film.camera;
 const { MONTAGE_PANE_ENTRY_FLOOR } = film.film;
-const { CARD_RULE_FLOOR, WORD_RISE_SEC, WORD_STAGGER_SEC, CONTRAST_PAIRS } = film.tokens;
+const { CARD_RULE_FLOOR, WORD_FLOOR, WORD_RISE_SEC, WORD_STAGGER_SEC, CONTRAST_PAIRS, TYPE } = film.tokens;
+const { deriveLayout, DELIVERABLES } = film.layout;
+const { CAPTION_SCALE } = film.caption;
 
 /**
  * How much ink a frame must carry to count as arrived.
@@ -76,7 +78,10 @@ const OPENING_MIN = 0.5;
  * sets the rule from — rather than being restated here, so this cannot drift
  * from what is drawn.
  */
-const CARD_RULE_MIN = 0.1;
+const CARD_RULE_MIN = 0.45;
+
+/** How far the first word must already be out of its mask on frame 0. */
+const FRAME_ZERO_WORD_MIN = 0.35;
 
 /**
  * The hook has to be ON SCREEN BY FRAME 3 — the art-direction note's words.
@@ -97,7 +102,7 @@ const easeOutExpo = (t) => {
 let openings = 0;
 
 for (const cut of CUT_IDS) {
-  for (const beat of TIMELINES[cut].beats) {
+  for (const beat of timelineFor(cut, "landscape").beats) {
     const scene = SCENES[beat.scene];
     openings += 1;
 
@@ -131,7 +136,15 @@ for (const cut of CUT_IDS) {
           "blank",
           `cut ${cut}s beat ${beat.index} "${beat.scene}"`,
           `the card's accent rule opens at ${CARD_RULE_FLOOR} of its width, under the ${CARD_RULE_MIN} floor — ` +
-            "its line is behind a mask on frame 0 by design, so the rule is the only ink the frame has",
+            "frame 0 is the thumbnail a platform picks, and it has to be a frame someone would have chosen",
+        );
+      }
+      if (WORD_FLOOR < FRAME_ZERO_WORD_MIN) {
+        fail(
+          "blank",
+          `cut ${cut}s beat ${beat.index} "${beat.scene}"`,
+          `the card's first word is only ${(WORD_FLOOR * 100).toFixed(0)} % risen on frame 0, under the ` +
+            `${(FRAME_ZERO_WORD_MIN * 100).toFixed(0)} % floor — a thumbnail of a starting gun is not a designed frame`,
         );
       }
     }
@@ -139,6 +152,35 @@ for (const cut of CUT_IDS) {
     // opening in the film that is deliberately not the scene behind it.
   }
 }
+
+/* ── the film's own caption is readable ───────────────────────────────────── */
+
+/**
+ * How big the film's honesty band sets, per frame shape.
+ *
+ * ⚠ Floors, not intentions. Under the money shot's drawing the band read as
+ * small print in the first cut, which is the wrong register for the one sentence
+ * in the film that exists to be read. 30 px at 1920 wide and 34 px at 1080 wide
+ * are the sizes the art-direction review set, and this checks the arithmetic the
+ * component actually sets type with rather than a remembered number.
+ */
+const CAPTION_PX_FLOOR = { landscape: 30, portrait: 34 };
+
+let captionSizes = 0;
+for (const d of DELIVERABLES) {
+  const L = deriveLayout(d.width, d.height);
+  const px = L.u(TYPE.caption * CAPTION_SCALE);
+  captionSizes += 1;
+  const floor = CAPTION_PX_FLOOR[L.aspect];
+  if (px + 1e-6 < floor) {
+    fail(
+      "caption-size",
+      d.id,
+      `the film's honesty band sets at ${px.toFixed(0)} px, under the ${floor} px floor for ${L.aspect}`,
+    );
+  }
+}
+if (captionSizes === 0) fail("vacuous", "caption size", "no composition was measured");
 
 /* ── pace: nothing holds still ─────────────────────────────────────────────── */
 
@@ -161,7 +203,7 @@ const MOVING_REPLICA_SEC = 0.4;
 
 let paced = 0;
 for (const cut of CUT_IDS) {
-  for (const beat of TIMELINES[cut].beats) {
+  for (const beat of timelineFor(cut, "landscape").beats) {
     const scene = SCENES[beat.scene];
     if (scene.kind === "endcard") continue;
     paced += 1;
@@ -226,6 +268,8 @@ const summary = {
   entryOpacityFloor: ENTRY_OPACITY_FLOOR,
   montagePaneFloor: MONTAGE_PANE_ENTRY_FLOOR,
   cardRuleFloor: CARD_RULE_FLOOR,
+  wordFloor: WORD_FLOOR,
+  captionScale: CAPTION_SCALE,
   contrastPairs: pairs,
   pacedBeats: paced,
   staticMaxSec: STATIC_MAX_SEC,
@@ -249,6 +293,15 @@ console.log(
     `${pairs} colour pair(s) checked for contrast`,
 );
 console.log(`    ${paced} beat(s) paced against the ${STATIC_MAX_SEC}s static ceiling`);
+console.log(
+  `    the film's caption sets at ` +
+    DELIVERABLES.filter((d) => d.cut === "30")
+      .map((d) => {
+        const L = deriveLayout(d.width, d.height);
+        return `${L.u(TYPE.caption * CAPTION_SCALE)} px ${L.aspect}`;
+      })
+      .join(", "),
+);
 
 if (!failures.length) {
   console.log("\n  ✓ no scene opens on a blank frame, the hook is up by frame 3, every colour pair clears\n");

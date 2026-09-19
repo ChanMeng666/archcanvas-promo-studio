@@ -307,16 +307,16 @@ export const MOTION = {
  * How much of a card's accent rule is already drawn on its first frame.
  *
  * ⚠ Not zero, and the reason is the first frame of the whole film: it is a
- * card's first frame, the card's line is behind its mask by design, and with the
- * rule at zero width the frame is completely bare. A thumbnail, a scrub and the
- * first cell of every contact sheet all land there, and an empty ivory rectangle
- * reads as a missing asset. A short plum mark is an opening.
+ * card's first frame, and platforms pick it as the thumbnail. At 0.18 it was a
+ * tiny dash on ivory — better than bare, and still not a frame anyone chose. At
+ * 0.62 the rule is most of the way out and the first word is already half risen
+ * (`WORD_FLOOR`), so frame 0 is a composition rather than a starting gun.
  *
  * It lives in this file rather than next to the component because
  * `capture/verify-opening.mjs` reads it, and the gates bundle only the
  * React-free modules.
  */
-export const CARD_RULE_FLOOR = 0.18;
+export const CARD_RULE_FLOOR = 0.62;
 
 /**
  * How a card's words rise into frame: the rise, and the wait between words.
@@ -330,3 +330,14 @@ export const CARD_RULE_FLOOR = 0.18;
  */
 export const WORD_RISE_SEC = 0.1;
 export const WORD_STAGGER_SEC = 0.035;
+
+/**
+ * How far the first word has already risen on frame 0.
+ *
+ * The other half of making the opening frame a designed one. The word is half
+ * out of its mask and at 62 % opacity before a single frame has played, so a
+ * platform that grabs frame 0 for a thumbnail grabs a card mid-sentence rather
+ * than an empty rectangle — and the reveal still reads as a reveal, because the
+ * remaining half happens in three frames.
+ */
+export const WORD_FLOOR = 0.5;

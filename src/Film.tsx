@@ -6,7 +6,7 @@ import { HonestyCaption } from "./components/HonestyCaption";
 import { SceneRouter } from "./components/SceneRouter";
 import { useLayout, type CutId } from "./layout";
 import { SCENES } from "./scenes";
-import { TIMELINES, honestyWindowFor } from "./timeline";
+import { honestyWindow, timelineFor } from "./timeline";
 import { APP } from "./tokens";
 
 import "./replica/replica.css";
@@ -46,15 +46,20 @@ import "./replica/replica.css";
  *
  * ── One clock ──────────────────────────────────────────────────────────────
  *
- * `TIMELINES[cut]`, not a fresh `resolveCut`. The scaffold resolved here with
- * the beat grid while `TIMELINES` — which the cue sheets, `beatAtFrame` and
- * every gate read — was resolved without it. Both now come from the one
+ * `timelineFor(cut, aspect)`, not a fresh `resolveCut`. The scaffold resolved
+ * here with the beat grid while `TIMELINES` — which the cue sheets, `beatAtFrame`
+ * and every gate read — was resolved without it. Both now come from the one
  * derivation, and the grid is applied inside it.
+ *
+ * It takes the ASPECT because one thing genuinely differs between the two frame
+ * shapes: which beats frame past the product's own honesty caption, and
+ * therefore where the film's own band runs. Lengths and boundaries are
+ * identical, and `verify:timeline` asserts that.
  */
 export const Film: React.FC<{ cut: CutId }> = ({ cut }) => {
   const layout = useLayout();
-  const resolved = TIMELINES[cut];
-  const honesty = useMemo(() => honestyWindowFor(resolved), [resolved]);
+  const resolved = timelineFor(cut, layout.aspect);
+  const honesty = useMemo(() => honestyWindow(cut, layout.aspect), [cut, layout.aspect]);
 
   return (
     <AbsoluteFill style={{ backgroundColor: APP.page, width: layout.width, height: layout.height }}>

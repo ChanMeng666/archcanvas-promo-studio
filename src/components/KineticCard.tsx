@@ -17,6 +17,7 @@ import {
   TRACKING,
   TYPE,
   WEIGHT,
+  WORD_FLOOR,
   WORD_RISE_SEC,
   WORD_STAGGER_SEC,
 } from "../tokens";
@@ -195,7 +196,11 @@ const MaskedLine: React.FC<{
       }}
     >
       {words.map((word, i) => {
-        const p = easeOutExpo(clamp01((sec - delay - WORD_STAGGER_SEC * i) / WORD_RISE_SEC));
+        // The first word of the first line starts half risen: frame 0 is the
+        // thumbnail, and it has to be a frame someone would have chosen.
+        const raw = easeOutExpo(clamp01((sec - delay - WORD_STAGGER_SEC * i) / WORD_RISE_SEC));
+        const floor = delay === 0 && i === 0 ? WORD_FLOOR : 0;
+        const p = floor + (1 - floor) * raw;
         return (
           <span
             key={`${i}-${word}`}
