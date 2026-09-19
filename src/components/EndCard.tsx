@@ -6,7 +6,7 @@ import { END_DESCRIPTOR, END_DOMAIN, linesFor } from "../copy";
 import { FONT } from "../fonts";
 import { useLayout } from "../layout";
 import { FPS, clamp01, easeOutCubic, easeOutExpo } from "../timeline";
-import { APP, MOTION, SPOT, TRACKING, TYPE, WEIGHT } from "../tokens";
+import { APP, END_WIPE_BAND, MOTION, SPOT, TRACKING, TYPE, WEIGHT } from "../tokens";
 
 /**
  * The closing frame: the mark, the address, and what the thing is.
@@ -41,12 +41,16 @@ import { APP, MOTION, SPOT, TRACKING, TYPE, WEIGHT } from "../tokens";
 /**
  * How wide the sweeping band is, as a fraction of the frame.
  *
- * A fifth. It used to be the whole frame, which made it a flat violet surface
- * for nine frames — and the standing objection to large flat violet does not
- * have a nine-frame exemption. A band reads as a swipe, which is what it was
- * always meant to be.
+ * It used to be the whole frame, which made it a flat violet surface for nine
+ * frames — and the standing objection to large flat violet does not have a
+ * nine-frame exemption. A band reads as a swipe, which is what it was always
+ * meant to be.
+ *
+ * ⚠ The number lives in `tokens.ts` as `END_WIPE_BAND`, under
+ * `VIOLET_AREA_MAX`, because `verify:violet` checks it against the ceiling and
+ * a number a gate cannot see is a number that drifts back to a fifth.
  */
-const WIPE_BAND = 0.2;
+const WIPE_BAND = END_WIPE_BAND;
 
 export const EndCard: React.FC<{ dur: number }> = ({ dur }) => {
   const frame = useCurrentFrame();

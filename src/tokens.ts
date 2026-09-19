@@ -94,14 +94,40 @@ export const CANVAS_DRIFT_PX = 0.22;
  * rule under a card, the wipe on the end card. **Never a field and never a fill
  * behind a paragraph.**
  *
- * ⚠ This was relitigated and the objection won. The art direction asked for
- * full-bleed plum cards, the film got one on the price line, and the founder's
- * standing objection to large flat violet — recorded here before any of it —
- * settled it: the card is withdrawn. A rule of thumb for the next person to
- * reach for it: violet may cover about a seventh of a frame, and the end card's
- * wipe is the exception that proves it, because it is a field for nine frames
- * and then gone. `docs/decisions.md` D11 / D22 / D24.
+ * ⚠ This was relitigated twice and the objection won both times. The art
+ * direction asked for full-bleed plum cards, the film got one on the price line,
+ * and the founder's standing objection to large flat violet — recorded here
+ * before any of it — settled it. Then the STAGE tints behind the window turned
+ * out to be the same thing at a lower saturation, and they went too.
+ *
+ * The rule of thumb is now a number with a gate behind it: **no violet-family
+ * colour may cover more than {@link VIOLET_AREA_MAX} of a frame as a flat
+ * area**, aubergine's two approved uses excepted. `docs/decisions.md` D24 / D29.
  */
+/**
+ * The ceiling on any violet-family flat area, as a fraction of the frame.
+ *
+ * A founder constraint, not a taste call: large flat violet is objected to, and
+ * "large" needed a number before anyone could check it. A seventh of the frame
+ * is the width of a sweeping band, the height of a rule, the size of a chip —
+ * everything violet is meant to be — and it is comfortably under a stage ground
+ * or a type band, which is everything it is not.
+ *
+ * `capture/verify-violet.mjs` computes the areas from the layout rects, with no
+ * pixel reads, for every scene in both frame shapes.
+ */
+export const VIOLET_AREA_MAX = 0.15;
+
+/**
+ * How wide the end card's sweeping plum band is, as a fraction of the frame.
+ *
+ * The one place a violet field is allowed at all, and only because it is a
+ * field for nine frames and then gone. It lives here rather than in the
+ * component because `capture/verify-violet.mjs` checks it against the ceiling,
+ * and a number a gate cannot see is a number that drifts. It was a fifth once.
+ */
+export const END_WIPE_BAND = VIOLET_AREA_MAX - 0.01;
+
 export const SPOT = {
   /** --plum. The brand violet. */
   plum: "#8052FF",
@@ -135,34 +161,55 @@ export const BAND = {
  * picture of the product — so the colour goes on the ground it floats on, and
  * changes on the chapter boundary with the cut.
  *
- * Tints, not the raw band colours: `#AB9FF2` behind a bright window is a poster,
- * and the founder's objection to large flat violet is on the record. These are
- * the marketing band palette mixed into the page — periwinkle at 50 % and 70 %,
- * mint at 40 % — computed once and written out, because this file is parsed as
- * TEXT and a `mix()` is exactly what a text-parsing gate cannot see.
+ * Tints, not the raw band colours: computed once and written out, because this
+ * file is parsed as TEXT and a `mix()` is exactly what a text-parsing gate
+ * cannot see.
  *
- * ⚠ The first pass mixed at 28 % and 22 % and the stills showed why that is not
+ * ⚠ **NO VIOLET FAMILY, at any tint.** The draw stage was periwinkle at 50 %
+ * and the render stage periwinkle at 70 %, and in a 9:16 split scene that band
+ * is a third of the frame — a large flat violet area, which is the thing the
+ * founder objects to. A tint of a violet is still a violet; a pale one covering
+ * a third of the frame is exactly the case the objection is about. The
+ * constraint is now a rule with a gate behind it: no violet-family colour may
+ * cover more than {@link VIOLET_AREA_MAX} of a frame as a flat area.
+ * `capture/verify-violet.mjs`, `docs/decisions.md` D29.
+ *
+ * So the script is built from the palette's NON-violet members: the page, the
+ * product's own warm hairline used as a field, buttercream at two strengths and
+ * mint at two. The two mints are three chapters apart with the dark receipt
+ * between them, which is what keeps them from reading as a repeat.
+ *
+ * ⚠ An earlier pass mixed at 28 % and 22 % and the stills showed why that is not
  * enough: at the framings the money shot uses, the stage is a sliver either side
  * of the window, and a 28 % tint in a sliver is white. A colour script has to be
  * legible in the frames that show least of it.
  *
- * Aubergine is the one that is not a tint. The receipt beat is the film's
- * differentiated claim and it gets the frame that says so — a bright window on a
- * dark ground, with the split line in ivory at 9.6:1.
+ * Aubergine is the one that is not a tint, and the one violet-family colour with
+ * a standing exception — **two uses, both approved**: the what-line card and the
+ * receipt band. The receipt beat is the film's differentiated claim and it gets
+ * the frame that says so: a bright window on a dark ground, with the split line
+ * in ivory at 9.6:1. The gate counts those two and fails on a third.
  */
 export const STAGE = {
   /** --background. Where the film starts and ends. */
   brief: "#FBF8F2",
-  /** Periwinkle at 50 % over the page. */
-  draw: "#D3CCF2",
+  /**
+   * The product's own hairline (`--border`, `#E2DED5`) used as a FIELD — a warm
+   * sand, legible in a sliver, and a colour the product already owns.
+   */
+  draw: "#E2DED5",
   /** --band-buttercream, straight. */
   edit: "#FFFFC4",
   /** Mint at 40 % over the page. */
   tweak: "#A9E2C9",
   /** --band-aubergine, straight. The one dark stage in the film. */
   review: "#3C315B",
-  /** Periwinkle at 70 % — the deepest light stage, under the rendering. */
-  render: "#C3BAF2",
+  /**
+   * Mint at 24 % over the page. The lights coming up after the dark receipt,
+   * and the lightest of the two mints — `tweak` is the same hue at 40 %, three
+   * chapters and one aubergine frame away.
+   */
+  render: "#D7EFE4",
   /** Buttercream, softened — the last colour before the end card. */
   export: "#F7EFC9",
 } as const;
@@ -190,10 +237,10 @@ export const CONTRAST_PAIRS = [
   { fg: "#FFFFFF", bg: "#3C315B", min: 4.5, use: "white on the aubergine band" },
   { fg: "#FBF8F2", bg: "#3C315B", min: 4.5, use: "ivory type on the aubergine stage" },
   { fg: "#13110F", bg: "#FFFFC4", min: 4.5, use: "ink on the buttercream card" },
-  { fg: "#13110F", bg: "#D3CCF2", min: 4.5, use: "ink on the periwinkle-wash stage" },
+  { fg: "#13110F", bg: "#E2DED5", min: 4.5, use: "ink on the warm sand stage" },
   { fg: "#13110F", bg: "#FFFFC4", min: 4.5, use: "ink on the buttercream stage" },
   { fg: "#13110F", bg: "#A9E2C9", min: 4.5, use: "ink on the mint-wash stage" },
-  { fg: "#13110F", bg: "#C3BAF2", min: 4.5, use: "ink on the deep periwinkle stage" },
+  { fg: "#13110F", bg: "#D7EFE4", min: 4.5, use: "ink on the pale mint stage" },
   { fg: "#13110F", bg: "#F7EFC9", min: 4.5, use: "ink on the soft buttercream stage" },
 ] as const;
 

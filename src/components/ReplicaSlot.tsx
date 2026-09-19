@@ -5,9 +5,9 @@ import { replicaAssetUrl } from "../assets";
 import { entryOpacity, pushTransform, shotFor } from "../camera";
 import { FONT } from "../fonts";
 import { useLayout, type StageRect } from "../layout";
-import { SCENES, type ChapterId } from "../scenes";
+import { SCENES, groundOf, type ChapterId } from "../scenes";
 import { ColourWipe } from "./ColourWipe";
-import { groundOf } from "./SceneRouter";
+
 import { DEMO, PAGES } from "../film-demo";
 import { StudioReplica } from "../replica/StudioReplica";
 import { frameToSec, type ResolvedBeat } from "../timeline";

@@ -2,6 +2,7 @@ import React from "react";
 import { AbsoluteFill, useCurrentFrame } from "remotion";
 
 import { linesFor, type CardCopy } from "../copy";
+import { CARD_GROUND } from "../scenes";
 import { FONT } from "../fonts";
 import { splitStage, useLayout, type Layout } from "../layout";
 import type { CardTone } from "../scenes";
@@ -90,7 +91,8 @@ export const KineticCard: React.FC<{
   const outSec = MOTION.cutSec * 0.5;
   const out = 1 - clamp01((sec - (dur / FPS - outSec)) / outSec);
 
-  const { ground, ink, rule } = TONES[tone];
+  const { ink, rule } = TONES[tone];
+  const ground = CARD_GROUND[tone];
 
   return (
     <AbsoluteFill style={{ backgroundColor: ground }}>
@@ -145,17 +147,19 @@ export const KineticCard: React.FC<{
   );
 };
 
-const TONES: Record<CardTone, { ground: string; ink: string; rule: string }> = {
+/**
+ * The ink and the rule per tone. The GROUND comes from `scenes.ts` §
+ * `CARD_GROUND`, because the violet gate has to read it and the gate is
+ * React-free — two tables of "what colour is that card" is how one of them ends
+ * up uninspected.
+ */
+const TONES: Record<CardTone, { ink: string; rule: string }> = {
   /** Ink on the product's own paper. */
-  paper: { ground: APP.page, ink: APP.ink, rule: SPOT.action },
+  paper: { ink: APP.ink, rule: SPOT.action },
   /** The marketing band's aubergine, ivory type at 9.6:1. */
-  deep: { ground: BAND.aubergine, ink: APP.page, rule: BAND.periwinkle },
-  /**
-   * Buttercream, full bleed, obsidian type at 18:1 — the film's brightest frame.
-   *
-   * It was plum for one pass. `tokens.ts` says why it is not.
-   */
-  bright: { ground: BAND.buttercream, ink: APP.ink, rule: SPOT.action },
+  deep: { ink: APP.page, rule: BAND.periwinkle },
+  /** Buttercream, obsidian type at 18:1 — the film's brightest frame. */
+  bright: { ink: APP.ink, rule: SPOT.action },
 };
 
 const wordsOf = (line: string): string[] => line.split(" ").filter(Boolean);

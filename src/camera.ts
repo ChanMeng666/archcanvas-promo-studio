@@ -628,6 +628,26 @@ export interface Shot {
 export const visibleBottom = (layout: Layout, clipBottom?: number): number =>
   clipBottom === undefined ? layout.height : Math.min(layout.height, clipBottom);
 
+/**
+ * Which scenes may show an OPEN finding card.
+ *
+ * The receipt beat is about the card: it opens, it is read, the camera is framed
+ * on it. Every later beat inherits `openPin` from the screenplay's state machine
+ * and is framed on something else entirely — so the card sits outside the frame
+ * and the product draws a dashed violet leader from a pin on screen to a card
+ * that is not. A line pointing off the edge at nothing is a rendering bug to a
+ * viewer, whatever it means to the state machine.
+ *
+ * ⚠ This is a HOST decision, not an edit to the replica: `state` is a prop, a
+ * closed finding card is an ordinary product state (the user dismissed it), and
+ * the film already chooses which second of the screenplay to show. `src/replica`
+ * is untouched.
+ */
+const showOpenFinding = (scene: SceneId): boolean => scene === "receipt";
+
+const closeFinding = (state: ReplicaState): ReplicaState =>
+  state.review.openPin === null ? state : { ...state, review: { ...state.review, openPin: null } };
+
 export const shotFor = (
   beat: ResolvedBeat,
   localFrame: number,
@@ -643,7 +663,7 @@ export const shotFor = (
   const to = beat.replicaTo ?? from;
   const t = from + (to - from) * p;
 
-  const state = stateAt(t);
+  const state = showOpenFinding(beat.scene) ? stateAt(t) : closeFinding(stateAt(t));
   const probe = mountReplica(box, layout.replicaLayout, { browserFrame: opts.browserFrame });
   const page = pickPage(PAGES, state.plan.variant, state.plan.page);
   const mount = page

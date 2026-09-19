@@ -42,6 +42,7 @@ import {
   type CopyLine,
 } from "./copy";
 import { LOOP_FADE_SEC } from "./honesty";
+import { APP, BAND, STAGE } from "./tokens";
 
 /** The seven acts of the replica's own screenplay. Mirrors its `ChapterId`. */
 export type ChapterId =
@@ -405,3 +406,40 @@ export const CARD_SEC = { min: 1.2, max: 2.2 } as const;
  * in `cuts.ts` rather than fixed in a component.
  */
 export const MAX_STATIC_UI_SEC = 9;
+
+/* ── what colour a scene's ground is ──────────────────────────────────────── */
+
+/**
+ * The ground a scene paints behind everything else, as one table.
+ *
+ * ⚠ ONE table, and it lives here rather than in the component because three
+ * things read it and they must not disagree: the router (which paints it), the
+ * colour wipe (which has to know what colour it is wiping off) and
+ * `capture/verify-violet.mjs` (which has to know how much of the frame it
+ * covers). The gate is React-free, so a table inside a component is a table the
+ * constraint cannot be checked against.
+ */
+export const CARD_GROUND: Readonly<Record<CardTone, string>> = {
+  /** Ink on the product's own paper. */
+  paper: APP.page,
+  /** The marketing band's aubergine — one of its two approved uses. */
+  deep: BAND.aubergine,
+  /** Buttercream, full bleed — the film's brightest frame. It was plum once. */
+  bright: BAND.buttercream,
+};
+
+export const groundOf = (id: SceneId | null): string | null => {
+  if (!id) return null;
+  const s = SCENES[id];
+  if (s.chapter) return STAGE[s.chapter];
+  if (s.tone) return CARD_GROUND[s.tone];
+  return APP.page;
+};
+
+/**
+ * The four grounds the second brief's montage cycles, one per plan.
+ *
+ * Here for the same reason `groundOf` is: the montage paints a full-bleed field
+ * and the violet gate has to be able to see which colour.
+ */
+export const MONTAGE_STAGES = [STAGE.edit, STAGE.tweak, STAGE.draw, STAGE.export] as const;
