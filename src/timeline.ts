@@ -25,7 +25,7 @@
 import { CUT_IDS, CUT_SECONDS, FPS, type CutId } from "./layout-core";
 import { CUTS, HONESTY_MIN_SEC, HONESTY_OVERLAY_SEC, type Edit } from "./cuts";
 import { gridFor } from "./data/music-grid";
-import { REPLICA_CAPTION_WINDOW } from "./honesty";
+import { REPLICA_CAPTION, REPLICA_CAPTION_WINDOW } from "./honesty";
 import { CARD_SEC, MAX_STATIC_UI_SEC, SCENES, hasReplica, type SceneId } from "./scenes";
 
 export { FPS };
@@ -401,18 +401,37 @@ export interface HonestyWindow {
  */
 export const honestyWindowFor = (resolved: ResolvedCut): HonestyWindow => {
   const runs: { from: number; to: number; scene: SceneId }[] = [];
+  /**
+   * The earliest film second at which the replica's caption is visible AT ALL —
+   * the beat's start, not the opaque core's.
+   *
+   * ⚠ This is what the film's band has to hand over at, and using the core's
+   * start instead is a four-frame bug: the product's caption spends the first
+   * 10 % of its beat fading IN, so a band that ran up to the core's start was
+   * still on screen while the pill was already at a quarter opacity. Two copies
+   * of one sentence, in two places, for four frames. `verify:honesty` fails on
+   * a single doubled frame now, which is how this was found at all.
+   */
+  let firstVisible = Infinity;
 
   for (const beat of resolved.beats) {
     if (beat.replicaFrom === undefined || beat.replicaTo === undefined) continue;
     const span = beat.replicaTo - beat.replicaFrom;
     if (span <= 0) continue;
 
+    const mapped = (t: number): number =>
+      beat.startSec + ((t - beat.replicaFrom!) / span) * beat.durationSec;
+
+    const vLo = Math.max(beat.replicaFrom, REPLICA_CAPTION.beatAt);
+    const vHi = Math.min(beat.replicaTo, REPLICA_CAPTION.beatAt + REPLICA_CAPTION.beatDur);
+    if (vHi > vLo) firstVisible = Math.min(firstVisible, mapped(vLo));
+
     const lo = Math.max(beat.replicaFrom, REPLICA_CAPTION_WINDOW.from);
     const hi = Math.min(beat.replicaTo, REPLICA_CAPTION_WINDOW.to);
     if (hi <= lo) continue;
 
-    const from = beat.startSec + ((lo - beat.replicaFrom) / span) * beat.durationSec;
-    const to = beat.startSec + ((hi - beat.replicaFrom) / span) * beat.durationSec;
+    const from = mapped(lo);
+    const to = mapped(hi);
 
     const last = runs[runs.length - 1];
     if (last && last.scene === beat.scene && Math.abs(last.to - from) < 1e-6) last.to = to;
@@ -441,13 +460,33 @@ export const honestyWindowFor = (resolved: ResolvedCut): HonestyWindow => {
     return { ...best, sec: naturalSec, source: "replica", naturalSec };
   }
 
-  // Short. The film draws it, starting where the replica's own caption starts
-  // so the two read as one caption rather than as two.
-  let from = best.from;
-  let to = from + HONESTY_OVERLAY_SEC;
-  if (to > resolved.totalSeconds) {
-    to = resolved.totalSeconds;
-    from = Math.max(0, to - HONESTY_OVERLAY_SEC);
+  /*
+   * Short. The film draws it — BEFORE the replica's own, ending exactly where
+   * the replica's becomes fully opaque.
+   *
+   * ⚠ The first version started it where the replica's own starts, on the
+   * reasoning that "a subtitle restating an on-screen caption is ordinary film
+   * language and reads as emphasis". It does not. The replica's caption is a
+   * dark in-app pill and the film's is a band under the stage, and the still
+   * pass caught the two of them 115 px apart carrying the identical sentence —
+   * which reads as a rendering bug, not as emphasis. (It became obvious only
+   * after the replica's follow-up restored the 1 px borders that had been
+   * silently missing, which is its own lesson about reviewing on a build that
+   * is not quite the shipping one.)
+   *
+   * Placed before instead, the two are SEQUENTIAL and adjacent: the film's band
+   * carries the sentence up to the second the product's own takes it over, with
+   * no frame showing both and no frame showing neither. `to` is exactly
+   * `best.from`, which is defined as the moment the replica's caption reaches
+   * full opacity, so the run is continuous across the handoff — and the overlay
+   * deliberately does not fade OUT, because a fade at the join is the one place
+   * a dip would break it.
+   */
+  let to = Number.isFinite(firstVisible) ? Math.min(firstVisible, best.from) : best.from;
+  let from = to - HONESTY_OVERLAY_SEC;
+  if (from < 0) {
+    from = 0;
+    to = Math.min(HONESTY_OVERLAY_SEC, to > 0 ? to : best.to);
   }
   return { from, to, sec: to - from, source: "film", naturalSec };
 };

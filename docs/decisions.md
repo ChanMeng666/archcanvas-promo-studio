@@ -511,11 +511,16 @@ consequences here:
   per-beat rule the protected rectangles already use (D8).
 
 **Every card and pill border was silently missing upstream** (a `max()` with a
-container-query unit inside the `border` shorthand). They are 1 px again, which
-is why the replica reads crisper in the final stills than in the ones the look
-passes were done on. It does not change the finding behind D15 — the composer
-card's hairline is 1.3:1 against the paper by design, so at a 1.22x framing it
-is still not a card edge a viewer sees.
+container-query unit inside the `border` shorthand). They are 1 px again, and
+the final stills are visibly crisper than the ones the look passes were done on.
+
+That partly retires the observation behind D15 and it is worth saying so rather
+than leaving the note reading as if it still held: the composer card DOES have a
+visible edge now. **The wide framing stays**, for a better reason than the one
+that produced it — Act I is no longer a card floating on a page, it is a
+designed page, with a "Your Projects" heading and a line under it that a 1.22x
+framing on the card would crop. The beat now shows a product someone could
+recognise, which is what the shot was always trying to do.
 
 The SFX cue sheets needed no change: nothing in `cues.ts` names a second. They
 are derived by walking the cut and asking the fold what the product is doing, so
@@ -544,3 +549,40 @@ two in step.
 **Mutation evidence.** `ENTRY_OPACITY_FLOOR = 0` reddens it with `[blank]` on
 every replica and split opening in all four cuts; `MONTAGE_PANE_ENTRY_FLOOR = 0`
 reddens the two `second-brief` beats. Both restore green.
+
+## D19. The honesty caption is handed over, never doubled.
+
+The 15 s cut's time warp leaves the product's own caption readable for 2.67 s,
+under the three-second floor, so the film draws the sentence itself. The scaffold
+placed that band **starting where the replica's own caption starts**, reasoning
+that "a subtitle restating an on-screen caption is ordinary film language and
+reads as emphasis, not as a duplicate".
+
+It does not. The still pass caught the product's dark in-app pill and the film's
+band 115 px apart carrying the identical sentence. That reads as a rendering bug.
+
+It only became obvious after the replica's follow-up restored the 1 px borders
+that had been silently missing upstream — which is its own lesson: **a look pass
+done on a build that is not quite the shipping one can miss the thing it was for.**
+
+The band now **ends where the replica's caption becomes visible at all**, so the
+two are sequential and adjacent: the film carries the sentence up to the second
+the product takes it over, with no frame showing both. Two details are load-
+bearing:
+
+- The handoff is at the caption beat's **start**, not at its opaque core's. The
+  product's caption spends the first 10 % of its beat fading in, and handing over
+  at the core's start left four frames with the band still up and the pill
+  already at a quarter opacity.
+- The band **does not fade out**. A fade at the join is the one place a dip would
+  break the continuous run the floor is measured on.
+
+`verify:honesty` measures the **union** of the two sources — the longest
+continuous run in which the sentence is fully opaque, whichever component drew it
+— and fails on a **single** doubled frame. Measuring either source alone would
+under-count by exactly the handoff.
+
+**Mutation evidence.** The doubling check found the defect it was written for on
+its first run: four frames in each 15 s master, before the handoff was moved. The
+floor check still reddens all eight at `HONESTY_MIN_SEC = 8`, and the crop check
+still reddens six at `[cropped]` with the protected-rectangle clamp disabled.

@@ -142,7 +142,8 @@ npm run dev                                   # Remotion Studio
 npm run lint                                  # tsc --noEmit
 npm run verify                                # assets -> replica -> timeline -> copy
                                               #   -> numbers -> audio -> honesty -> opening
-npm run stills                                # six beats x eight masters, one browser
+npm run stills --  --comp Studio-30-Landscape-16x9   # six beats of one master
+for c in ...; do node capture/stills.mjs --comp $c; done   # a full sweep, per comp
 node capture/stills.mjs --sheet               # a contact sheet per landscape cut
 node capture/stills.mjs --at 30-Land:7.4,9.1  # ad-hoc seconds, for a look-fix pass
 pwsh -File ./render.ps1 -ListOnly             # the plan + the orphan scan, renders nothing

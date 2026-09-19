@@ -17,10 +17,14 @@
  *
  * Five checks:
  *
- *   1. **The caption is fully opaque for >= 3.0 s of film time in every one of
- *      the eight masters**, measured on the ENVELOPE'S CORE rather than its
- *      tails. Measuring the fade as "on screen" would be the film marking its
- *      own homework.
+ *   1. **The caption is fully opaque for >= 3.0 s of CONTINUOUS film time in
+ *      every one of the eight masters**, measured on the ENVELOPE'S CORE rather
+ *      than its tails, and across BOTH sources: the film's band hands the
+ *      sentence over to the product's own pill, so measuring either alone
+ *      under-counts by exactly the handoff.
+ *   1b. **And never both at once.** Two copies of one sentence 115 px apart
+ *      reads as a rendering bug, not as emphasis. The still pass caught it; this
+ *      is what stops it returning.
  *   2. **It is never cropped** — its box, after the mount and after the push,
  *      is inside the frame at every sampled second it is readable.
  *   3. **The "AI-generated" pill is on screen whenever a rendering is >= 50 %
@@ -83,33 +87,44 @@ for (const d of DELIVERABLES) {
   const windowed = layout.aspect === "landscape";
 
   let opaqueFrames = 0;
-  let longestRun = 0;
-  let run = 0;
   let captionSamples = 0;
   let pillSamples = 0;
 
+  /**
+   * The sentence's opacity at every frame of the master, from EITHER source.
+   *
+   * The floor is a claim about the sentence being on screen, not about which
+   * component drew it — and since the film's band now hands over to the
+   * replica's own pill rather than overlapping it, measuring either one alone
+   * would under-count by exactly the handoff. Indexed by absolute frame so the
+   * run can cross a beat boundary, which is the whole point.
+   */
+  const ink = new Float64Array(resolved.totalFrames);
+  const filmInk = new Float64Array(resolved.totalFrames);
+  const honestyWindow = film.timeline.honestyWindowFor(resolved);
+  if (honestyWindow.source === "film") {
+    // The band fades in over `MOTION.enterSec` (capped at a sixth of the window)
+    // and does NOT fade out — `HonestyCaption`'s own arithmetic.
+    const fade = Math.min(0.24, (honestyWindow.to - honestyWindow.from) / 6);
+    for (let f = 0; f < resolved.totalFrames; f += 1) {
+      const sec = f / FPS;
+      if (sec < honestyWindow.from || sec > honestyWindow.to) continue;
+      filmInk[f] = Math.min(1, Math.max(0, (sec - honestyWindow.from) / Math.max(1e-6, fade)));
+    }
+  }
+
   for (const beat of resolved.beats) {
-    if (beat.replicaFrom === undefined) {
-      run = 0;
-      continue;
-    }
-    if (beat.scene === "second-brief") {
-      run = 0;
-      continue;
-    }
+    if (beat.replicaFrom === undefined) continue;
+    if (beat.scene === "second-brief") continue;
     const box = boxFor(layout, beat);
 
     for (let f = 0; f < beat.durationInFrames; f += 1) {
       const shot = shotFor(beat, f, layout, box, { browserFrame: windowed });
+      const abs = beat.startFrame + f;
+      if (abs < ink.length) ink[abs] = Math.max(ink[abs], shot.captionOpacity);
 
       // 1 — fully opaque means the envelope is at its plateau, not on a tail.
-      if (shot.captionOpacity >= 0.999) {
-        opaqueFrames += 1;
-        run += 1;
-        longestRun = Math.max(longestRun, run);
-      } else {
-        run = 0;
-      }
+      if (shot.captionOpacity >= 0.999) opaqueFrames += 1;
 
       // 2 — readable at all, and therefore not to be cropped.
       if (shot.captionOpacity > 0.02) {
@@ -143,15 +158,34 @@ for (const d of DELIVERABLES) {
     }
   }
 
-  const replicaSec = longestRun / FPS;
-  const filmDraws = film.timeline.honestyWindowFor(resolved).source === "film";
-  const filmSec = filmDraws ? film.timeline.honestyWindowFor(resolved).sec : 0;
-  const total = Math.max(replicaSec, filmSec);
+  // The longest CONTINUOUS run in which the sentence is on screen, whichever
+  // component is drawing it.
+  let longestRun = 0;
+  let run = 0;
+  let doubled = 0;
+  for (let f = 0; f < resolved.totalFrames; f += 1) {
+    const both = Math.max(ink[f], filmInk[f]);
+    if (both >= 0.999) {
+      run += 1;
+      longestRun = Math.max(longestRun, run);
+    } else {
+      run = 0;
+    }
+    // Two copies of one sentence, in two places, at once. This is what the
+    // still pass caught and what the handoff exists to prevent.
+    if (ink[f] > 0.25 && filmInk[f] > 0.25) doubled += 1;
+  }
+
+  const replicaSec = opaqueRun(ink) / FPS;
+  const filmDraws = honestyWindow.source === "film";
+  const filmSec = filmDraws ? opaqueRun(filmInk) / FPS : 0;
+  const total = longestRun / FPS;
 
   report[d.id] = {
     replicaOpaqueSec: Number(replicaSec.toFixed(3)),
     filmOverlaySec: Number(filmSec.toFixed(3)),
     effectiveSec: Number(total.toFixed(3)),
+    doubledFrames: doubled,
     captionSamples,
     pillSamples,
     opaqueFrames,
@@ -161,13 +195,34 @@ for (const d of DELIVERABLES) {
     fail(
       "floor",
       d.id,
-      `the honesty caption is fully on screen for ${total.toFixed(2)}s, under the ${HONESTY_MIN_SEC}s floor ` +
-        `(replica ${replicaSec.toFixed(2)}s, film overlay ${filmSec.toFixed(2)}s)`,
+      `the honesty caption is continuously on screen for ${total.toFixed(2)}s, under the ${HONESTY_MIN_SEC}s floor ` +
+        `(replica's own run ${replicaSec.toFixed(2)}s, the film's band ${filmSec.toFixed(2)}s)`,
+    );
+  }
+  if (doubled > 0) {
+    fail(
+      "doubled",
+      d.id,
+      `${doubled} frame(s) carry the sentence TWICE — the product's own caption and the film's band at once. ` +
+        "The band is meant to hand over at `honestyWindowFor().to`, not to overlap.",
     );
   }
   if (captionSamples === 0 && !filmDraws) {
     fail("vacuous", d.id, "no sampled frame showed the caption at all, and the film is not overlaying one");
   }
+}
+
+/** The longest run of fully-opaque frames in an ink track. */
+function opaqueRun(track) {
+  let best = 0;
+  let run = 0;
+  for (const v of track) {
+    if (v >= 0.999) {
+      run += 1;
+      best = Math.max(best, run);
+    } else run = 0;
+  }
+  return best;
 }
 
 /* ── 5. the needles, over every rendered text source ──────────────────────── */
