@@ -94,13 +94,16 @@ src/copy.ts          every word the FILM says in its own voice, + COPY_FLAGS   [
 src/honesty.ts       the caption beat, the draw hand-over and the drafting     [React-free]
                      span — all DERIVED from the synced screenplay
 src/timeline.ts      the ONLY frame arithmetic in the repo; resolveCut(),      [React-free]
-                     honestyWindowFor(), TIMELINES (grid-snapped — one clock)
+                     honestyWindowFor(), timelineFor(cut, aspect) +
+                     honestyWindow(cut, aspect) — grid-snapped, one clock, and
+                     only `expelsCaption` differs between the frame shapes
 src/camera.ts        the mount, the push, the protected-rectangle clamp        [React-free]
 src/film-demo.ts     DemoInputs, the screenplay, the resolved pages, the       [React-free]
                      montage — all read out of the synced product data
 src/cues.ts          the cue sheets, DERIVED by walking each cut frame by frame[React-free]
 src/audio.ts         the manifests, the duck spec, the self-check              [React-free]
 src/typefit.ts       size-from-character-count, because measuring needs fonts  [React-free]
+src/caption.ts       CAPTION_SCALE — how big the film's own band sets          [React-free]
 src/tokens.ts        the product's own colours, converted from OKLCH to sRGB   [React-free]
 src/fonts.ts         Space Grotesk + Geist Mono, narrowed
 src/assets.ts        every staticFile() as a LITERAL, so the gate can read it
@@ -140,8 +143,8 @@ node scripts/sync-replica.mjs --check         # hash-only; exit 1 on drift
 npm run dev                                   # Remotion Studio
 
 npm run lint                                  # tsc --noEmit
-npm run verify                                # assets -> replica -> timeline -> copy
-                                              #   -> numbers -> audio -> honesty -> opening
+npm run verify                                # assets -> replica -> timeline -> copy -> numbers
+                                              #   -> audio -> honesty -> framing -> opening
 npm run stills --  --comp Studio-30-Landscape-16x9   # six beats of one master
 for c in ...; do node capture/stills.mjs --comp $c; done   # a full sweep, per comp
 node capture/stills.mjs --sheet --comp <id>   # contact FRAMES for one cut
