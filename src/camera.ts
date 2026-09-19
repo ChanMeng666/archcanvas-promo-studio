@@ -645,6 +645,16 @@ export const visibleBottom = (layout: Layout, clipBottom?: number): number =>
  */
 const showOpenFinding = (scene: SceneId): boolean => scene === "receipt";
 
+/*
+ * ⚠ STILL NEEDED after the product added `ReviewFinding.level`, and the reason
+ * is worth keeping: upstream now hides a pin, its card and its leader on the
+ * storey the finding is not about, which fixes the L1 case completely. It does
+ * not fix — and should not — the case this is for: on the EXPORT beat the card
+ * is on the right storey and simply outside the camera's frame, so the leader
+ * still crossed the picture to a card half off the left edge. Checked, not
+ * assumed: `--at 60-Land:52` with this forced true.
+ */
+
 const closeFinding = (state: ReplicaState): ReplicaState =>
   state.review.openPin === null ? state : { ...state, review: { ...state.review, openPin: null } };
 

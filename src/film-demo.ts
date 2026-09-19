@@ -70,7 +70,18 @@ export const DEMO: DemoInputs = {
     values: STUDIO_DEMO.param.values,
     variants: PARAM_VARIANTS,
   },
-  findings: STUDIO_DEMO.findings.map((f) => ({ message: f.message, archId: f.archId })),
+  /*
+   * ⚠ Copied FIELD BY FIELD once, and that was the bug waiting to happen. The
+   * mapping was `{ message, archId }`, which was every field a finding had —
+   * until the product added `level`, and a hand-shaped copy silently dropped it.
+   * The pins would then have gone on hovering over the first floor, pointing at
+   * ground-floor rooms that are not there, and nothing here would have said so.
+   *
+   * `code` is the one field deliberately left behind: it is the compiler's lint
+   * code, it never reaches a screen, and naming it on a consumer surface is a
+   * ban. Everything else the product says about a finding comes across.
+   */
+  findings: STUDIO_DEMO.findings.map(({ code: _code, ...finding }) => finding),
   renderingSrc: RENDERING_SRC,
   pageCount: Object.keys(STUDIO_DEMO.pageNames).length,
 };

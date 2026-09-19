@@ -113,6 +113,16 @@ export interface ReviewFinding {
   message: string;
   /** The element the pin hangs on, when the finding resolves to one. */
   archId?: string;
+  /**
+   * The STOREY the finding is about, when it is about one.
+   *
+   * ⚠ A pin belongs to a floor, not to a design. Without this the two
+   * ground-floor findings went on hovering over the FIRST floor the moment the
+   * storey switched — pointing at rooms that are not there, on a drawing they
+   * are not about. A sheet-wide finding (a scale that does not fit the paper)
+   * has no level and stays on every page.
+   */
+  level?: number;
 }
 
 export type Action =

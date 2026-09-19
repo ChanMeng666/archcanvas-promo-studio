@@ -48,8 +48,12 @@ export function ReviewPins({ ctx }: { ctx: TargetContext }): JSX.Element | null 
 
   const anchors = pinAnchors(ctx);
   const openIdx = state.review.openPin;
-  const openAnchor = openIdx === null ? null : (anchors[openIdx] ?? null);
-  const openFinding = openIdx === null ? null : (findings[openIdx] ?? null);
+  // ⚠ The open card follows its PIN off the page. While the first floor is
+  // shown, a ground-floor finding's card would be a complaint floating over a
+  // drawing it is not about, joined by a leader to a pin that is not there.
+  const openRaw = openIdx === null ? null : (anchors[openIdx] ?? null);
+  const openAnchor = openRaw?.onThisPage ? openRaw : null;
+  const openFinding = openAnchor && openIdx !== null ? (findings[openIdx] ?? null) : null;
   // `null` when an open export menu has taken the only space the card can go —
   // see `findingCardBox`. The pin stays either way.
   const card = openAnchor ? findingCardBox(ctx, openAnchor) : null;
@@ -62,7 +66,7 @@ export function ReviewPins({ ctx }: { ctx: TargetContext }): JSX.Element | null 
       {findings.map((f, i) => {
         const a = anchors[i];
         const p = pct(state.review.pinsDropped[i] ?? 0);
-        if (!a || p <= 0) return null;
+        if (!a || !a.onThisPage || p <= 0) return null;
         const open = i === openIdx;
         const pinW = PIN_W * k;
         const pinH = PIN_H * k;

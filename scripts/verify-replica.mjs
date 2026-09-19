@@ -201,6 +201,9 @@ const stripComments = (src) =>
     .replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, " "))
     .replace(/(^|[^:])\/\/[^\n]*/g, "$1");
 
+/** A newline, named so this file can be edited by tools that rewrite escapes. */
+const NL = String.fromCharCode(10);
+
 const scanned = [];
 const CODE_EXT = new Set([".ts", ".tsx", ".js", ".jsx", ".css"]);
 const CLAIM_EXT = new Set([".ts", ".tsx", ".js", ".jsx", ".css", ".json", ".md"]);
@@ -220,11 +223,50 @@ const CLAIM_EXT = new Set([".ts", ".tsx", ".js", ".jsx", ".css", ".json", ".md"]
  * `rel.startsWith("src/replica")`, which also matched `src/replica-data`, and
  * failed five times on a file whose prose was correct. A gate that cannot tell
  * a rule from its violation gets switched off.
+ *
+ * A synced **`.md`** is neither: it is the replica's own law, carried across on
+ * purpose (`sync-replica.mjs` § REPLICA_EXCLUDE) because the copy is useless
+ * without it. It is an engineering document in the PRODUCT's voice, where the
+ * compiler's name is the ordinary word for the compiler — and the product repo
+ * names it on every page. The first file of this kind arrived with the pin-level
+ * sync and named the DSL three times in prose, in sentences that are correct
+ * where they were written. Prose is not a surface, so the consumer-copy needles
+ * do not read it. What CAN become a surface in a doc is a fenced code block or a
+ * quoted string, and those are still read.
  */
 const scanModeFor = (rel) => {
-  if (rel.startsWith("src/replica/")) return "all";
-  if (rel.startsWith("src/replica-data/")) return "code";
+  const doc = path.extname(rel).toLowerCase() === ".md";
+  if (rel.startsWith("src/replica/")) return doc ? "doc" : "all";
+  if (rel.startsWith("src/replica-data/")) return doc ? "doc" : "code";
   return null;
+};
+
+/**
+ * The parts of a Markdown document that could become something a viewer sees:
+ * a fenced block, which is code someone may paste, and a QUOTED phrase, which is
+ * how prose carries copy. Everything else is blanked, and the line count is
+ * preserved so a reported line number is still true.
+ *
+ * ⚠ A backtick span is NOT read, and that is the whole judgement in this
+ * function. In a developer document `ArchLang` and
+ * `tests/archlang/studioDemoFindings.test.ts` are how prose names a symbol and a
+ * path — the two hits the pin-level sync produced, both correct where they were
+ * written. A double-quoted phrase is different: that is someone writing a
+ * sentence a user might read.
+ */
+const quotable = (src) => {
+  let fenced = false;
+  return src
+    .split(NL)
+    .map((line) => {
+      if (/^\s*```/.test(line)) {
+        fenced = !fenced;
+        return "";
+      }
+      if (fenced) return line;
+      return [...line.matchAll(/"[^"]*"|'[^']*'/g)].map((m) => m[0]).join(" ");
+    })
+    .join(NL);
 };
 
 for (const rel of rows.map((r) => r.path)) {
@@ -250,7 +292,8 @@ for (const rel of rows.map((r) => r.path)) {
   if (CODE_EXT.has(ext)) {
     for (const { re, why } of CODE_TOKENS) report(re, why, stripped);
   }
-  for (const { re, why } of CLAIM_TOKENS) report(re, why, mode === "all" ? raw : stripped);
+  const claimText = mode === "all" ? raw : mode === "doc" ? quotable(raw) : stripped;
+  for (const { re, why } of CLAIM_TOKENS) report(re, why, claimText);
 }
 
 // The same empty-set question, asked of check 3 rather than check 2: the lock
