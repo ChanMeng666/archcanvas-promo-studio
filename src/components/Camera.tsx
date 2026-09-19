@@ -1,56 +1,39 @@
 import React from "react";
-import { AbsoluteFill, useCurrentFrame } from "remotion";
+import { AbsoluteFill } from "remotion";
 
-import { easeInOutCubic, ramp } from "../timeline";
+import { pushTransform, type FramePush } from "../camera";
 
 /**
- * The push-in. One scale multiplier over a beat, and nothing else.
+ * A `FramePush`, applied.
  *
- * ── Why the interpolation is in log space ──────────────────────────────────
- *
- * A push from 1.00 to 1.12 interpolated linearly accelerates: the same
- * arithmetic step is a smaller and smaller *proportion* of the current scale,
- * so the move reads as slowing down at the wrong end. Zoom is perceived
- * multiplicatively, so a constant-rate push is a constant rate of CHANGE in
- * `log(scale)`. `exp(lerp(0, ln(push), p))` is that, and it also guarantees the
- * scale is never zero or negative whatever `p` does.
+ * All the arithmetic — the log-space interpolation, the clamp that keeps the
+ * honesty caption and the "AI-generated" pill inside the frame — lives in the
+ * React-free `camera.ts`, so a gate can ask for the same numbers without a
+ * renderer. This is the two lines of CSS that put them on screen, and nothing
+ * else.
  *
  * ── Two rules that are not style ───────────────────────────────────────────
  *
+ * **A translate and a scale, never a scale about a moving origin.** Scaling
+ * about the focus magnifies without ever AIMING — the first still pass caught
+ * it in one frame, an edit beat pushed to 1.5 on the kitchen with the kitchen
+ * still in the right-hand third. `camera.ts` derives the pair and clamps it so
+ * the frame stays covered and the protected rectangles stay whole.
+ *
  * **No `will-change`.** Ever, on this or on anything it wraps. It asks Chrome to
  * allocate backing store for the whole transformed layer; a sibling film's
- * renders were killed for memory with 5.4 GB free over a 22,250 × 22,881 px
- * one, and `verify:replica` greps the synced replica for it for the same
- * reason. The tell is worth keeping: **when more memory does not help, the
- * problem is not memory.**
- *
- * **Clamped at both ends.** `ramp` cannot extrapolate, which is how a scale
- * stays a scale off the end of a beat.
+ * renders were killed for memory with 5.4 GB free over a 22,250 x 22,881 px one.
+ * The tell is worth keeping: when more memory does not help, the problem is not
+ * memory.
  */
-export const Camera: React.FC<{
-  /** End/start scale over the beat. 1 holds and the wrapper does nothing. */
-  push: number;
-  /**
-   * The beat's length in frames. **Taken as a prop, never read from
-   * `useVideoConfig()`** — inside a `<Sequence>` that reports the COMPOSITION
-   * length, which is how a six-second push ends up spread over two minutes.
-   */
-  dur: number;
-  children: React.ReactNode;
-}> = ({ push, dur, children }) => {
-  const frame = useCurrentFrame();
-
-  if (push === 1) return <AbsoluteFill>{children}</AbsoluteFill>;
-
-  const p = easeInOutCubic(dur > 0 ? frame / dur : 1);
-  const scale = Math.exp(ramp(p, 0, 1, 0, Math.log(push)));
-
+export const PushLayer: React.FC<{ push: FramePush; children: React.ReactNode }> = ({
+  push,
+  children,
+}) => {
+  if (push.scale <= 1 + 1e-9) return <AbsoluteFill>{children}</AbsoluteFill>;
   return (
     <AbsoluteFill
-      style={{
-        transform: `scale(${scale})`,
-        transformOrigin: "50% 50%",
-      }}
+      style={{ transform: pushTransform(push), transformOrigin: "0 0" }}
     >
       {children}
     </AbsoluteFill>

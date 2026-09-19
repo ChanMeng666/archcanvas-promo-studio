@@ -1,10 +1,11 @@
 import React from "react";
-import { AbsoluteFill, Img, staticFile, useCurrentFrame } from "remotion";
+import { AbsoluteFill, Img, useCurrentFrame } from "remotion";
 
+import { WORDMARK } from "../assets";
 import { END_DESCRIPTOR, END_DOMAIN, linesFor } from "../copy";
 import { FONT } from "../fonts";
 import { useLayout } from "../layout";
-import { FPS, clamp01, easeOutCubic } from "../timeline";
+import { FPS, clamp01, easeOutCubic, easeOutExpo } from "../timeline";
 import { APP, MOTION, SPOT, TRACKING, TYPE, WEIGHT } from "../tokens";
 
 /**
@@ -28,19 +29,56 @@ import { APP, MOTION, SPOT, TRACKING, TYPE, WEIGHT } from "../tokens";
  * fails *softly* on a missing `staticFile()` — a blank region, not an error —
  * so the eight-master render could otherwise complete with a hole where the
  * logo goes. That is the entire reason `verify:assets` runs first.
+ *
+ * ── The wipe ───────────────────────────────────────────────────────────────
+ *
+ * A plum BAND sweeps across the frame once, on the `end-hit`, and the card is
+ * revealed behind it. A band and not a full-bleed fill: the founder's objection
+ * to large flat violet stands, and a band about a fifth of the frame wide is a
+ * gesture rather than a surface. One move, a third of a second, and everything
+ * after it is ivory.
  */
-export const EndCard: React.FC = () => {
+/**
+ * How wide the sweeping band is, as a fraction of the frame.
+ *
+ * A fifth. It used to be the whole frame, which made it a flat violet surface
+ * for nine frames — and the standing objection to large flat violet does not
+ * have a nine-frame exemption. A band reads as a swipe, which is what it was
+ * always meant to be.
+ */
+const WIPE_BAND = 0.2;
+
+export const EndCard: React.FC<{ dur: number }> = ({ dur }) => {
   const frame = useCurrentFrame();
   const layout = useLayout();
   const sec = frame / FPS;
 
-  const mark = easeOutCubic(clamp01(sec / (MOTION.cutSec * 1.4)));
-  const line = easeOutCubic(clamp01((sec - MOTION.cutSec * 0.6) / MOTION.cutSec));
-  const tail = easeOutCubic(clamp01((sec - MOTION.cutSec * 1.1) / MOTION.cutSec));
+  const wipe = easeOutExpo(clamp01(sec / MOTION.wipeSec));
+  const after = clamp01((sec - MOTION.wipeSec * 0.55) / MOTION.cutSec);
 
-  // The mark holds its size; only the rule under it draws itself out, so the
-  // frame the viewer photographs is stable from a third of a second in.
-  const markWidth = layout.aspect === "landscape" ? layout.u(760) : layout.u(620);
+  const mark = easeOutCubic(clamp01(after));
+  const line = easeOutCubic(clamp01((sec - MOTION.wipeSec * 0.55 - MOTION.cutSec * 0.5) / MOTION.cutSec));
+  const tail = easeOutCubic(clamp01((sec - MOTION.wipeSec * 0.55 - MOTION.cutSec) / MOTION.cutSec));
+
+  /*
+   * The lockup, bigger — and the URL is the largest thing after the mark,
+   * because the URL is the CALL TO ACTION and the first cut set it at half the
+   * size of the wordmark like a caption.
+   *
+   * The mark holds its size; only the rule under it draws itself out, so the
+   * frame a viewer screenshots is stable from half a second in. Sized off the
+   * STAGE rather than as a fixed token so 9:16 keeps it clear of the bottom
+   * 390 px the platforms cover.
+   */
+  const markWidth = Math.min(
+    layout.stage.w * (layout.aspect === "landscape" ? 0.54 : 0.86),
+    layout.u(1180),
+  );
+  const domainSize = markWidth * 0.132;
+
+  // The last third of a second belongs to the picture, not to the animation —
+  // an end card still moving when the file ends reads as a truncated render.
+  const settle = clamp01((dur / FPS - sec) / 0.2);
 
   return (
     <AbsoluteFill style={{ backgroundColor: APP.page }}>
@@ -52,24 +90,26 @@ export const EndCard: React.FC = () => {
           height: layout.stage.h,
           justifyContent: "center",
           alignItems: "center",
-          gap: layout.u(36),
+          gap: layout.u(30),
+          opacity: Math.min(1, settle + 0.0),
         }}
       >
         <Img
-          src={staticFile("brand/archcanvas-wordmark.svg")}
+          src={WORDMARK}
           alt="ArchCanvas"
           style={{
             width: markWidth,
             height: "auto",
             opacity: mark,
-            transform: `translateY(${(1 - mark) * layout.u(18)}px)`,
+            transform: `translateY(${((1 - mark) * layout.u(14)).toFixed(1)}px)`,
           }}
         />
 
         <div
           style={{
-            width: markWidth * 0.34 * line,
-            height: layout.u(5),
+            width: markWidth * 0.38 * line,
+            height: layout.u(7),
+            borderRadius: layout.u(4),
             backgroundColor: SPOT.action,
           }}
         />
@@ -77,9 +117,10 @@ export const EndCard: React.FC = () => {
         <div
           style={{
             fontFamily: FONT.sans,
-            fontSize: layout.u(TYPE.title * 0.82),
+            fontSize: domainSize,
             fontWeight: WEIGHT.bold,
             letterSpacing: `${TRACKING.display}em`,
+            lineHeight: 1.05,
             color: APP.ink,
             whiteSpace: "nowrap",
             opacity: line,
@@ -91,7 +132,7 @@ export const EndCard: React.FC = () => {
         <div
           style={{
             fontFamily: FONT.mono,
-            fontSize: layout.u(TYPE.caption),
+            fontSize: layout.u(TYPE.caption * 1.15),
             fontWeight: WEIGHT.regular,
             letterSpacing: `${TRACKING.caps}em`,
             textTransform: "uppercase",
@@ -103,6 +144,17 @@ export const EndCard: React.FC = () => {
           {linesFor(END_DESCRIPTOR.copy, layout.aspect)[0]}
         </div>
       </AbsoluteFill>
+
+      {/* The band, sweeping once. Above the card, so the card is revealed. */}
+      {wipe < 1 ? (
+        <AbsoluteFill
+          style={{
+            backgroundColor: SPOT.plum,
+            width: layout.width * WIPE_BAND,
+            transform: `translateX(${((wipe * (1 + WIPE_BAND) - WIPE_BAND) * layout.width).toFixed(1)}px)`,
+          }}
+        />
+      ) : null}
     </AbsoluteFill>
   );
 };

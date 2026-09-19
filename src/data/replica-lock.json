@@ -1,0 +1,354 @@
+{
+  "$comment": "WRITTEN BY scripts/sync-replica.mjs — NEVER HAND-EDIT.\n\nThe one-way boundary between this film and the product. Every row is a file\nCOPIED out of the archcanvas checkout named below, with the bytes it was copied\nas (text normalised to LF) and their sha256.\n\nsrc/replica/** IS NOT EDITABLE HERE. Fix it upstream and re-sync. `npm run\nverify:replica` re-hashes every row and fails on any difference, so an edit made\nhere shows up as drift rather than as a divergence nobody notices.\n\nRegenerate with `npm run sync:replica`. Check without writing: `--check`.",
+  "generatedBy": "scripts/sync-replica.mjs",
+  "sourceRepo": "D:/.claude-scratch/2026-09-19/studio-replica/wp9/sync-src",
+  "sourceCommit": "84348f553c57c8eaa5f907854789c5f34b032b74",
+  "sourceBranch": "HEAD",
+  "sourceDirty": false,
+  "totals": {
+    "files": 44,
+    "bytes": 3155538,
+    "byRole": {
+      "render": 6,
+      "drawlist": 1,
+      "landing": 1,
+      "showcase": 1,
+      "seam": 1,
+      "demo": 1,
+      "types": 1,
+      "replica": 32
+    }
+  },
+  "files": [
+    {
+      "path": "public/renders/family-house-aerial.webp",
+      "bytes": 308696,
+      "sha256": "2b1d71dcb4f7cedf6a558991daf152721439b9f7ff3e7f8bd5783b60ef77e715",
+      "role": "render",
+      "source": "public/showcase/renders/family-house-aerial.webp"
+    },
+    {
+      "path": "public/renders/family-house-exterior.webp",
+      "bytes": 274006,
+      "sha256": "cad1389715b6ab795ff3e0cf7caada3b270841e7605113490ad16aaa248bb223",
+      "role": "render",
+      "source": "public/showcase/renders/family-house-exterior.webp"
+    },
+    {
+      "path": "public/renders/family-house-interior.webp",
+      "bytes": 201862,
+      "sha256": "399e8cc51a94e8be34e68980db68db4eecce8b94c09698dbff72530c66373fa0",
+      "role": "render",
+      "source": "public/showcase/renders/family-house-interior.webp"
+    },
+    {
+      "path": "public/renders/two-storey-townhouse-aerial.webp",
+      "bytes": 205836,
+      "sha256": "d8d3a501976585eb88c8873c4cf1a3f4f3d5a1b3311d10d977f431a15e3247e8",
+      "role": "render",
+      "source": "public/showcase/renders/two-storey-townhouse-aerial.webp"
+    },
+    {
+      "path": "public/renders/two-storey-townhouse-exterior.webp",
+      "bytes": 300352,
+      "sha256": "448fda6bc926e8870d6045ea8a65fc7554727a50204f291a4064af514308e30d",
+      "role": "render",
+      "source": "public/showcase/renders/two-storey-townhouse-exterior.webp"
+    },
+    {
+      "path": "public/renders/two-storey-townhouse-interior.webp",
+      "bytes": 116634,
+      "sha256": "49ac151afb70ce3f925f43aa739d6c360219039db502820f6a7750f8ea6bf1f6",
+      "role": "render",
+      "source": "public/showcase/renders/two-storey-townhouse-interior.webp"
+    },
+    {
+      "path": "src/data/drawlist.json",
+      "bytes": 993602,
+      "sha256": "9794301ebad934702765887b22c6df0c244ca0ce5230f520d86e46b93d353432",
+      "role": "drawlist",
+      "source": "public/showcase/studio-demo/drawlist.json"
+    },
+    {
+      "path": "src/data/landing.json",
+      "bytes": 190633,
+      "sha256": "b78100f06aa4f1797254038d66c86c985d3d3fe445f8a09345f184ad95b2054a",
+      "role": "landing",
+      "source": "public/showcase/studio-demo/landing.json"
+    },
+    {
+      "path": "src/data/showcase-plans.json",
+      "bytes": 263130,
+      "sha256": "356d43fbf209a4abd321fab3163668089c3ff1e49df0dede3abc460e01458228",
+      "role": "showcase",
+      "source": "public/showcase/plans/*.annotated.svg + src/lib/showcase.generated.ts",
+      "inputs": [
+        {
+          "path": "src/lib/showcase.generated.ts",
+          "sha256": "1cf1a6fa716e88d993ba2c492b1646c72c33ae05ec2859881e50d272e74b65b5"
+        },
+        {
+          "path": "public/showcase/plans/family-house.annotated.svg",
+          "sha256": "3012e0ad2e96cae1b5ecb8adcf9402ab63a4736f6d6a43a2d47d29a820e1f8b3"
+        },
+        {
+          "path": "public/showcase/plans/courtyard-apartment.annotated.svg",
+          "sha256": "1a67d255bdb594495b6767beb43e8dd6eab95f01bd425a2fab01e14d85a839d1"
+        },
+        {
+          "path": "public/showcase/plans/accessible-clinic.annotated.svg",
+          "sha256": "b07ced6e3c6c8a363a520eb5933fc2d113323a21d98c8f685f4004ea81bc0d27"
+        },
+        {
+          "path": "public/showcase/plans/compact-bedsit.annotated.svg",
+          "sha256": "3f71920ef2ad50e22bd8fdba21a8faf5fb9fc140078d223cfbd869d2e0630e2b"
+        }
+      ]
+    },
+    {
+      "path": "src/replica-data/index.ts",
+      "bytes": 2779,
+      "sha256": "797dffb948acc8ce39514411bbe32fed608e2986bb05b4017b7323dd718afdfb",
+      "role": "seam",
+      "source": null
+    },
+    {
+      "path": "src/replica-data/studioDemo.generated.ts",
+      "bytes": 56036,
+      "sha256": "56b4c4330f5a050c315b3c6c22e2753b72d0dd381772da10a9b259678f10e2f1",
+      "role": "demo",
+      "source": "src/lib/marketing/studioDemo.generated.ts"
+    },
+    {
+      "path": "src/replica-data/studioDemo.types.ts",
+      "bytes": 13556,
+      "sha256": "999dd010d00c4c04a4e23b9042f9bf1627dcfcd24320ce4534e08c371cd81bdb",
+      "role": "types",
+      "source": "src/lib/marketing/studioDemo.types.ts"
+    },
+    {
+      "path": "src/replica/StudioReplica.tsx",
+      "bytes": 10572,
+      "sha256": "10d3d11e54e99d5306c7f2c7d42f5a865493bd186312974d5169bb3806ae9cc8",
+      "role": "replica",
+      "source": "src/components/marketing/studio-replica/StudioReplica.tsx"
+    },
+    {
+      "path": "src/replica/at.ts",
+      "bytes": 16245,
+      "sha256": "6f6f54a07b0d178f3044bf757c3f60036ac3c2c1c24b58bfe397af1b17ee79e6",
+      "role": "replica",
+      "source": "src/components/marketing/studio-replica/at.ts"
+    },
+    {
+      "path": "src/replica/easing.ts",
+      "bytes": 2979,
+      "sha256": "18168476272c370851d74ad5f31d139a32966c054fca350f22f91ec5434db6ef",
+      "role": "replica",
+      "source": "src/components/marketing/studio-replica/easing.ts"
+    },
+    {
+      "path": "src/replica/icons.tsx",
+      "bytes": 5809,
+      "sha256": "7666c0507b5b91e5607de3f57a59b020004da8364c4dbce2d16adfe34cf85c60",
+      "role": "replica",
+      "source": "src/components/marketing/studio-replica/icons.tsx"
+    },
+    {
+      "path": "src/replica/index.ts",
+      "bytes": 792,
+      "sha256": "4c9bbc2393907e2d9b51ae15437d914b0f6817ef63d5c0cef48422fae8fce2c5",
+      "role": "replica",
+      "source": "src/components/marketing/studio-replica/index.ts"
+    },
+    {
+      "path": "src/replica/layout.ts",
+      "bytes": 29081,
+      "sha256": "d7b292bbd33df90cfdb385e186a536d7d050e98e9639d68a7d2fda168c16c6dc",
+      "role": "replica",
+      "source": "src/components/marketing/studio-replica/layout.ts"
+    },
+    {
+      "path": "src/replica/layoutMap.ts",
+      "bytes": 16065,
+      "sha256": "e13a3ed653512dc3c1eb53a20cc3c89097bf8f583aab5a7f6243f7ff919d6b9e",
+      "role": "replica",
+      "source": "src/components/marketing/studio-replica/layoutMap.ts"
+    },
+    {
+      "path": "src/replica/parts/BrowserFrame.tsx",
+      "bytes": 1821,
+      "sha256": "390551f7b8a7ee0e4a26c88a5f7ffebaeddaf7790de5a4211a8024b7fc88b36e",
+      "role": "replica",
+      "source": "src/components/marketing/studio-replica/parts/BrowserFrame.tsx"
+    },
+    {
+      "path": "src/replica/parts/CanvasStage.tsx",
+      "bytes": 2273,
+      "sha256": "86a36bc8c58d8c720505b640ba61738b7e59cd0f01086fed82fa858c6b7262f3",
+      "role": "replica",
+      "source": "src/components/marketing/studio-replica/parts/CanvasStage.tsx"
+    },
+    {
+      "path": "src/replica/parts/CanvasToolbar.tsx",
+      "bytes": 3195,
+      "sha256": "3f13b7be5fc2f7d8dea9c1674d9d06feb81ab83b604fd0d69027aa826d1bbc05",
+      "role": "replica",
+      "source": "src/components/marketing/studio-replica/parts/CanvasToolbar.tsx"
+    },
+    {
+      "path": "src/replica/parts/Caption.tsx",
+      "bytes": 2332,
+      "sha256": "cf7197457123a71247132e7a9f5274deb88a10f4030fca4ee2307b4f486519d9",
+      "role": "replica",
+      "source": "src/components/marketing/studio-replica/parts/Caption.tsx"
+    },
+    {
+      "path": "src/replica/parts/CommandBar.tsx",
+      "bytes": 4259,
+      "sha256": "f9ad181739a84c118b952bd4d6d582155bb147d545f14a3610b2b9f09777be3a",
+      "role": "replica",
+      "source": "src/components/marketing/studio-replica/parts/CommandBar.tsx"
+    },
+    {
+      "path": "src/replica/parts/Composer.tsx",
+      "bytes": 6730,
+      "sha256": "a0f997b1393d3c693f6e489a12c721b1c1a8c733ebe044e0ff51b4ef8b5029cf",
+      "role": "replica",
+      "source": "src/components/marketing/studio-replica/parts/Composer.tsx"
+    },
+    {
+      "path": "src/replica/parts/Cursor.tsx",
+      "bytes": 2045,
+      "sha256": "22446940fcd34a3d34b833005c5a0c0a5159ea7e9b2a9aa2bc7a6f2d85497738",
+      "role": "replica",
+      "source": "src/components/marketing/studio-replica/parts/Cursor.tsx"
+    },
+    {
+      "path": "src/replica/parts/DraftingSheet.tsx",
+      "bytes": 4690,
+      "sha256": "d7cb58afcf7e1ca8738196530618b37807d8a25d9b949025e2d4a847726cb173",
+      "role": "replica",
+      "source": "src/components/marketing/studio-replica/parts/DraftingSheet.tsx"
+    },
+    {
+      "path": "src/replica/parts/ExportMenu.tsx",
+      "bytes": 4535,
+      "sha256": "4f256423199f7d12bb42ee45185a3f2a5e38141afbb3a4bb7f2563a9057d0dee",
+      "role": "replica",
+      "source": "src/components/marketing/studio-replica/parts/ExportMenu.tsx"
+    },
+    {
+      "path": "src/replica/parts/PlanSvg.tsx",
+      "bytes": 10888,
+      "sha256": "33da5f043b5a54bc8c0ebb3dd7985352f93f7ab7fcf1de9d475c472252392ba9",
+      "role": "replica",
+      "source": "src/components/marketing/studio-replica/parts/PlanSvg.tsx"
+    },
+    {
+      "path": "src/replica/parts/RenderingCard.tsx",
+      "bytes": 2540,
+      "sha256": "cab6bdafb6daf516059a364187b9ae60a713778364a35ee66051e6dbf6a0b71f",
+      "role": "replica",
+      "source": "src/components/marketing/studio-replica/parts/RenderingCard.tsx"
+    },
+    {
+      "path": "src/replica/parts/ReviewPins.tsx",
+      "bytes": 7705,
+      "sha256": "37850d93c8da7ad6455015ca936a9fb8fb219075f13c5e3c397bc99d6040dc21",
+      "role": "replica",
+      "source": "src/components/marketing/studio-replica/parts/ReviewPins.tsx"
+    },
+    {
+      "path": "src/replica/parts/SheetChrome.tsx",
+      "bytes": 6014,
+      "sha256": "0ed2560464413f86a59f1016e8185ce6fbb91430f71ece2ebf975e634a644c5a",
+      "role": "replica",
+      "source": "src/components/marketing/studio-replica/parts/SheetChrome.tsx"
+    },
+    {
+      "path": "src/replica/parts/Toast.tsx",
+      "bytes": 1422,
+      "sha256": "8ba9e64f6c66b40c152bd878f76e82634d599b79bcfaf70c8d863937147587c9",
+      "role": "replica",
+      "source": "src/components/marketing/studio-replica/parts/Toast.tsx"
+    },
+    {
+      "path": "src/replica/parts/TopBar.tsx",
+      "bytes": 2837,
+      "sha256": "d23cdf8ee148fb743999647e65102fa7576d65f28c81afc66d380057e56f1714",
+      "role": "replica",
+      "source": "src/components/marketing/studio-replica/parts/TopBar.tsx"
+    },
+    {
+      "path": "src/replica/parts/TweaksPanel.tsx",
+      "bytes": 5042,
+      "sha256": "77972922c5937a33ad7527a008c76eb3bf4d8c290f10576b4b6611c2f2f250d6",
+      "role": "replica",
+      "source": "src/components/marketing/studio-replica/parts/TweaksPanel.tsx"
+    },
+    {
+      "path": "src/replica/planDraw.ts",
+      "bytes": 5276,
+      "sha256": "f186db18d39e306e996493430eb830a6212cd1830d29408d4597df70adc32040",
+      "role": "replica",
+      "source": "src/components/marketing/studio-replica/planDraw.ts"
+    },
+    {
+      "path": "src/replica/planTypes.ts",
+      "bytes": 3921,
+      "sha256": "d22c40faf9b1f5d2be4d33782e36ccdc65ade3912302148bc69826b846662478",
+      "role": "replica",
+      "source": "src/components/marketing/studio-replica/planTypes.ts"
+    },
+    {
+      "path": "src/replica/replica.css",
+      "bytes": 10428,
+      "sha256": "0fbd98677c7df1ab247dc048d55d7374b44f06d04679327ef6b9ff5b7755bdf9",
+      "role": "replica",
+      "source": "src/components/marketing/studio-replica/replica.css"
+    },
+    {
+      "path": "src/replica/resolvePages.ts",
+      "bytes": 6296,
+      "sha256": "296d25a19ab802261720caac44ddc534a2aee61dfb430b2055d318e6412dbc4a",
+      "role": "replica",
+      "source": "src/components/marketing/studio-replica/resolvePages.ts"
+    },
+    {
+      "path": "src/replica/screenplay.ts",
+      "bytes": 13675,
+      "sha256": "2938058efadacb9cfa51d176d74f242c3f31f3d760c3f390759cd745987422bd",
+      "role": "replica",
+      "source": "src/components/marketing/studio-replica/screenplay.ts"
+    },
+    {
+      "path": "src/replica/strings.ts",
+      "bytes": 15798,
+      "sha256": "df5999c888644bb61502e6dd349dd45629312e0826677e1c7109e2d31ff50f9e",
+      "role": "replica",
+      "source": "src/components/marketing/studio-replica/strings.ts"
+    },
+    {
+      "path": "src/replica/style.ts",
+      "bytes": 2260,
+      "sha256": "18eb564d31d542a37bc25f4b1cdeff855d40da9a9341ed73d774ac707e976879",
+      "role": "replica",
+      "source": "src/components/marketing/studio-replica/style.ts"
+    },
+    {
+      "path": "src/replica/types.ts",
+      "bytes": 12750,
+      "sha256": "b46a17edf07e3b56ce24b61665156385bc483e728e29bca9b6325ccb48a5682c",
+      "role": "replica",
+      "source": "src/components/marketing/studio-replica/types.ts"
+    },
+    {
+      "path": "src/replica/useReplicaClock.ts",
+      "bytes": 8141,
+      "sha256": "87c3129bd604ccfac39d7a29f978e23e8f855b1e81a7b8239d3aa67376e00c25",
+      "role": "replica",
+      "source": "src/components/marketing/studio-replica/useReplicaClock.ts"
+    }
+  ]
+}

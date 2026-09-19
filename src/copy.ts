@@ -245,6 +245,24 @@ export const HONESTY: CopyLine = {
   note: "Mandatory in all eight masters, ≥ 3 s of FILM time. The film renders it only where the time warp leaves the replica's own caption short; `verify:timeline` proves the floor per cut.",
 };
 
+/* ── the one switch ───────────────────────────────────────────────────────── */
+
+/**
+ * Lines that are on screen by a decision that is not final.
+ *
+ * `tweakLine` is `Tweak a number.` — the single sentence in this film that no
+ * growth-repo or product line says. It is literal and it breaks no ban, but it
+ * is the film's own, and the founder has not seen it. Flip this to `false` and
+ * the tweak beat plays exactly as long, framed exactly the same, with the
+ * chapter chip ("Tweak") carrying the beat alone: no EDL changes, no cut
+ * re-sums, nothing to re-derive. That is the whole point of it being a flag
+ * rather than an edit — an answer either way is a one-character change, so the
+ * question can stay open without holding the film.
+ */
+export const COPY_FLAGS = {
+  tweakLine: true,
+} as const;
+
 /* ── the roster ───────────────────────────────────────────────────────────── */
 
 /** Every authored line in the film. The clearance table is checked against it. */

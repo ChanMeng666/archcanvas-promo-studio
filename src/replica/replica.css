@@ -1,0 +1,258 @@
+/*
+ * The replica's ONLY stylesheet.
+ *
+ * ⚠ HOUSE RULES (the same ones `types.ts` states for the TypeScript, and
+ * `tests/studioReplicaPurity.test.ts` enforces both halves mechanically):
+ *
+ *  1. **Everything is scoped under `.studio-replica`.** This file is copied
+ *     verbatim into the promo-film repo and imported next to that repo's own
+ *     styles; one unscoped `button { … }` would restyle a whole other app.
+ *  2. **No Tailwind.** There is no Tailwind in the film repo, so every value is
+ *     written out. The tokens below mirror the APP tokens (`src/app/globals.css`
+ *     `:root`), NOT the `.mkt` marketing layer — the replica is a picture of the
+ *     product, and the product runs on the app palette.
+ *  3. **No `transition`, no `animation`, no `@keyframes`, no `will-change`.**
+ *     Every moving value is an inline style computed from `ReplicaState`. A CSS
+ *     transition is wall-clock interpolation: correct in a browser at 60 Hz and
+ *     WRONG in a frame-by-frame renderer, which may paint frame 900 before frame
+ *     12 and would catch the transition mid-flight (or not at all). `will-change`
+ *     is banned separately — it promotes a layer per element, and a 280-node plan
+ *     on a 2 GB box is how you run a renderer out of memory.
+ *  4. **sRGB fallback first, `oklch()` second.** Each token is declared twice;
+ *     a browser that cannot parse `oklch` keeps the hex it already resolved.
+ *     The hexes are the sRGB measurements quoted in `globals.css`'s own contrast
+ *     notes, so the two files agree about what the colour IS.
+ *
+ * SIZING. Everything is expressed in DESIGN UNITS through `--u` (px per unit):
+ * the landscape layout draws into a nominal 1600x1000 box, the portrait one into
+ * 1000x1333. `--u` defaults to a container-query unit, so the SAME markup is
+ * crisp at 360 px on a phone, 1100 px on a desktop and 1920 px in a film frame;
+ * a host that knows its pixel size (the film does) passes the `unit` prop and
+ * gets exact integers instead.
+ */
+
+.studio-replica {
+  /* ── palette: mirrors `:root` in src/app/globals.css ───────────────────── */
+  --sr-background: #fbf8f2;
+  --sr-background: oklch(0.98 0.008 85);
+  --sr-foreground: #241f1a;
+  --sr-foreground: oklch(0.18 0.006 75);
+  --sr-card: #fffdfa;
+  --sr-card: oklch(0.995 0.005 85);
+  --sr-muted: #f1ece2;
+  --sr-muted: oklch(0.955 0.01 85);
+  --sr-muted-foreground: #7b746b;
+  --sr-muted-foreground: oklch(0.505 0.012 75);
+  --sr-border: #e6ded1;
+  --sr-border: oklch(0.9 0.012 85);
+  --sr-input-border: #8d8980;
+  --sr-canvas-bg: #fafafa;
+  --sr-canvas-bg: oklch(0.985 0 0);
+  --sr-canvas-dot: #d4d4d4;
+  --sr-canvas-dot: oklch(0.85 0 0);
+  --sr-action: #6a3df0;
+  --sr-action-foreground: #ffffff;
+  --sr-plum: #8052ff;
+  --sr-destructive: #c10008;
+  /* The violet used as a wash. Written as a triplet so the fills below can pick
+     their own alpha, exactly as `globals.css` does for the selection halo. */
+  --sr-action-rgb: 106 61 240;
+
+  /* ── geometry: in DESIGN UNITS, never in pixels ─────────────────────────
+     A custom property is substituted textually and resolved on the element
+     that USES it, so `var(--u)` in here picks up the unit of whatever is
+     drawing — which is the whole point. Written as fixed px (as they are in
+     `globals.css`, where the box is always a browser window) a 24 px card
+     radius is a pill at 360 px and a hairline in a 1920 px film frame; the
+     same is true of every shadow. Radii and shadows scale with the box. */
+  --sr-radius: calc(var(--u) * 10);
+  --sr-radius-card: calc(var(--u) * 24);
+  --sr-radius-pill: 9999px;
+  /* ⚠ A DEVICE PIXEL, not a design unit, and it may NOT be written with a
+     container-query unit inside `max()`.
+     Two reasons, and the second one cost an afternoon. A hairline is the one
+     thing the product does NOT scale: its borders are 1 px on a phone and 1 px
+     on a 27-inch monitor, because a divider is a hairline at every size and a
+     "proportional" one is a bar. And `max(1px, calc(var(--u) * 1))` — where
+     `--u` is a `cqw` — is silently dropped inside the `border` shorthand, so
+     every card, pill and outline in the replica rendered with NO EDGE AT ALL
+     while the shadows underneath made it look almost right. Measured in the
+     preview harness: the Act I card had no border for four iterations. */
+  --sr-hair: 1px;
+
+  /* The host supplies the faces; these are the fallbacks the product also uses. */
+  font-family: var(--replica-sans, "Space Grotesk", system-ui, sans-serif);
+  color: var(--sr-foreground);
+
+  /* The element every `cqw` below resolves against. */
+  container-type: inline-size;
+  position: relative;
+  display: block;
+  overflow: hidden;
+  background: var(--sr-background);
+  /* The replica is decorative in full: the host names it. */
+  user-select: none;
+}
+
+/* The inner box is what carries `--u`; the root cannot, because a `cqw` used on
+   a container resolves against that container's OWN ancestor, not itself. */
+.studio-replica .sr-frame {
+  --u: 0.0625cqw; /* 1600 design units across the container */
+  --k: 1; /* chrome/type scale — portrait re-lays out at a bigger one */
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.studio-replica[data-layout="portrait"] .sr-frame {
+  --u: 0.1cqw; /* 1000 design units across */
+  --k: 2.4;
+}
+
+/* ── primitives ──────────────────────────────────────────────────────────── */
+
+.studio-replica .sr-abs {
+  position: absolute;
+}
+
+.studio-replica .sr-pill {
+  border-radius: var(--sr-radius-pill);
+}
+
+.studio-replica .sr-card {
+  border-radius: var(--sr-radius-card);
+  background: var(--sr-background);
+  border: var(--sr-hair) solid var(--sr-border);
+}
+
+.studio-replica .sr-panel {
+  border-radius: var(--sr-radius);
+  background: var(--sr-card);
+  border: var(--sr-hair) solid var(--sr-border);
+}
+
+.studio-replica .sr-mono {
+  font-family: var(--replica-mono, "Geist Mono", ui-monospace, monospace);
+  font-variant-numeric: tabular-nums;
+}
+
+.studio-replica .sr-muted {
+  color: var(--sr-muted-foreground);
+}
+
+.studio-replica .sr-truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── the sheet ───────────────────────────────────────────────────────────── */
+/* `globals.css` § "Paper on desk": the compiled plan carries its own white
+   paper, so the frame is not a card — it is a sheet lying on the dot grid under
+   a layered paper shadow. The selected halo is the same violet triplet. */
+.studio-replica .sr-sheet {
+  background: #ffffff;
+  box-shadow:
+    0 calc(var(--u) * 1) calc(var(--u) * 2) rgb(0 0 0 / 0.08),
+    0 calc(var(--u) * 10) calc(var(--u) * 28) calc(var(--u) * -8) rgb(0 0 0 / 0.12);
+}
+
+.studio-replica .sr-sheet-selected {
+  box-shadow:
+    0 0 0 calc(var(--u) * 1.5) rgb(var(--sr-action-rgb) / 0.45),
+    0 0 0 calc(var(--u) * 7) rgb(var(--sr-action-rgb) / 0.08),
+    0 calc(var(--u) * 10) calc(var(--u) * 28) calc(var(--u) * -8) rgb(0 0 0 / 0.12);
+}
+
+/* The rendering: borderless float on the paper canvas (`.arch-photo`). */
+.studio-replica .sr-photo {
+  box-shadow:
+    0 calc(var(--u) * 1) calc(var(--u) * 2) rgb(0 0 0 / 0.06),
+    0 calc(var(--u) * 8) calc(var(--u) * 20) calc(var(--u) * -8) rgb(0 0 0 / 0.14);
+}
+
+/* ── the plan ────────────────────────────────────────────────────────────── */
+/* The drawing's viewBox is in MILLIMETRES, so a stroke width declared in user
+   units renders sub-pixel at any sensible size. Every stroked node carries
+   `vector-effect="non-scaling-stroke"` from the component; this is the belt to
+   those braces and covers the two overlay layers, which restyle in bulk. */
+.studio-replica .sr-plan svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+/* The dashed violet ghost of the parent geometry — `globals.css` § `.arch-ghost`,
+   same colour, same dash, same suppression of the text layer.
+   This is the ONE place `non-scaling-stroke` belongs: the rule throws away the
+   drawing's millimetre weights and replaces them with a single screen-space
+   hairline, which is exactly the case the property exists for. (`PlanSvg` must
+   NOT use it on the drawing itself — see the note at the top of that file.) */
+.studio-replica .sr-ghost svg * {
+  fill: none;
+  stroke: rgb(var(--sr-action-rgb) / 0.45);
+  stroke-width: calc(var(--u) * 1.4);
+  stroke-dasharray: calc(var(--u) * 7) calc(var(--u) * 5);
+  vector-effect: non-scaling-stroke;
+}
+
+.studio-replica .sr-ghost svg text {
+  display: none;
+}
+
+/* ── the chips, badges and buttons the sheet floats ──────────────────────── */
+
+.studio-replica .sr-chrome {
+  background: rgb(255 255 255 / 0.9);
+  border: var(--sr-hair) solid var(--sr-border);
+  color: var(--sr-muted-foreground);
+}
+
+.studio-replica .sr-chrome-on {
+  border-color: rgb(var(--sr-action-rgb) / 0.4);
+  background: rgb(var(--sr-action-rgb) / 0.2);
+  color: var(--sr-action);
+}
+
+.studio-replica .sr-cta {
+  background: var(--sr-action);
+  color: var(--sr-action-foreground);
+}
+
+.studio-replica .sr-outline {
+  background: var(--sr-background);
+  border: var(--sr-hair) solid var(--sr-border);
+  color: var(--sr-foreground);
+}
+
+/* ── layout helpers ──────────────────────────────────────────────────────── */
+
+.studio-replica .sr-row {
+  display: flex;
+  align-items: center;
+}
+
+.studio-replica .sr-col {
+  display: flex;
+  flex-direction: column;
+}
+
+.studio-replica .sr-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* A finding is prose and can run to 500 characters. It wraps, then stops —
+   a review card that grows without bound pushes the sheet off the stage. */
+.studio-replica .sr-clamp {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+}
+
+.studio-replica .sr-wrap {
+  overflow-wrap: anywhere;
+  word-break: normal;
+}

@@ -1,182 +1,175 @@
 import React from "react";
 import { AbsoluteFill, useCurrentFrame } from "remotion";
 
+import { replicaAssetUrl } from "../assets";
+import { entryOpacity, pushTransform, shotFor } from "../camera";
 import { FONT } from "../fonts";
 import { useLayout, type StageRect } from "../layout";
-import { SCENES } from "../scenes";
-import { replicaTimeIn, type ResolvedBeat } from "../timeline";
-import { APP, CANVAS_DOT_PITCH, RADIUS, SPOT, TRACKING, TYPE, WEIGHT } from "../tokens";
+import { SCENES, type ChapterId } from "../scenes";
+import { ColourWipe } from "./ColourWipe";
+import { groundOf } from "./SceneRouter";
+import { DEMO, PAGES } from "../film-demo";
+import { StudioReplica } from "../replica/StudioReplica";
+import { frameToSec, type ResolvedBeat } from "../timeline";
+import { APP, CANVAS_DOT_PITCH, CANVAS_DRIFT_PX, RADIUS, STAGE, STAGE_DOT_ON_DARK } from "../tokens";
 
 /**
- * Where the product goes.
+ * The product, on screen.
  *
- * `src/replica/**` is a ONE-WAY copy of
- * `archcanvas/src/components/marketing/studio-replica/` and it has not been
- * synced yet, so this renders a framed placeholder instead: the chapter, the
- * replica window the beat plays, and the mapped screenplay time `t` at this
- * exact frame. That last number is the point of the placeholder — a still
- * proves the time-warp arithmetic before a single pixel of the product exists,
- * and a warp that runs backwards or overruns a chapter is visible in a PNG
- * rather than in a render three hours long.
+ * This is the film's ONE integration point with the synced replica, and it is
+ * deliberately thin: `shotFor` (in the React-free `camera.ts`) answers where the
+ * replica is mounted, what second of the screenplay it is showing and what the
+ * camera is doing, and this component turns that into three `div`s. Everything a
+ * gate wants to know about a frame it can therefore ask without a renderer —
+ * which is what lets `verify:honesty` check the caption against the real camera
+ * maths rather than against a copy of them.
  *
- * ── The one integration point ──────────────────────────────────────────────
+ * ── The window ─────────────────────────────────────────────────────────────
  *
- * WP-9 replaces the `<Placeholder>` below with the real component and changes
- * nothing else. Everything it needs is already on the beat:
+ * In 16:9 the replica sits in a rounded, softly shadowed window floating on the
+ * ivory page, with the replica's own browser chrome on: a wide frame has the
+ * room, and the chrome is what says "this is an application" in one glance.
  *
- * ```tsx
- * // WP-9: mount the product's own studio here.
- * //   import { StudioReplica, at, buildScreenplay, FIXTURE_DEMO } from "../replica";
- * //   const screenplay = buildScreenplay(demoFor(beat.scene));
- * //   <StudioReplica
- * //     state={at(screenplay, t)}
- * //     layout={layout.replicaLayout}
- * //     drawList={drawList}
- * //   />
- * ```
+ * In 9:16 both are off. A phone frame has no room to spend on a border, and the
+ * chrome band is 30 design units of furniture in the one composition where every
+ * unit of height is the difference between a legible room label and a smudge.
+ * The picture goes edge to edge instead, which is also how a vertical cut reads
+ * as native rather than as a letterboxed desktop.
  *
- * `t` is `replicaTimeIn(beat, frame)`, which is linear and clamped inside the
- * beat's own window — the whole time warp, in one call. `demoFor` is the second
- * question: the `second-brief` scene needs a different `DemoInputs` (the
- * family-house brief), and `scenes.ts` marks it `needs` until one exists.
+ * ── What is NOT here ───────────────────────────────────────────────────────
  *
- * **Do not reach for `useVideoConfig()` here.** The replica lays itself out
- * portrait or landscape from `useLayout().replicaLayout`, which is a re-layout
- * and never a crop.
+ * No `will-change`, on this or on anything it wraps. It asks Chrome to allocate
+ * backing store for the whole transformed layer, and a sibling film's renders
+ * were killed for memory with 5.4 GB free over one. `verify:replica` greps the
+ * synced replica for it for the same reason.
  */
 export const ReplicaSlot: React.FC<{
   beat: ResolvedBeat;
-  /**
-   * Where to mount, if not the whole stage. A `split` scene hands over the
-   * bottom fifth of the stage to its line, so the picture is smaller rather
-   * than the type leaving the safe area.
-   */
+  /** Where to mount, if not the whole picture box. A `split` scene passes its top. */
   stage?: StageRect;
-}> = ({ beat, stage }) => {
+  /**
+   * Where the caller clips the picture, in film pixels. A `split` scene passes
+   * the top of its type band, and `camera.ts` keeps the protected rectangles
+   * above it rather than merely inside the frame.
+   */
+  clipBottom?: number;
+}> = ({ beat, stage, clipBottom }) => {
   const frame = useCurrentFrame();
   const layout = useLayout();
-  const scene = SCENES[beat.scene];
-  const box = stage ?? layout.stage;
-  const t = replicaTimeIn(beat, frame);
+  const box = stage ?? layout.picture;
+  const windowed = layout.aspect === "landscape";
+
+  const shot = shotFor(beat, frame, layout, box, { browserFrame: windowed, clipBottom });
+  const { mount, push } = shot;
+
+  /*
+   * The colour script. The chapter colours the GROUND the window floats on; the
+   * window itself keeps the product's true ivory and true canvas, because it is
+   * a picture of the product and a tinted one would be a lie about it.
+   */
+  const chapter: ChapterId | undefined = SCENES[beat.scene].chapter;
+  const ground = chapter ? STAGE[chapter] : APP.page;
+  const onDark = chapter === "review";
+  // The colour the cut is leaving, from the one table both this and the router
+  // read — two copies of "what colour is that scene" is how a wipe ends up
+  // wiping the wrong colour off.
+  const prevGround = groundOf(beat.prevScene);
 
   return (
-    <AbsoluteFill
-      style={{
-        backgroundColor: APP.canvas,
-        // The product's own canvas lattice, so the slot already sits on the
-        // ground the replica will land on rather than on a blank rectangle.
-        backgroundImage: `radial-gradient(${APP.canvasDot} 1px, transparent 1px)`,
-        backgroundSize: `${CANVAS_DOT_PITCH}px ${CANVAS_DOT_PITCH}px`,
-      }}
-    >
+    <AbsoluteFill style={{ backgroundColor: ground }}>
       <AbsoluteFill
-        style={{ left: box.x, top: box.y, width: box.w, height: box.h }}
+        style={{
+          transform: pushTransform(push),
+          transformOrigin: "0 0",
+          opacity: entryOpacity(frameToSec(frame)),
+        }}
       >
-        {/* WP-9: mount <StudioReplica state={at(screenplay, t)} layout={layout.replicaLayout} …/> */}
-        <Placeholder
-          chapter={scene.chapter ?? "—"}
-          intent={scene.intent}
-          windowFrom={beat.replicaFrom}
-          windowTo={beat.replicaTo}
-          rate={beat.replicaRate}
-          t={t}
-          needs={scene.needs}
+        {/*
+          ⚠ INSIDE the push, not behind it.
+
+          Behind it, the film's lattice stayed at 1x while the replica's own
+          scaled with the shot, and the window's edge became a hard seam between
+          two dot grids of different sizes — a frame that reads as two pictures
+          rather than one canvas. Scaling it with everything else is also safe:
+          the layer is an `AbsoluteFill` and `framePush` clamps the translate so
+          a scale >= 1 always covers the frame.
+        */}
+        <CanvasGround frame={frame} layout={layout} ground={ground} onDark={onDark} />
+        <ColourWipe
+          from={prevGround}
+          to={ground}
+          frame={frame}
+          seed={beat.index}
+          width={layout.width}
+          scale={push.scale}
         />
+        <div
+          style={{
+            position: "absolute",
+            left: mount.rect.x,
+            top: mount.rect.y,
+            width: mount.rect.w,
+            height: mount.rect.h,
+            borderRadius: windowed ? layout.u(RADIUS.card) : 0,
+            overflow: "hidden",
+            // Deeper on the dark stage, where the window is a bright object
+            // floating on colour rather than paper lying on paper.
+            boxShadow: windowed
+              ? `0 ${layout.u(26)}px ${layout.u(70)}px rgb(19 17 15 / ${onDark ? 0.34 : 0.13}), 0 ${layout.u(3)}px ${layout.u(10)}px rgb(19 17 15 / 0.06)`
+              : "none",
+            border: windowed ? `${Math.max(1, layout.u(1))}px solid ${APP.hairline}` : "none",
+          }}
+        >
+          <StudioReplica
+            state={shot.state}
+            demo={DEMO}
+            pages={PAGES}
+            layout={mount.layout}
+            unit={mount.unit}
+            browserFrame={windowed}
+            assetUrl={replicaAssetUrl}
+            style={{
+              width: mount.rect.w,
+              height: mount.rect.h,
+              // The replica's own two faces come from the film's `fonts.ts`, so
+              // the picture and the type around it are set in the same metal.
+              ["--replica-sans" as string]: FONT.sans,
+              ["--replica-mono" as string]: FONT.mono,
+            }}
+          />
+        </div>
       </AbsoluteFill>
     </AbsoluteFill>
   );
 };
 
 /**
- * Scaffolding, and labelled as such.
+ * The infinite canvas the window floats on: the product's own dot lattice,
+ * drifting a little.
  *
- * `capture/verify-copy.mjs` classes anything inside a declaration named
- * `Placeholder` as scaffolding rather than copy: listed on every run, fatal
- * under `--strict`. `npm run ship` passes `--strict`, so the film physically
- * cannot ship with one of these on screen, and the gate does not hold the repo
- * red while WP-9 is mounting the real thing.
+ * Two pitches of the lattice over the whole film, which is slow enough that a
+ * viewer reads it as depth rather than as movement, and fast enough that a
+ * static frame of a static interface is never actually static. It is a
+ * background-position on one element — no layer promotion, nothing to allocate.
  */
-const Placeholder: React.FC<{
-  chapter: string;
-  intent: string;
-  windowFrom?: number;
-  windowTo?: number;
-  rate: number | null;
-  t: number | null;
-  needs?: string;
-}> = ({ chapter, intent, windowFrom, windowTo, rate, t, needs }) => {
-  const layout = useLayout();
-  const pad = layout.u(40);
-
+const CanvasGround: React.FC<{
+  frame: number;
+  layout: ReturnType<typeof useLayout>;
+  ground: string;
+  onDark: boolean;
+}> = ({ frame, layout, ground, onDark }) => {
+  const pitch = layout.u(CANVAS_DOT_PITCH);
+  const drift = (frame * CANVAS_DRIFT_PX) % pitch;
+  const dot = onDark ? STAGE_DOT_ON_DARK : APP.canvasDot;
+  const r = Math.max(1, layout.u(1.4));
   return (
-    <div
+    <AbsoluteFill
       style={{
-        position: "absolute",
-        inset: 0,
-        border: `${layout.u(3)}px dashed ${APP.hairline}`,
-        borderRadius: layout.u(RADIUS.card),
-        backgroundColor: APP.card,
-        padding: pad,
-        display: "flex",
-        flexDirection: "column",
-        justifyContent: "space-between",
+        backgroundColor: ground,
+        backgroundImage: `radial-gradient(${dot} ${r}px, transparent ${r}px)`,
+        backgroundSize: `${pitch}px ${pitch}px`,
+        backgroundPosition: `${drift.toFixed(2)}px ${(drift * 0.6).toFixed(2)}px`,
       }}
-    >
-      <div
-        style={{
-          fontFamily: FONT.mono,
-          fontSize: layout.u(TYPE.dimension),
-          fontWeight: WEIGHT.medium,
-          letterSpacing: `${TRACKING.caps}em`,
-          textTransform: "uppercase",
-          color: SPOT.action,
-        }}
-      >
-        replica slot
-      </div>
-
-      <div style={{ display: "flex", flexDirection: "column", gap: layout.u(14) }}>
-        <div
-          style={{
-            fontFamily: FONT.sans,
-            fontSize: layout.u(TYPE.title),
-            fontWeight: WEIGHT.bold,
-            letterSpacing: `${TRACKING.display}em`,
-            lineHeight: 1.05,
-            color: APP.ink,
-          }}
-        >
-          {chapter}
-        </div>
-        <div
-          style={{
-            fontFamily: FONT.mono,
-            fontSize: layout.u(TYPE.label),
-            color: APP.inkMuted,
-            lineHeight: 1.55,
-            whiteSpace: "pre-line",
-          }}
-        >
-          {[
-            t === null ? "t = —" : `t = ${t.toFixed(2)} s`,
-            windowFrom === undefined
-              ? "window = —"
-              : `window = ${windowFrom} → ${windowTo} s`,
-            rate === null ? "rate = —" : `rate = ${rate.toFixed(2)}x`,
-          ].join("\n")}
-        </div>
-      </div>
-
-      <div
-        style={{
-          fontFamily: FONT.mono,
-          fontSize: layout.u(TYPE.dimension),
-          color: needs ? SPOT.action : APP.inkMuted,
-          lineHeight: 1.5,
-        }}
-      >
-        {needs ? `needs: ${needs}` : intent}
-      </div>
-    </div>
+    />
   );
 };

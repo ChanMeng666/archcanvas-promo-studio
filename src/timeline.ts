@@ -22,14 +22,11 @@
  * while `warnings` is non-empty.
  */
 
-import { CUT_IDS, CUT_SECONDS, FPS, type CutId } from "./layout-core";
-import {
-  CUTS,
-  HONESTY_MIN_SEC,
-  HONESTY_OVERLAY_SEC,
-  REPLICA_CAPTION_WINDOW,
-  type Edit,
-} from "./cuts";
+import { CUT_IDS, CUT_SECONDS, FPS, type Aspect, type CutId } from "./layout-core";
+import { CUTS, HONESTY_MIN_SEC, HONESTY_OVERLAY_SEC, type Edit } from "./cuts";
+import { DRAFTING_SPAN, DRAW_HANDOFF_SEC } from "./honesty";
+import { gridFor } from "./data/music-grid";
+import { REPLICA_CAPTION, REPLICA_CAPTION_WINDOW } from "./honesty";
 import { CARD_SEC, MAX_STATIC_UI_SEC, SCENES, hasReplica, type SceneId } from "./scenes";
 
 export { FPS };
@@ -79,6 +76,19 @@ export const ramp = (v: number, a: number, b: number, from: number, to: number):
 
 /** Identical to Remotion's `Easing.out(Easing.cubic)`, inlined to stay React-free. */
 export const easeOutCubic = (t: number): number => 1 - Math.pow(1 - clamp01(t), 3);
+
+/**
+ * Identical to Remotion's `Easing.out(Easing.exp)`.
+ *
+ * Steeper off the mark than `outCubic` and almost arrived at a third of the way
+ * through. It is what a line reveal wants — the eye reads "it moved" and then
+ * reads the word — where a push-in wants the gentler cubic, because a camera
+ * that snaps is a camera a viewer notices.
+ */
+export const easeOutExpo = (t: number): number => {
+  const x = clamp01(t);
+  return x >= 1 ? 1 : 1 - Math.pow(2, -10 * x);
+};
 
 /** Identical to Remotion's `Easing.inOut(Easing.cubic)`. */
 export const easeInOutCubic = (t: number): number => {
@@ -143,6 +153,8 @@ const MIN_BEAT_SEC = 0.5;
 export interface ResolvedBeat {
   index: number;
   scene: SceneId;
+  /** The scene the cut came FROM, so a beat can wipe the colour it replaces. */
+  prevScene: SceneId | null;
   edit: Edit;
   startSec: number;
   endSec: number;
@@ -157,6 +169,22 @@ export interface ResolvedBeat {
   replicaTo?: number;
   /** Camera push over the beat, end/start scale. 1 holds. */
   push: number;
+  /** How much of the frame this beat's subject fills, 0..1. 1 is the wide shot. */
+  fill: number;
+  /**
+   * This beat frames past the product's own honesty caption, and the FILM draws
+   * the sentence over it instead.
+   *
+   * ⚠ Per BEAT, not per scene, and the 9:16 drafting card is why. Expelling the
+   * caption raises the scale until it clears the frame — 1.64x in portrait — and
+   * the drafting half of the draw chapter wants a scale of about 1. Applied to
+   * the whole scene it cropped the drafting card on both sides: "...fting...",
+   * "...storey Townhouse". So only the half that is the money shot expels; the
+   * half that is the drafting card keeps the product's caption whole, and
+   * `honestyWindowFor` runs the film's band over exactly the beats that expel,
+   * so the two are never on screen together.
+   */
+  expelsCaption: boolean;
   /**
    * How fast the replica's clock runs during this beat. 1 is real time, >1 is
    * compressed. Null on a card.
@@ -166,12 +194,89 @@ export interface ResolvedBeat {
 
 export interface ResolvedCut {
   cut: CutId;
+  /** Which frame shape this was resolved for — only `expelsCaption` differs. */
+  aspect: Aspect;
   beats: readonly ResolvedBeat[];
   totalFrames: number;
   totalSeconds: number;
   /** How many boundaries the beat grid actually moved. 0 with no grid. */
   snapped: number;
 }
+
+/**
+ * Does this beat frame past the product's own honesty caption?
+ *
+ * ⚠ PER ASPECT, and two conditions. The second one is what the art-direction
+ * review caught; the per-aspect part is what fixing it broke and then fixed.
+ *
+ * The obvious case is the money shot: framed on the building at 85 % of the
+ * frame, the caption is far below the edge, so the film draws the sentence in
+ * its own band instead.
+ *
+ * The case that was missed is the drafting beat. The product's caption sits
+ * under the command bar, the drafting sheet sits in the middle of the stage, and
+ * at a framing tight enough to make the sheet readable the caption rides UP over
+ * the sheet's own text. A caption on top of the interface it is captioning is
+ * not "in its designed place" — it is a collision — so any beat that frames the
+ * replica closer than `CAPTION_SAFE_FILL` hands the sentence to the film's band
+ * too. The band is above the camera; nothing can land on it.
+ *
+ * Below that fill the shot is wide enough that the replica's own layout holds,
+ * and the product says it itself.
+ */
+const CAPTION_SAFE_FILL: Record<Aspect, number> = {
+  /**
+   * The replica letterboxes in a 16:9 frame — a 1600 x 1000 design box is 1.60
+   * against the frame's 1.78 — so reaching any tight fill costs a real push. The
+   * drafting card at 0.85 is a 2.37x shot, and at 2.37 the caption rides up over
+   * the sheet's own text.
+   */
+  landscape: 0.72,
+  /**
+   * The replica FILLS a 9:16 frame — 1000 x 1333 is 0.75 against 0.56 — so the
+   * same fills need no push at all and the replica's own layout holds. Above 1
+   * so it never triggers, which is the honest way to say "never here" rather
+   * than a number that looks tuned.
+   *
+   * It matters that this is not simply set to the landscape value: expelling in
+   * portrait costs a 1.61x push (the caption sits at 78 % of the design height,
+   * and clearing the bottom edge from there is expensive), and at 1.61 the
+   * drafting card is 143 % of the frame width. Cropped on both sides — the exact
+   * defect the per-beat rule was introduced to fix.
+   */
+  portrait: 1.01,
+};
+
+/** How much of a beat's replica window is spent on the drafting card. */
+const draftShare = (win: { from: number; to: number }): number => {
+  const lo = Math.max(win.from, DRAFTING_SPAN.from);
+  const hi = Math.min(win.to, DRAFTING_SPAN.to);
+  const len = win.to - win.from;
+  return len > 0 ? Math.max(0, hi - lo) / len : 0;
+};
+
+const expels = (
+  id: SceneId,
+  win: { from: number; to: number } | null,
+  fill: number,
+  aspect: Aspect,
+): boolean => {
+  if (SCENES[id].filmCaption !== true || win === null) return false;
+  /*
+   * ⚠ NOT on the drafting beats, whatever the fill says.
+   *
+   * The drafting card and the product's caption are both at the bottom of the
+   * design box, so a beat that frames the card closely either cuts the caption
+   * in half or — once the film takes the sentence over — lands its own band
+   * across the card's last two lines. Both were on the contact sheet. The
+   * camera frames the card and the caption together instead (`camera.ts` §
+   * draftCardBox), which means the product says it itself and the film must not
+   * also.
+   */
+  if (draftShare(win) > 0.5) return false;
+  if (win.from >= DRAW_HANDOFF_SEC - 1e-9) return true;
+  return fill > CAPTION_SAFE_FILL[aspect] + 1e-9;
+};
 
 /** The replica window a beat plays: its own, or the scene's default. */
 const windowFor = (edit: Edit): { from: number; to: number } | null => {
@@ -193,14 +298,14 @@ const windowFor = (edit: Edit): { from: number; to: number } | null => {
  * also makes grid snapping safe: a snapped boundary moves two beats and changes
  * no total.
  */
-export const resolveCut = (cut: CutId, grid?: BeatGrid | null): ResolvedCut => {
+export const resolveCut = (cut: CutId, grid?: BeatGrid | null, aspect: Aspect = "landscape"): ResolvedCut => {
   const edits = CUTS[cut];
   const target = CUT_SECONDS[cut];
   const targetFrames = framesForCut(cut);
 
   if (edits.length === 0) {
     warn(`cut "${cut}" has an empty edit decision list — there is nothing to render.`);
-    return { cut, beats: [], totalFrames: 0, totalSeconds: 0, snapped: 0 };
+    return { cut, aspect, beats: [], totalFrames: 0, totalSeconds: 0, snapped: 0 };
   }
 
   const sum = edits.reduce((n, e) => n + e.sec, 0);
@@ -263,6 +368,7 @@ export const resolveCut = (cut: CutId, grid?: BeatGrid | null): ResolvedCut => {
     return {
       index,
       scene: edit.scene,
+      prevScene: index > 0 ? edits[index - 1].scene : null,
       edit,
       startSec,
       endSec,
@@ -273,6 +379,8 @@ export const resolveCut = (cut: CutId, grid?: BeatGrid | null): ResolvedCut => {
       replicaFrom: win?.from,
       replicaTo: win?.to,
       push: edit.push ?? scene.camera?.to ?? 1,
+      fill: edit.fill ?? scene.camera?.fill ?? 1,
+      expelsCaption: expels(edit.scene, win, edit.fill ?? scene.camera?.fill ?? 1, aspect),
       replicaRate: win && durationSec > 0 ? (win.to - win.from) / durationSec : null,
     };
   });
@@ -282,13 +390,37 @@ export const resolveCut = (cut: CutId, grid?: BeatGrid | null): ResolvedCut => {
     warn(`cut "${cut}" derives ${totalFrames} frames but must be ${targetFrames}.`);
   }
 
-  return { cut, beats, totalFrames, totalSeconds: frameToSec(totalFrames), snapped };
+  return { cut, aspect, beats, totalFrames, totalSeconds: frameToSec(totalFrames), snapped };
 };
 
 const built = {} as Record<CutId, ResolvedCut>;
-for (const id of CUT_IDS) built[id] = resolveCut(id, null);
+for (const id of CUT_IDS) built[id] = resolveCut(id, gridFor(id));
 
-/** The four derived edits, keyed by cut, with no beat grid applied. */
+/**
+ * The same four edits resolved for a 9:16 frame.
+ *
+ * ⚠ Only `expelsCaption` differs, and it has to: expelling the product's caption
+ * costs a 1.61x push in portrait and 2.37x is what a landscape drafting shot
+ * needs anyway, so the same rule applied to both crops the portrait drafting
+ * card on every side. Lengths, boundaries and windows are identical — the gates
+ * assert it.
+ */
+const builtPortrait = {} as Record<CutId, ResolvedCut>;
+for (const id of CUT_IDS) builtPortrait[id] = resolveCut(id, gridFor(id), "portrait");
+
+/** The resolved edit for a frame shape. `Film.tsx` and every gate read this. */
+export const timelineFor = (cut: CutId, aspect: Aspect): ResolvedCut =>
+  aspect === "portrait" ? builtPortrait[cut] : built[cut];
+
+/**
+ * The four derived edits, keyed by cut, WITH the music's bar grid applied.
+ *
+ * ⚠ One clock. The scaffold snapped in `Film.tsx` and left this un-snapped,
+ * which would have left the cue sheet — derived from these beats — describing
+ * boundaries a frame or two from where the picture actually cut. Everything now
+ * reads this: the compositions' lengths, `beatAtFrame`, the cue sheets, the
+ * honesty windows and every gate.
+ */
 export const TIMELINES: Readonly<Record<CutId, ResolvedCut>> = built;
 
 /** How long a composition runs. `Root.tsx` reads only this. */
@@ -368,6 +500,30 @@ export interface HonestyWindow {
   source: "replica" | "film";
   /** What the replica's own caption alone would have given, in film seconds. */
   naturalSec: number;
+  /**
+   * The CONTINUOUS seconds the sentence is on screen from either source — the
+   * film's band plus any replica run that abuts it.
+   *
+   * ⚠ This, not `sec`, is what the floor is about. The band and the product's
+   * own caption now hand over on a beat boundary, so measuring the band alone
+   * under-counts by exactly the handover: the 15 s cut reads 2.85 s of band and
+   * 3.23 s of sentence. `verify:honesty` measures the same quantity frame by
+   * frame through the real camera and must agree with this.
+   */
+  coveredSec: number;
+  /**
+   * The band appears at FULL opacity rather than fading in.
+   *
+   * ⚠ True whenever the product's own caption was carrying the sentence up to
+   * this second, which is the normal case now: the drafting beat shows the
+   * product's caption, the money shot frames past it, and the film's band takes
+   * over on the cut between them. A fade there costs a quarter-second in which
+   * NEITHER is fully opaque, and the floor is measured on a continuous run — the
+   * 15 s cut came out at 2.60 s that way, under the floor, with 3.23 s of caption
+   * actually on screen. A hard swap of one identical sentence for another, on a
+   * cut where the whole frame changes anyway, is invisible.
+   */
+  hardIn: boolean;
 }
 
 /**
@@ -380,20 +536,46 @@ export interface HonestyWindow {
  * longest run is what the floor is measured against.
  */
 export const honestyWindowFor = (resolved: ResolvedCut): HonestyWindow => {
+  /** Runs in which the replica's OWN caption is fully opaque and on screen. */
   const runs: { from: number; to: number; scene: SceneId }[] = [];
+  /**
+   * Film-time spans of the beats that frame PAST the product's caption.
+   *
+   * This is exactly where the film's own band belongs: over the beats where the
+   * product is not saying it, and nowhere else. Placing it by the caption's
+   * playing span instead would put it on top of the beats that DO show it — the
+   * doubling `verify:honesty` fails on.
+   */
+  const expelled: { from: number; to: number }[] = [];
 
   for (const beat of resolved.beats) {
     if (beat.replicaFrom === undefined || beat.replicaTo === undefined) continue;
     const span = beat.replicaTo - beat.replicaFrom;
     if (span <= 0) continue;
 
+    const mapped = (t: number): number =>
+      beat.startSec + ((t - beat.replicaFrom!) / span) * beat.durationSec;
+
+    const vLo = Math.max(beat.replicaFrom, REPLICA_CAPTION.beatAt);
+    const vHi = Math.min(beat.replicaTo, REPLICA_CAPTION.beatAt + REPLICA_CAPTION.beatDur);
+
+    if (beat.expelsCaption) {
+      if (vHi > vLo) {
+        const from = mapped(vLo);
+        const to = mapped(vHi);
+        const last = expelled[expelled.length - 1];
+        if (last && Math.abs(last.to - from) < 1e-6) last.to = to;
+        else expelled.push({ from, to });
+      }
+      continue;
+    }
+
     const lo = Math.max(beat.replicaFrom, REPLICA_CAPTION_WINDOW.from);
     const hi = Math.min(beat.replicaTo, REPLICA_CAPTION_WINDOW.to);
     if (hi <= lo) continue;
 
-    const from = beat.startSec + ((lo - beat.replicaFrom) / span) * beat.durationSec;
-    const to = beat.startSec + ((hi - beat.replicaFrom) / span) * beat.durationSec;
-
+    const from = mapped(lo);
+    const to = mapped(hi);
     const last = runs[runs.length - 1];
     if (last && last.scene === beat.scene && Math.abs(last.to - from) < 1e-6) last.to = to;
     else runs.push({ from, to, scene: beat.scene });
@@ -403,47 +585,86 @@ export const honestyWindowFor = (resolved: ResolvedCut): HonestyWindow => {
     (acc, r) => (acc === null || r.to - r.from > acc.to - acc.from ? r : acc),
     null,
   );
+  const naturalSec = best ? best.to - best.from : 0;
 
-  if (!best) {
-    // No beat of this cut shows the caption at all. The film owns the whole
-    // window, and it is placed over the first replica beat there is.
-    const firstReplica = resolved.beats.find((b) => b.replicaFrom !== undefined);
-    const from = firstReplica ? firstReplica.startSec : 0;
-    const to = Math.min(from + HONESTY_OVERLAY_SEC, resolved.totalSeconds);
-    warn(
-      `cut "${resolved.cut}" never plays the replica's own honesty caption — the film overlays the whole ${HONESTY_OVERLAY_SEC}s itself.`,
-    );
-    return { from, to, sec: to - from, source: "film", naturalSec: 0 };
+  /*
+   * The product alone clears the floor: the film adds nothing. This is the state
+   * the 30, 60 and 120 cuts were in before the money shot needed to push past
+   * the caption, and it is still reachable — a cut whose draw chapter is not
+   * framed that close would land here.
+   */
+  if (best && naturalSec >= HONESTY_MIN_SEC && expelled.length === 0) {
+    return { ...best, sec: naturalSec, source: "replica", naturalSec, hardIn: false, coveredSec: naturalSec };
   }
 
-  const naturalSec = best.to - best.from;
-  if (naturalSec >= HONESTY_MIN_SEC) {
-    return { ...best, sec: naturalSec, source: "replica", naturalSec };
+  const band = expelled.reduce<{ from: number; to: number } | null>(
+    (acc, r) => (acc === null || r.to - r.from > acc.to - acc.from ? r : acc),
+    null,
+  );
+
+  if (band) {
+    // Over the expelling beat, edge to edge. The product's own caption picks up
+    // on either side where a neighbouring beat still shows it, and
+    // `verify:honesty` measures the union of the two.
+    const before = runs.find((r) => Math.abs(r.to - band.from) < 0.05);
+    const after = runs.find((r) => Math.abs(r.from - band.to) < 0.05);
+    const covered =
+      (before ? before.to - before.from : 0) +
+      (band.to - band.from) +
+      (after ? after.to - after.from : 0);
+    return {
+      from: band.from,
+      to: band.to,
+      sec: band.to - band.from,
+      source: "film",
+      naturalSec,
+      hardIn: before !== undefined,
+      coveredSec: covered,
+    };
   }
 
-  // Short. The film draws it, starting where the replica's own caption starts
-  // so the two read as one caption rather than as two.
-  let from = best.from;
-  let to = from + HONESTY_OVERLAY_SEC;
-  if (to > resolved.totalSeconds) {
-    to = resolved.totalSeconds;
-    from = Math.max(0, to - HONESTY_OVERLAY_SEC);
+  if (best) {
+    // Short, and nothing expels: the film covers the shortfall AHEAD of the
+    // product's own caption, ending where it becomes visible.
+    const to = best.from;
+    const from = Math.max(0, to - HONESTY_OVERLAY_SEC);
+    return { from, to, sec: to - from, source: "film", naturalSec, hardIn: false, coveredSec: to - from + naturalSec };
   }
-  return { from, to, sec: to - from, source: "film", naturalSec };
+
+  const firstReplica = resolved.beats.find((b) => b.replicaFrom !== undefined);
+  const from = firstReplica ? firstReplica.startSec : 0;
+  const to = Math.min(from + HONESTY_OVERLAY_SEC, resolved.totalSeconds);
+  warn(
+    `cut "${resolved.cut}" never plays the honesty caption's own beat — the film overlays the whole ${HONESTY_OVERLAY_SEC}s itself.`,
+  );
+  return { from, to, sec: to - from, source: "film", naturalSec, hardIn: false, coveredSec: to - from };
 };
 
 const honestyBuilt = {} as Record<CutId, HonestyWindow>;
 for (const id of CUT_IDS) honestyBuilt[id] = honestyWindowFor(TIMELINES[id]);
+const honestyPortrait = {} as Record<CutId, HonestyWindow>;
+for (const id of CUT_IDS) honestyPortrait[id] = honestyWindowFor(builtPortrait[id]);
 
-/** The honesty window per cut, with no beat grid applied. */
+/** The honesty window per cut, landscape. */
 export const HONESTY_WINDOWS: Readonly<Record<CutId, HonestyWindow>> = honestyBuilt;
 
+/**
+ * The honesty window for a frame shape.
+ *
+ * It differs between the two, and it must: the band runs over exactly the beats
+ * that frame past the product's own caption, and which beats those are depends
+ * on the frame shape.
+ */
+export const honestyWindow = (cut: CutId, aspect: Aspect): HonestyWindow =>
+  aspect === "portrait" ? honestyPortrait[cut] : honestyBuilt[cut];
+
 for (const id of CUT_IDS) {
-  const h = HONESTY_WINDOWS[id];
-  if (h.sec + 1e-9 < HONESTY_MIN_SEC) {
-    warn(
-      `cut "${id}" keeps the honesty caption on screen for ${h.sec.toFixed(2)}s, under the ${HONESTY_MIN_SEC}s floor.`,
-    );
+  for (const h of [honestyBuilt[id], honestyPortrait[id]]) {
+    if (h.coveredSec + 1e-9 < HONESTY_MIN_SEC) {
+      warn(
+        `cut "${id}" keeps the honesty caption on screen for ${h.coveredSec.toFixed(2)}s, under the ${HONESTY_MIN_SEC}s floor.`,
+      );
+    }
   }
 }
 
@@ -517,7 +738,8 @@ export const describe = (): string => {
     out.push(`  cut ${id}s  ${t.totalFrames} frames  (${t.totalSeconds.toFixed(2)}s @ ${FPS}fps)`);
     out.push(
       `    honesty caption ${h.from.toFixed(2)}–${h.to.toFixed(2)}s = ${h.sec.toFixed(2)}s ` +
-        `(${h.source}; the replica's own alone gives ${h.naturalSec.toFixed(2)}s, floor ${HONESTY_MIN_SEC}s)`,
+        `(${h.source}${h.hardIn ? ", hard in" : ""}; the product's own adds ${h.naturalSec.toFixed(2)}s, ` +
+        `${h.coveredSec.toFixed(2)}s continuous, floor ${HONESTY_MIN_SEC}s)`,
     );
     out.push(
       "    " +
@@ -530,6 +752,7 @@ export const describe = (): string => {
           "replica".padStart(13),
           "rate".padStart(7),
           "push".padStart(6),
+          "fill".padStart(6),
         ].join(" "),
     );
     for (const b of t.beats) {
@@ -544,6 +767,7 @@ export const describe = (): string => {
             (b.replicaFrom === undefined ? "-" : `${b.replicaFrom}-${b.replicaTo}`).padStart(13),
             (b.replicaRate === null ? "-" : `${b.replicaRate.toFixed(2)}x`).padStart(7),
             (b.push === 1 ? "-" : b.push.toFixed(2)).padStart(6),
+            (b.fill === 1 ? "-" : b.fill.toFixed(2)).padStart(6),
           ].join(" "),
       );
     }

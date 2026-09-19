@@ -77,6 +77,27 @@ const UNIT_SCALE: Record<Aspect, number> = {
   portrait: 1,
 };
 
+/**
+ * The PICTURE's margins, which are not the type's.
+ *
+ * `SAFE` is a rule about where a reader can read a sentence: on 9:16 the top 250
+ * px and the bottom 390 px belong to Reels, TikTok and Shorts, and a line of
+ * type behind a share sheet is a line nobody sees. A PICTURE behind the top of a
+ * share sheet is merely a picture with its corner covered — and mounting the
+ * replica inside the type-safe area costs it real size, which on this film is
+ * the difference between a room label a viewer can read and one they cannot.
+ *
+ * So the replica gets its own, looser box: it still clears the bottom furniture
+ * completely (that is where the caption row and the buttons actually sit) and it
+ * gives the top only what the platform's own header takes. Measured against the
+ * stills, not guessed: at 1920x1080 this is a 7.9 % larger replica than the
+ * type-safe stage gave, and at 1080x1920 it is 16 % larger.
+ */
+const PICTURE: Record<Aspect, { top: number; bottom: number; side: number }> = {
+  landscape: { top: 44, bottom: 52, side: 44 },
+  portrait: { top: 130, bottom: 400, side: 20 },
+};
+
 export type Layout = {
   width: number;
   height: number;
@@ -90,8 +111,10 @@ export type Layout = {
   u: (value: number) => number;
   /** The widest a block of type may run. */
   maxContent: number;
-  /** The rectangle the replica is mounted into, inside the safe area. */
+  /** The rectangle a block of TYPE may occupy, inside the text-safe area. */
   stage: { x: number; y: number; w: number; h: number };
+  /** The rectangle the PICTURE is mounted into — looser than `stage`, see `PICTURE`. */
+  picture: { x: number; y: number; w: number; h: number };
   isWide: boolean;
 };
 
@@ -107,6 +130,14 @@ export const deriveLayout = (width: number, height: number): Layout => {
     h: height - safe.top - safe.bottom,
   };
 
+  const pic = PICTURE[aspect];
+  const picture = {
+    x: pic.side,
+    y: pic.top,
+    w: width - pic.side * 2,
+    h: height - pic.top - pic.bottom,
+  };
+
   return {
     width,
     height,
@@ -117,6 +148,7 @@ export const deriveLayout = (width: number, height: number): Layout => {
     u: (value: number) => Math.round(value * scale),
     maxContent: aspect === "landscape" ? 1420 : width - safe.side * 2,
     stage,
+    picture,
     isWide: aspect === "landscape",
   };
 };
@@ -142,22 +174,33 @@ export const deriveLayout = (width: number, height: number): Layout => {
  * leaving the readable frame.
  */
 const SPLIT_BAND: Record<Aspect, number> = {
-  landscape: 0.23,
-  portrait: 0.21,
+  landscape: 0.19,
+  portrait: 0.17,
 };
 
 export type StageRect = { x: number; y: number; w: number; h: number };
 
 /**
- * The two rectangles of a split scene. Both inside `stage`, so neither can
- * reach the platform's own furniture.
+ * The two rectangles of a split scene: the picture above, the line below.
+ *
+ * The PICTURE half is cut out of `picture` and the LINE half out of `stage`, so
+ * each gets the box its own rule is about — the replica gets the looser picture
+ * margins, and the type stays inside the area a platform's interface does not
+ * cover. Splitting one box for both is what put a two-line receipt sentence 72
+ * px past the bottom of a 16:9 frame in the scaffold's first still pass.
  */
 export const splitStage = (l: Layout): { replica: StageRect; line: StageRect } => {
   const band = Math.round(l.stage.h * SPLIT_BAND[l.aspect]);
-  const gap = l.u(28);
+  const gap = l.u(24);
+  const lineY = l.stage.y + l.stage.h - band;
   return {
-    replica: { x: l.stage.x, y: l.stage.y, w: l.stage.w, h: l.stage.h - band - gap },
-    line: { x: l.stage.x, y: l.stage.y + l.stage.h - band, w: l.stage.w, h: band },
+    replica: {
+      x: l.picture.x,
+      y: l.picture.y,
+      w: l.picture.w,
+      h: Math.max(80, lineY - gap - l.picture.y),
+    },
+    line: { x: l.stage.x, y: lineY, w: l.stage.w, h: band },
   };
 };
 

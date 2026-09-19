@@ -84,40 +84,54 @@ Six that will bite:
 
 ```
 src/layout-core.ts   FPS, cut lengths, the 8 DELIVERABLES, deriveLayout(),     [React-free]
-                     splitStage() — the safe-area split a `split` scene uses
+                     `stage` (type-safe) vs `picture` (the replica's box),
+                     splitStage() — the split a `split` scene uses
 src/layout.ts        useLayout() — the hook every component reads
-src/cuts.ts          four EDLs, in SECONDS + the honesty caption's numbers     [React-free]
-src/scenes.ts        the 13-scene roster, its four kinds, the pace rules       [React-free]
-src/copy.ts          every word the FILM says in its own voice, with sources   [React-free]
+src/cuts.ts          four EDLs, in SECONDS                                     [React-free]
+src/scenes.ts        the 13-scene roster, its four kinds, the pace rules,      [React-free]
+                     `camera.frame` (where the camera stands) + `camera.to`
+src/copy.ts          every word the FILM says in its own voice, + COPY_FLAGS   [React-free]
+src/honesty.ts       the caption beat, the draw hand-over and the drafting     [React-free]
+                     span — all DERIVED from the synced screenplay
 src/timeline.ts      the ONLY frame arithmetic in the repo; resolveCut(),      [React-free]
-                     honestyWindowFor(), snapToDownbeat()
+                     honestyWindowFor(), timelineFor(cut, aspect) +
+                     honestyWindow(cut, aspect) — grid-snapped, one clock, and
+                     only `expelsCaption` differs between the frame shapes
+src/camera.ts        the mount, the push, the protected-rectangle clamp        [React-free]
+src/film-demo.ts     DemoInputs, the screenplay, the resolved pages, the       [React-free]
+                     montage — all read out of the synced product data
+src/cues.ts          the cue sheets, DERIVED by walking each cut frame by frame[React-free]
+src/audio.ts         the manifests, the duck spec, the self-check              [React-free]
 src/typefit.ts       size-from-character-count, because measuring needs fonts  [React-free]
+src/caption.ts       CAPTION_SCALE — how big the film's own band sets          [React-free]
 src/tokens.ts        the product's own colours, converted from OKLCH to sRGB   [React-free]
 src/fonts.ts         Space Grotesk + Geist Mono, narrowed
+src/assets.ts        every staticFile() as a LITERAL, so the gate can read it
 src/Root.tsx         8 <Composition>s, mapped from DELIVERABLES
-src/Film.tsx         <Sequence> per resolved beat + the honesty overlay
-src/components/      SceneRouter · KineticCard/SplitLine · ReplicaSlot ·
-                     EndCard · HonestyCaption · Camera
-src/data/music-grid.ts  the beat-grid seam; null until WP-8 lands music.json
+src/Film.tsx         <Sequence> per resolved beat + the honesty overlay + sound
+src/components/      SceneRouter · KineticCard/SplitLine/ChapterChip ·
+                     ReplicaSlot · SecondBrief · EndCard · HonestyCaption ·
+                     FilmAudio · Camera (PushLayer)
+src/data/music-grid.ts  the beat grid, read off the delivered mp3
 src/replica/         SYNCED, NOT EDITABLE — the product's own studio replica
-src/replica-data/    SYNCED types + the generated seam (index.ts)
-src/data/            drawlist.json (synced) + replica-lock.json (the ledger)
+src/replica-data/    SYNCED types + STUDIO_DEMO + the generated seam (index.ts)
+src/data/            drawlist.json (the numbers gate's record), landing.json
+                     (what the film DRAWS), showcase-plans.json (the montage,
+                     baked at sync time), music.json, sfx.json,
+                     replica-lock.json (the ledger)
 public/brand/        the product's wordmark + icon, for the end card
 public/renders/      SYNCED renderings
-capture/             the gates
+public/audio/        the four beds + fourteen synthesised cues
+capture/             the gates, and `stills.mjs` — the look pass
 scripts/             sync-replica.mjs + verify-replica.mjs
 ```
-
-**Two things in `src/` are still scaffolding**, both deliberately visible rather
-than pretended away: `<ReplicaSlot>` draws a labelled placeholder until the
-replica is synced (`verify:copy` lists it every run and `--strict` makes it
-fatal), and the `second-brief` scene is marked `needs` until a second screenplay
-exists (`verify:timeline` prints it every run).
 
 The React-free files are bundled and executed in Node by `capture/lib/load-core.mjs`, so
 the gates test the real code rather than a re-implementation of it. **Keep them free of
 React and Remotion imports** — esbuild will blow up loudly if one creeps in, and that
-failure is the tripwire working.
+failure is the tripwire working. It exposes two entry points: `loadCore()` for the
+modules a timeline question needs, and `loadFilm()` for the ones that reach the synced
+replica and the ~1.4 MB of baked payload behind it.
 
 ## Commands
 
@@ -130,7 +144,12 @@ npm run dev                                   # Remotion Studio
 
 npm run lint                                  # tsc --noEmit
 npm run verify                                # assets -> replica -> timeline -> copy -> numbers
-npx remotion still src/index.ts Studio-15-Landscape-16x9 out/stills/check.png --frame=30
+                                              #   -> audio -> honesty -> framing -> opening
+npm run stills --  --comp Studio-30-Landscape-16x9   # six beats of one master
+for c in ...; do node capture/stills.mjs --comp $c; done   # a full sweep, per comp
+node capture/stills.mjs --sheet --comp <id>   # contact FRAMES for one cut
+npm run stills:sheet                          # tile them, once, from disk
+node capture/stills.mjs --at 30-Land:7.4,9.1  # ad-hoc seconds, for a look-fix pass
 pwsh -File ./render.ps1 -ListOnly             # the plan + the orphan scan, renders nothing
 pwsh -File ./render.ps1                       # all eight, sequential
 npm run verify:flash out/<master>.mp4         # EVERY master, not one
@@ -187,6 +206,14 @@ rediscover them.**
   outside a paid subscription — *before or after* — cannot be used commercially.
   Upgrading later does not license what already exists. Twelve assets were deleted over
   this. `GET /v1/user/subscription` answers it in one call. See `docs/decisions.md` D4.
+- **A long still run through ONE browser exhausts its network resources.**
+  `@remotion/google-fonts` fetches the two faces from `fonts.gstatic.com` on every
+  page, and after a few dozen stills in one session the fetch fails with
+  `net::ERR_INSUFFICIENT_RESOURCES` — which surfaces as a bare
+  `[NetworkError: A network error occurred.]` and takes the whole run with it,
+  part-written. `capture/stills.mjs` is therefore run **per composition**
+  (`--comp`) for a full sweep, not once over all eight. The tell is the same as
+  the memory one: the failure names the network, and the cause is the count.
 - **A gate whose input set can go empty reports success by doing nothing.** The sibling
   project produced that failure four times in one day. Every gate here says out loud how
   many things it looked at, `verify:assets` prints a VACUOUS banner at zero
@@ -206,6 +233,10 @@ rediscover them.**
 - **Don't write a frame number outside `timeline.ts`.**
 - **Don't name the DSL, show `.arch` source, or write "as code".**
 - **Don't put a number on screen that is not in `src/data/drawlist.json`.**
+- **Don't aim the camera by hand.** `camera.ts` resolves a scene's focus through the
+  replica's own `layoutMap`, so a shot cannot drift from the thing it frames.
+- **Don't hand-place a sound cue.** `cues.ts` derives them from what the product is
+  doing at that frame; the same 35 s of screenplay runs at 2.50x and at 0.46x.
 - **Don't run a full render to check a change.** Render a still, look at it, then render.
 - **Don't run eight renders in parallel**, and don't run a render beside a `check:full`
   in the product repo. One machine, 16 GB, and it has been rebooted over this before.

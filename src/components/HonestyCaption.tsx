@@ -1,6 +1,7 @@
 import React from "react";
 import { AbsoluteFill, useCurrentFrame } from "remotion";
 
+import { CAPTION_SCALE } from "../caption";
 import { HONESTY, linesFor } from "../copy";
 import { FONT } from "../fonts";
 import { useLayout } from "../layout";
@@ -25,43 +26,58 @@ import { APP, MOTION, RADIUS, TRACKING, TYPE, WEIGHT } from "../tokens";
  * for about 2.7 s, which is under the floor. So `timeline.ts` DERIVES the
  * window per cut (`honestyWindowFor`) and says who owns it. Where the derived
  * window is long enough — the 30, 60 and 120 cuts today — this component does
- * not render at all and the product's own caption does the whole job. Where it
- * is short, this renders the identical sentence for the full window.
+ * not render at all and the product's own caption does the whole job.
  *
- * The two are deliberately in different places: the replica's caption is inside
- * the studio stage, this one is a subtitle band under it. For the ~2.7 s they
- * overlap, a subtitle restating an on-screen caption is ordinary film language
- * and reads as emphasis, not as a duplicate. The alternative — suppressing the
- * replica's own caption — is not available and should not be: `src/replica/**`
- * is a one-way copy and editing it here is a red gate by design.
+ * ── BEFORE the replica's own, never on top of it ───────────────────────────
  *
- * ⚠ The sentence is a COPY of the replica's `HONESTY_CAPTION` until the sync
- * lands. **WP-9: import it from `src/replica` and delete the local constant.**
+ * The first version overlapped the two, on the reasoning that a subtitle
+ * restating an on-screen caption reads as emphasis. It does not: the still pass
+ * caught the product's dark in-app pill and this band 115 px apart carrying the
+ * identical sentence, which reads as a rendering bug. The window now ENDS where
+ * the replica's caption reaches full opacity, so the sentence is handed over
+ * rather than doubled — and this component does not fade out, because a fade at
+ * the join is the one place a dip would break the continuous run the three-
+ * second floor is measured on.
+ *
+ * Suppressing the replica's own caption is not available and should not be:
+ * `src/replica/**` is a one-way copy and editing it here is a red gate by
+ * design.
+ *
+ * ⚠ The sentence is deliberately still a literal in `copy.ts` rather than an
+ * import from the synced `strings.ts`: that literal is what makes it visible to
+ * `verify:copy`'s harvest and to the clearance table. `honesty.ts` →
+ * `captionDrift()` is what stops the two parting company.
  */
 export const HonestyCaption: React.FC<{
   /** Film seconds, absolute in the cut. From `honestyWindowFor`. */
   from: number;
   to: number;
-}> = ({ from, to }) => {
+  /** Appear at full opacity — the product's caption was carrying it until now. */
+  hardIn?: boolean;
+}> = ({ from, to, hardIn = false }) => {
   const frame = useCurrentFrame();
   const layout = useLayout();
   const sec = frame / FPS;
 
   if (sec < from || sec > to) return null;
 
-  // A fade short enough that the readable core is nearly the whole window —
-  // the floor is measured on the core, so a long fade would be the film
-  // marking its own homework.
-  const fade = Math.min(MOTION.enterSec, (to - from) / 6);
-  const opacity =
-    clamp01(ramp(sec, from, from + fade, 0, 1)) * clamp01(ramp(sec, to - fade, to, 1, 0));
+  // Fades IN, and does not fade out.
+  //
+  // `to` is the second the replica's own caption reaches full opacity, so the
+  // band hands the sentence over rather than overlapping it — and a fade at that
+  // join is the one place a dip would break the continuous run the floor is
+  // measured on. The fade in is short for the same reason: the floor is measured
+  // on the opaque core, so a long fade would be the film marking its own
+  // homework.
+  const fade = hardIn ? 0 : Math.min(MOTION.enterSec, (to - from) / 6);
+  const opacity = fade <= 0 ? 1 : clamp01(ramp(sec, from, from + fade, 0, 1));
 
   const lines = linesFor(HONESTY.copy, layout.aspect);
 
   // Anchored to the BOTTOM OF THE STAGE, never to the bottom of the frame. In
   // 9:16 the last 390 px belong to Reels, TikTok and Shorts, and the film's one
   // mandatory sentence is the last thing that may sit behind a share sheet.
-  const height = layout.u(TYPE.caption * 1.15 * 1.3) * lines.length + layout.u(34);
+  const height = layout.u(TYPE.caption * CAPTION_SCALE * 1.3) * lines.length + layout.u(40);
 
   return (
     <AbsoluteFill
@@ -80,7 +96,7 @@ export const HonestyCaption: React.FC<{
           backgroundColor: APP.card,
           border: `${layout.u(1.5)}px solid ${APP.hairline}`,
           borderRadius: layout.u(RADIUS.pill),
-          padding: `${layout.u(14)}px ${layout.u(30)}px`,
+          padding: `${layout.u(18)}px ${layout.u(38)}px`,
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
@@ -92,7 +108,7 @@ export const HonestyCaption: React.FC<{
             key={line}
             style={{
               fontFamily: FONT.sans,
-              fontSize: layout.u(TYPE.caption * 1.15),
+              fontSize: layout.u(TYPE.caption * CAPTION_SCALE),
               fontWeight: WEIGHT.medium,
               letterSpacing: `${TRACKING.body}em`,
               lineHeight: 1.3,

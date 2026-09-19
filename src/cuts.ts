@@ -42,6 +42,7 @@
  * hand-typed, so a re-cut cannot silently drop below the floor.
  */
 
+import { DRAW_HANDOFF_SEC, LOOP_FADE_SEC } from "./honesty";
 import type { CutId } from "./layout-core";
 import type { SceneId } from "./scenes";
 
@@ -61,6 +62,11 @@ export type Edit = {
   replicaTo?: number;
   /** Camera push over the beat, as an end/start scale multiplier. */
   push?: number;
+  /**
+   * How much of the frame this beat's subject fills, 0..1. Omitted, the scene's
+   * own `camera.fill` applies; `1` is the wide shot.
+   */
+  fill?: number;
   /** Why this beat is cut the way it is, when it is not obvious. */
   why?: string;
 };
@@ -70,10 +76,23 @@ export type Edit = {
 /**
  * Where the drafting sheet hands the studio over to the drawing.
  *
- * Screenplay 9.3 s: the `drawPlan` beat's own start. Named once so the four
- * EDLs cannot disagree about where the money shot begins.
+ * The `drawPlan` beat's own `at`, DERIVED from the synced screenplay — it was a
+ * literal `9.3` until the replica's follow-up moved the drafting beat around it
+ * (3.8 s to 4.3 s, so the sheet is still up when the first strokes appear under
+ * it). The second did not move that time. Nothing here would have noticed if it
+ * had: all four EDLs split the draw chapter on this one number.
  */
-export const DRAW_HANDOFF_SEC = 9.3;
+export { DRAW_HANDOFF_SEC } from "./honesty";
+
+/**
+ * Where the export chapter ends.
+ *
+ * NOT 35. The screenplay's last beat is a fade to nothing, because the landing
+ * page LOOPS; a film cuts to its end card instead, and a window that ran to 35
+ * spent its last half-second watching the product dissolve. Derived from the
+ * `loopFade` beat, so a screenplay that moves it moves this.
+ */
+export { LOOP_FADE_SEC } from "./honesty";
 
 /* ── 15 s — What ──────────────────────────────────────────────────────────── */
 
@@ -111,7 +130,7 @@ const CUT_15: readonly Edit[] = [
     why: "1.12x — the money shot, the longest beat in a fifteen-second film.",
   },
   { scene: "claim-what", sec: 1.8 },
-  { scene: "export", sec: 2.5, replicaFrom: 31.5, replicaTo: 35, push: 1.05 },
+  { scene: "export", sec: 2.5, replicaFrom: 31.5, replicaTo: LOOP_FADE_SEC, push: 1.05 },
   { scene: "endcard", sec: 1.9 },
 ];
 
@@ -203,7 +222,7 @@ const CUT_60: readonly Edit[] = [
     why: "Parked — the render chapter's one push is on the rendering.",
   },
   { scene: "render", sec: 4.0, replicaFrom: 29.8, replicaTo: 31.5, push: 1.05 },
-  { scene: "export", sec: 6.0, replicaFrom: 31.5, replicaTo: 35, push: 1.06 },
+  { scene: "export", sec: 6.0, replicaFrom: 31.5, replicaTo: LOOP_FADE_SEC, push: 1.06 },
   { scene: "price", sec: 2.2 },
   { scene: "endcard", sec: 3.8 },
 ];
@@ -237,9 +256,12 @@ const CUT_120: readonly Edit[] = [
   { scene: "receipt", sec: 7.0, replicaFrom: 25.8, replicaTo: 28, push: 1.12, why: "One pin opens and is read. The film's slowest push." },
   { scene: "storey", sec: 8.0, replicaFrom: 28, replicaTo: 29.8, push: 1.05 },
   { scene: "render", sec: 8.0, replicaFrom: 29.8, replicaTo: 31.5, push: 1.05 },
-  { scene: "export", sec: 8.0, replicaFrom: 31.5, replicaTo: 35, push: 1.08 },
-  { scene: "second-brief", sec: 7.0, replicaFrom: 0, replicaTo: 5.5, push: 1.04, why: "Same composer, different words." },
-  { scene: "second-brief", sec: 9.0, replicaFrom: 5.5, replicaTo: 13, push: 1.08, why: "Same seven chapters, a different plan drawing itself." },
+  { scene: "export", sec: 8.0, replicaFrom: 31.5, replicaTo: LOOP_FADE_SEC, push: 1.08 },
+  // ⚠ These two windows are PLAN INDICES into the montage, not screenplay
+  // seconds — see `scenes.ts` § second-brief. Two plans in seven seconds, then
+  // two in nine.
+  { scene: "second-brief", sec: 7.0, replicaFrom: 0, replicaTo: 2, push: 1, why: "A family house and a courtyard flat, each under its own brief." },
+  { scene: "second-brief", sec: 9.0, replicaFrom: 2, replicaTo: 4, push: 1, why: "A clinic and a bedsit — a different programme and a different size." },
   { scene: "claim-what", sec: 2.2 },
   { scene: "price", sec: 2.2 },
   { scene: "endcard", sec: 4.2 },
@@ -256,34 +278,12 @@ export const CUTS: Readonly<Record<CutId, readonly Edit[]>> = {
 /* ── the honesty caption's own numbers ────────────────────────────────────── */
 
 /**
- * The replica's own caption beat, in SCREENPLAY seconds, reduced to the window
- * where it is actually readable.
- *
- * The beat is `at: 8.0, dur: 4.5` in the replica's screenplay, and `at.ts`
- * envelopes it — fading in over the first 10% and out over the last 14%. So the
- * sentence is fully opaque from 8.0 + 0.45 to 12.5 − 0.63, and that core is
- * what the three-second floor is measured against. Measuring the envelope's
- * tails as "on screen" would be the film marking its own homework.
- *
- * ⚠ These four numbers are COPIES of the replica's beat table, which is not
- * synced yet. **WP-9: re-derive them from the synced `screenplay.ts` and delete
- * the literals.** `verify:timeline` prints them on every run so the copy cannot
- * go stale unseen.
+ * ⚠ These were four literals copied out of a screenplay that had not been synced
+ * yet. They are now DERIVED from the synced one — `honesty.ts` finds the caption
+ * beat by its action kind and reads the envelope `at.ts` actually applies. Move
+ * the beat upstream and every cut's floor moves with it.
  */
-export const REPLICA_CAPTION = {
-  beatAt: 8.0,
-  beatDur: 4.5,
-  fadeInFraction: 0.1,
-  fadeOutFraction: 0.14,
-} as const;
-
-/** The readable window, derived. */
-export const REPLICA_CAPTION_WINDOW = {
-  from: REPLICA_CAPTION.beatAt + REPLICA_CAPTION.beatDur * REPLICA_CAPTION.fadeInFraction,
-  to:
-    REPLICA_CAPTION.beatAt +
-    REPLICA_CAPTION.beatDur * (1 - REPLICA_CAPTION.fadeOutFraction),
-} as const;
+export { REPLICA_CAPTION, REPLICA_CAPTION_WINDOW } from "./honesty";
 
 /**
  * The floor, in FILM seconds, in every one of the eight masters.

@@ -41,6 +41,7 @@ import {
   TWEAK_A_NUMBER,
   type CopyLine,
 } from "./copy";
+import { LOOP_FADE_SEC } from "./honesty";
 
 /** The seven acts of the replica's own screenplay. Mirrors its `ChapterId`. */
 export type ChapterId =
@@ -78,6 +79,15 @@ export type SceneId = (typeof SCENE_IDS)[number];
 export type SceneKind = "replica" | "split" | "card" | "endcard";
 
 /**
+ * A card's ground.
+ *
+ * Declared HERE rather than beside the component that draws it, because
+ * `scenes.ts` is bundled and executed in Node by the gates and a `.tsx` import
+ * would drag React into that bundle — which is the tripwire, not a nuisance.
+ */
+export type CardTone = "paper" | "deep" | "bright";
+
+/**
  * The camera's behaviour on a scene, as a DEFAULT that a cut may override.
  *
  * A single scale multiplier, never a rect: this film cuts where the earlier one
@@ -87,6 +97,23 @@ export type SceneKind = "replica" | "split" | "card" | "endcard";
 export interface PushSpec {
   /** End/start scale over the beat. */
   to: number;
+  /**
+   * How much of the FRAME the thing this beat is about should fill, 0..1.
+   *
+   * A FRACTION, not a scale. It was a scale for one pass, and the
+   * art-direction review is why it is not: a hand-tuned 1.35 that framed the
+   * drawing well at 1920x1080 framed it small at 1080x1920 and smaller again
+   * inside a split scene's shorter box, so the first cut had the UI at about a
+   * quarter of the picture and a composer card adrift in beige. A fraction means
+   * the same thing in every composition, and `camera.ts` derives the scale from
+   * the focus rectangle's real size in that frame.
+   *
+   * `to` is still the push over the beat and the two multiply, so a beat can be
+   * framed close and then pull OUT (`to` below 1) to reveal the studio around
+   * it. Every result is floored at 1 and clamped by `framePush` against the
+   * protected rectangles.
+   */
+  fill?: number;
 }
 
 export interface Scene {
@@ -111,6 +138,31 @@ export interface Scene {
   /** The push this scene wants when a cut does not say otherwise. */
   camera?: PushSpec;
   /**
+   * The film draws the honesty caption over this scene, and the replica's own
+   * may therefore leave the frame.
+   *
+   * Only the `draw` scene sets it, and only because the money shot's framing
+   * puts the product's caption below the frame edge. The obligation does not
+   * move: `honestyWindowFor` gives the sentence to the film's own band, above
+   * the camera, where nothing can crop it, and `verify:honesty` enforces the
+   * thing that would actually be wrong - a caption half in frame.
+   */
+  filmCaption?: boolean;
+  /**
+   * A card's ground: `paper` (ink on ivory), `deep` (aubergine) or `bright`
+   * (buttercream).
+   *
+   * ⚠ The cards ALTERNATE, and that is the point rather than a preference — a
+   * film whose every card is ivory is a film whose contact sheet is one colour.
+   *
+   * There is no `plum`. There was, for one pass, on the art direction's explicit
+   * instruction; the founder's standing objection to large flat violet is older
+   * and stands, so the price card is buttercream with obsidian type instead —
+   * which is the warmer, lighter frame the "you pay" moment wanted anyway.
+   * `docs/decisions.md` D24.
+   */
+  tone?: CardTone;
+  /**
    * Something this scene needs that does not exist yet. A scene with a `needs`
    * renders, but `verify:timeline` prints it on every run so a cut cannot
    * quietly ship against a fixture.
@@ -132,6 +184,7 @@ export const SCENES: Readonly<Record<SceneId, Scene>> = {
     kind: "card",
     intent: "Open on the plan and the help, never on the letters A and I.",
     copy: HOOK,
+    tone: "paper",
   },
 
   brief: {
@@ -140,7 +193,31 @@ export const SCENES: Readonly<Record<SceneId, Scene>> = {
     intent: "Someone types what they want. The composer, the typology, the launch control.",
     chapter: "brief",
     defaultReplica: { from: 0, to: 5.5 },
-    camera: { to: 1.05 },
+    /*
+     * THE WIDE SHOT, and it is the one scene that wants to be.
+     *
+     * The first still pass framed the composer card at 1.22x and got a line of
+     * type floating in an empty ivory field: the product's own card is ivory on
+     * ivory with a 1.3:1 hairline (deliberately — its borders are dividers, not
+     * controls), and at that magnification the hairline is gone and the card
+     * with it. There is nothing to fix upstream; a card that reads as a card at
+     * 1100 px in a browser does not need to read as one at 2300 px in a film.
+     *
+     * So the brief beat shows the APPLICATION instead — window chrome, top bar,
+     * the card on the canvas, the violet launch control — inside the film's own
+     * rounded, shadowed window, and pushes in gently. The frame has structure
+     * even where the product's own surface is deliberately flat. 1.09 is also
+     * the most a 1600 x 1000 design box can take in a 16:9 frame before the
+     * window's own edges leave it — so the push runs THROUGH that point and ends
+     * inside the card. The contact sheet is why: at 1.09 the brief beat was three
+     * consecutive seconds of a pale, near-identical window, the flattest stretch
+     * in the 30 s cut. A push that starts on the whole application and finishes
+     * on the sentence someone is typing is the same information with a move
+     * under it.
+     */
+    // The composer card across two thirds of the frame, pushing to fill it:
+    // someone typing is the beat, and the words have to be readable.
+    camera: { to: 1.14, fill: 0.66 },
   },
 
   draw: {
@@ -150,7 +227,15 @@ export const SCENES: Readonly<Record<SceneId, Scene>> = {
       "The drafting sheet works, then the drawing comes in by layer. THE MONEY SHOT, and the honesty caption's home.",
     chapter: "draw",
     defaultReplica: { from: 5.5, to: 13 },
-    camera: { to: 1.08 },
+    // THE MONEY SHOT. 1.35 puts the paper at ~80 % of the frame height, which is
+    // as close as the honesty caption's clamp allows on this beat — and the
+    // caption is on screen for most of it, so that is the real ceiling.
+    // THE MONEY SHOT. The BUILDING at 85 % of the frame (`buildingBox`), then a
+    // pull-out over the beat that reveals the studio around it as the last
+    // strokes land. The product's own caption is off-frame at this framing, so
+    // the film draws the sentence itself.
+    camera: { to: 0.62, fill: 0.85 },
+    filmCaption: true,
   },
 
   "claim-what": {
@@ -158,6 +243,7 @@ export const SCENES: Readonly<Record<SceneId, Scene>> = {
     kind: "card",
     intent: "The what-line. The one sentence that says what the product does.",
     copy: CLAIM_WHAT,
+    tone: "deep",
   },
 
   edit: {
@@ -167,7 +253,16 @@ export const SCENES: Readonly<Record<SceneId, Scene>> = {
     copy: SAY_THE_CHANGE,
     chapter: "edit",
     defaultReplica: { from: 13, to: 19 },
-    camera: { to: 1.06 },
+    // Closest framing in the film: the kitchen takes the building's full width
+    // and the hall gives up the strip, and from the fit a viewer cannot see it.
+    // The kitchen and the command bar in one frame: the beat is the sentence
+    // and the change it makes.
+    //
+    // 0.86, not 0.90: a split scene's fill is measured against the part of the
+    // frame above the type band (`camera.ts` § shotFor), and the last few points
+    // were the difference between a subject that fits and one cut at its top
+    // edge. `verify:framing`.
+    camera: { to: 1.06, fill: 0.86 },
   },
 
   tweak: {
@@ -177,7 +272,10 @@ export const SCENES: Readonly<Record<SceneId, Scene>> = {
     copy: TWEAK_A_NUMBER,
     chapter: "tweak",
     defaultReplica: { from: 19, to: 23.5 },
-    camera: { to: 1.05 },
+    // The slider and the wall it moves have to be in one frame or the beat says
+    // nothing, so this is the widest of the close framings.
+    // The knob and the wall it moves.
+    camera: { to: 1.05, fill: 0.88 },
   },
 
   receipt: {
@@ -188,7 +286,13 @@ export const SCENES: Readonly<Record<SceneId, Scene>> = {
     copy: RECEIPT,
     chapter: "review",
     defaultReplica: { from: 23.5, to: 28 },
-    camera: { to: 1.1 },
+    // The open card and its pin, with enough drawing behind them to see what the
+    // finding is about.
+    // Close enough to READ the finding — a frame wide enough to hold the whole
+    // drawing is a frame the sentence in the card is illegible in — and then a
+    // gentle pull-out, so the beat ends showing the drawing the finding is
+    // about and a little of the aubergine stage it floats on.
+    camera: { to: 0.86, fill: 0.82 },
   },
 
   storey: {
@@ -199,7 +303,8 @@ export const SCENES: Readonly<Record<SceneId, Scene>> = {
     copy: FACTS,
     chapter: "render",
     defaultReplica: { from: 28, to: 29.8 },
-    camera: { to: 1.04 },
+    // Both storey chips and the paper that changes under them.
+    camera: { to: 1.04, fill: 0.86 },
   },
 
   render: {
@@ -209,7 +314,10 @@ export const SCENES: Readonly<Record<SceneId, Scene>> = {
       "The rendering fades in, carrying the product's own always-visible AI-generated pill. A presentation aid, never the pitch — so the film says nothing over it.",
     chapter: "render",
     defaultReplica: { from: 29.8, to: 31.5 },
-    camera: { to: 1.05 },
+    // The rendering card carries the always-visible "AI-generated" pill, which
+    // `framePush` protects: this scale is the one the clamp allows.
+    // The drawing and the rendering card side by side, filling the frame.
+    camera: { to: 1.04, fill: 0.94 },
   },
 
   export: {
@@ -218,8 +326,12 @@ export const SCENES: Readonly<Record<SceneId, Scene>> = {
     intent: "The export menu. Image and CAD, the real menu's own two groups, cursor on DXF.",
     copy: EXPORT_LINE,
     chapter: "export",
-    defaultReplica: { from: 31.5, to: 35 },
-    camera: { to: 1.06 },
+    // Not 35: the screenplay ends on the landing loop's fade-out and a film
+    // cuts to its end card instead. See `cuts.ts` § LOOP_FADE_SEC.
+    defaultReplica: { from: 31.5, to: LOOP_FADE_SEC },
+    // The menu, readable, with the drawing it belongs to. 0.87 rather than 0.92
+    // for the reason the `edit` beat gives.
+    camera: { to: 1.04, fill: 0.87 },
   },
 
   price: {
@@ -227,17 +339,27 @@ export const SCENES: Readonly<Record<SceneId, Scene>> = {
     kind: "card",
     intent: "The pay-per-result frame. No bare figure ever appears on screen.",
     copy: PRICE,
+    // The film's brightest frame, and it lands on the money line.
+    tone: "bright",
   },
 
+  /**
+   * ⚠ This scene's `replicaFrom`/`replicaTo` are PLAN INDICES, not screenplay
+   * seconds — `{ from: 0, to: 2 }` means "the first two montage plans".
+   *
+   * It reuses the window machinery rather than growing a second field because
+   * every gate already understands a replica beat's window: `verify:timeline`
+   * still requires one, still refuses a backwards one, and still refuses a card
+   * that declares one. `SecondBrief` is the one component that reads it as an
+   * index, and it says so where it does.
+   */
   "second-brief": {
     id: "second-brief",
     kind: "replica",
     intent:
-      "120 s only. The same seven chapters against a different brief — the one claim a long cut can make that a short one cannot.",
-    chapter: "brief",
-    defaultReplica: { from: 0, to: 5.5 },
-    camera: { to: 1.04 },
-    needs: "family-house screenplay — a second DemoInputs and its baked draw list (WP-9 decides)",
+      "120 s only. Four more of the product's published plans, each under the brief it was really given — the one claim a long cut can make that a short one cannot.",
+    defaultReplica: { from: 0, to: 4 },
+    camera: { to: 1 },
   },
 
   endcard: {
