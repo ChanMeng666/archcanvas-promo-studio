@@ -86,6 +86,19 @@ export interface PinAnchor {
   y: number;
   /** False for a finding about the whole sheet, which hangs on the paper's edge. */
   anchored: boolean;
+  /**
+   * Whether this pin belongs on the storey currently drawn.
+   *
+   * ⚠ A pin belongs to a FLOOR. A finding that names a ground-floor room has
+   * nothing to say about the first floor, and the room it points at is not on
+   * that drawing — so it does not hang there. A sheet-wide finding carries no
+   * level and stays on every page.
+   *
+   * Reported rather than filtered out so the array stays index-aligned with
+   * `state.review.findings`: `openPin` is an index into that array, and a
+   * compacted list would open the wrong finding.
+   */
+  onThisPage: boolean;
 }
 
 /**
@@ -101,24 +114,43 @@ export interface PinAnchor {
  *    permanently-open card in the corner instead, which covered the hall, its
  *    dimension chains, and half of what the frame was meant to show — and left
  *    two cards open at once, so nothing said which one the cursor had opened.
+ *  • **A pin belongs to a FLOOR.** When the storey switches to L1 the two
+ *    ground-floor findings have nothing to say about the drawing on screen, and
+ *    the rooms they name are not on it — so they do not hang there. They come
+ *    back when the storey does. `onThisPage` reports it rather than filtering,
+ *    because `openPin` is an index into `findings` and a compacted array would
+ *    open a different one.
  */
 export function pinAnchors(ctx: TargetContext): PinAnchor[] {
   const seen = new Map<string, number>();
   const { spec, state } = ctx;
+  // The storey on screen. `page.level` is the compiled drawing's own level; the
+  // page index is the fallback for a renderer given no page at all.
+  const level = ctx.page ? ctx.page.level : state.plan.page;
   let sheetWide = 0;
+
   return state.review.findings.map((f) => {
-    const base = f.archId ? roomAnchor(ctx, f.archId) : null;
+    // A finding with no level is about the SHEET, not a storey, and belongs on
+    // every page of it.
+    const onThisPage = f.level === undefined || f.level === level;
+    const base = f.archId && onThisPage ? roomAnchor(ctx, f.archId) : null;
+
     if (!base) {
       // The paper's top edge, stepped along it if there is more than one.
-      const n = sheetWide++;
+      // ⚠ Only for findings that name no element. A ROOM finding whose room is
+      // not on this drawing is off-page, not sheet-wide — parking it on the
+      // paper's edge would make it look like a complaint about this floor.
+      const roomless = !f.archId;
+      const n = roomless && onThisPage ? sheetWide++ : 0;
       const w = worldToDesign(
         spec,
         state.camera,
         spec.sheet.x + spec.sheet.w * 0.09 + n * (PIN_W + 10) * spec.ck,
         spec.sheet.y + spec.sheet.h * 0.045,
       );
-      return { x: w.x, y: w.y, anchored: false };
+      return { x: w.x, y: w.y, anchored: false, onThisPage: roomless && onThisPage };
     }
+
     const n = seen.get(f.archId ?? "") ?? 0;
     seen.set(f.archId ?? "", n + 1);
     // A pin is a fixed-size piece of chrome, so the fan-out is in DESIGN units:
@@ -128,6 +160,7 @@ export function pinAnchors(ctx: TargetContext): PinAnchor[] {
       x: base.x + n * (PIN_W + 8) * spec.ck,
       y: base.y - n * 5 * spec.ck,
       anchored: true,
+      onThisPage: true,
     };
   });
 }

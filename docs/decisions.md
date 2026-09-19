@@ -1074,3 +1074,49 @@ the findings whose `level` matches `state.plan.page`, plus the sheet-wide ones.
 That is a product-repo change; hiding the pins film-side would be the film
 editing the product's findings, which is a different and worse thing than
 choosing a framing.
+
+## D31. The pin levels landed upstream — and the hand-shaped copy that would have dropped them.
+
+`ReviewFinding.level?: number` is in the product now (replica PR #216, synced at
+`ef55353`): pins, the open card and the leader render only on the storey the
+finding is about, and a finding with no level stays on every page. D30's upstream
+ask is closed.
+
+**It would have arrived here and done nothing.** `film-demo.ts` built
+`DemoInputs.findings` as `STUDIO_DEMO.findings.map((f) => ({ message: f.message,
+archId: f.archId }))` — every field a finding had **at the time it was written**.
+A hand-shaped copy of a type you do not own is a silent dropper: the new field
+would have been discarded on the way in, the pins would have gone on hovering
+over the first floor, and every gate would have stayed green. It now spreads the
+finding and removes only `code`, which is the compiler's lint code and is banned
+from a consumer surface.
+
+The same shape caught upstream's own layout test, which is the second instance in
+two repos in one round. **Copy a type you do not own by spreading it, and name
+the fields you are dropping.**
+
+**`showOpenFinding` stays.** The two fixes cover different failures and the
+distinction is the point: upstream hides a card on the WRONG STOREY; this hides
+one that is on the right storey and outside the CAMERA'S FRAME. Checked rather
+than assumed — forcing it true and rendering `--at 60-Land:52` puts the finding
+card half off the left edge with its dashed leader crossing the picture, on the
+ground floor where the finding belongs.
+
+### The synced `CLAUDE.md`, and what a needle should read
+
+The sync now carries `src/replica/CLAUDE.md` — deliberately: it is the replica's
+own law and the copy is useless without it. Its prose names the DSL three times,
+correctly, in the product's own voice, and `verify:replica`'s B4 needle failed on
+all three.
+
+The needle's job is to catch a banned word on a SURFACE. A developer document is
+not one, so a third scan mode reads only what could become a surface in a doc: a
+fenced block, which is code someone may paste, and a **double-quoted** phrase,
+which is how prose carries copy. A backtick span is not read — in a developer
+document `ArchLang` is how prose names a symbol.
+
+| revert | what reddens |
+|---|---|
+| `scanModeFor` returning `"all"` for `.md` | 3 `forbidden` hits on the synced doc's prose |
+| `quotable` reading backtick spans too | 2 of the 3 come back |
+| `findings` mapped field-by-field again | `level` vanishes from `DEMO.findings` and the L1 pins return |

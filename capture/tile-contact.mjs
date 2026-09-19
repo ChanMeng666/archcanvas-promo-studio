@@ -67,12 +67,29 @@ for (const [comp, list] of [...byComp.entries()].sort()) {
     continue;
   }
   /*
-   * Aim the SHEET at 16:9, whatever the frame is. cols/rows * (frameW/frameH)
-   * = 16/9, solved for cols with rows = n/cols. A 9:16 cut therefore lays out
-   * wide and shallow (10 x 3) where a 16:9 one lays out 7 x 5 — the same thirty
-   * frames, both readable on one screen.
+   * Aim the SHEET at 16:9, whatever the frame is — by SEARCH, not by formula.
+   *
+   * The closed form is `cols/rows = (16/9) / (frameW/frameH)`, and solving it
+   * then rounding lands badly: at thirty landscape frames it gave 5 x 6, a
+   * sheet taller than the screen it is meant to be read on, because `rows` is a
+   * ceiling and the rounding fought it. Trying every column count and keeping
+   * the one whose finished sheet is closest to 16:9 costs nothing and cannot be
+   * wrong in the same way. Thirty frames come out 6 x 5 landscape and 10 x 3
+   * portrait.
    */
-  const cols = Math.min(n, Math.max(1, Math.round(Math.sqrt((n * (16 / 9)) / (d.width / d.height)))));
+  let cols = 1;
+  let best = Infinity;
+  for (let c = 1; c <= n; c += 1) {
+    const r = Math.ceil(n / c);
+    const err = Math.abs(Math.log(((c * d.width) / (r * d.height)) / (16 / 9)));
+    // `<=`, so a tie goes to the WIDER grid. Thirty landscape frames fit 5 x 6
+    // and 6 x 5 equally badly by the metric, and only one of those is shorter
+    // than the screen it is read on.
+    if (err <= best + 1e-9) {
+      best = err;
+      cols = c;
+    }
+  }
   const rows = Math.ceil(n / cols);
 
   /**

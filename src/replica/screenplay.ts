@@ -100,10 +100,12 @@ export const FIXTURE_DEMO: DemoInputs = {
     {
       message: "FIXTURE finding 2 — replaced by the baked variant's review output.",
       archId: "r_hall",
+      level: 0,
     },
     {
       message: "FIXTURE finding 3 — replaced by the baked variant's review output.",
       archId: "r_kitchen",
+      level: 0,
     },
   ],
   renderingSrc: "/showcase/renders/two-storey-townhouse-exterior.webp",
