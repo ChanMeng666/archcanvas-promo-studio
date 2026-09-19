@@ -63,14 +63,10 @@ export type Edit = {
   /** Camera push over the beat, as an end/start scale multiplier. */
   push?: number;
   /**
-   * The standing scale this beat frames at, before the push. Omitted, the
-   * scene's own `camera.frame` applies; `1` is the wide shot.
-   *
-   * A beat names this only to differ from its scene — the 120 s cut's second
-   * half of the edit chapter sits closer than its first, because by then the
-   * viewer knows where to look.
+   * How much of the frame this beat's subject fills, 0..1. Omitted, the scene's
+   * own `camera.fill` applies; `1` is the wide shot.
    */
-  frame?: number;
+  fill?: number;
   /** Why this beat is cut the way it is, when it is not obvious. */
   why?: string;
 };

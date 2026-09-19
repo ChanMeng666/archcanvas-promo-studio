@@ -5,10 +5,11 @@ import { replicaAssetUrl } from "../assets";
 import { entryOpacity, pushTransform, shotFor } from "../camera";
 import { FONT } from "../fonts";
 import { useLayout, type StageRect } from "../layout";
+import { SCENES, type ChapterId } from "../scenes";
 import { DEMO, PAGES } from "../film-demo";
 import { StudioReplica } from "../replica/StudioReplica";
 import { frameToSec, type ResolvedBeat } from "../timeline";
-import { APP, CANVAS_DOT_PITCH, CANVAS_DRIFT_PX, RADIUS } from "../tokens";
+import { APP, CANVAS_DOT_PITCH, CANVAS_DRIFT_PX, RADIUS, STAGE, STAGE_DOT_ON_DARK } from "../tokens";
 
 /**
  * The product, on screen.
@@ -59,8 +60,17 @@ export const ReplicaSlot: React.FC<{
   const shot = shotFor(beat, frame, layout, box, { browserFrame: windowed, clipBottom });
   const { mount, push } = shot;
 
+  /*
+   * The colour script. The chapter colours the GROUND the window floats on; the
+   * window itself keeps the product's true ivory and true canvas, because it is
+   * a picture of the product and a tinted one would be a lie about it.
+   */
+  const chapter: ChapterId | undefined = SCENES[beat.scene].chapter;
+  const ground = chapter ? STAGE[chapter] : APP.page;
+  const onDark = chapter === "review";
+
   return (
-    <AbsoluteFill style={{ backgroundColor: APP.page }}>
+    <AbsoluteFill style={{ backgroundColor: ground }}>
       <AbsoluteFill
         style={{
           transform: pushTransform(push),
@@ -78,7 +88,7 @@ export const ReplicaSlot: React.FC<{
           the layer is an `AbsoluteFill` and `framePush` clamps the translate so
           a scale >= 1 always covers the frame.
         */}
-        <CanvasGround frame={frame} layout={layout} />
+        <CanvasGround frame={frame} layout={layout} ground={ground} onDark={onDark} />
         <div
           style={{
             position: "absolute",
@@ -88,8 +98,10 @@ export const ReplicaSlot: React.FC<{
             height: mount.rect.h,
             borderRadius: windowed ? layout.u(RADIUS.card) : 0,
             overflow: "hidden",
+            // Deeper on the dark stage, where the window is a bright object
+            // floating on colour rather than paper lying on paper.
             boxShadow: windowed
-              ? `0 ${layout.u(26)}px ${layout.u(70)}px rgb(19 17 15 / 0.13), 0 ${layout.u(3)}px ${layout.u(10)}px rgb(19 17 15 / 0.06)`
+              ? `0 ${layout.u(26)}px ${layout.u(70)}px rgb(19 17 15 / ${onDark ? 0.34 : 0.13}), 0 ${layout.u(3)}px ${layout.u(10)}px rgb(19 17 15 / 0.06)`
               : "none",
             border: windowed ? `${Math.max(1, layout.u(1))}px solid ${APP.hairline}` : "none",
           }}
@@ -126,17 +138,21 @@ export const ReplicaSlot: React.FC<{
  * static frame of a static interface is never actually static. It is a
  * background-position on one element — no layer promotion, nothing to allocate.
  */
-const CanvasGround: React.FC<{ frame: number; layout: ReturnType<typeof useLayout> }> = ({
-  frame,
-  layout,
-}) => {
+const CanvasGround: React.FC<{
+  frame: number;
+  layout: ReturnType<typeof useLayout>;
+  ground: string;
+  onDark: boolean;
+}> = ({ frame, layout, ground, onDark }) => {
   const pitch = layout.u(CANVAS_DOT_PITCH);
   const drift = (frame * CANVAS_DRIFT_PX) % pitch;
+  const dot = onDark ? STAGE_DOT_ON_DARK : APP.canvasDot;
+  const r = Math.max(1, layout.u(1.4));
   return (
     <AbsoluteFill
       style={{
-        backgroundColor: APP.canvas,
-        backgroundImage: `radial-gradient(${APP.canvasDot} ${Math.max(1, layout.u(1.4))}px, transparent ${Math.max(1, layout.u(1.4))}px)`,
+        backgroundColor: ground,
+        backgroundImage: `radial-gradient(${dot} ${r}px, transparent ${r}px)`,
         backgroundSize: `${pitch}px ${pitch}px`,
         backgroundPosition: `${drift.toFixed(2)}px ${(drift * 0.6).toFixed(2)}px`,
       }}

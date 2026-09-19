@@ -25,6 +25,11 @@
  *   1b. **And never both at once.** Two copies of one sentence 115 px apart
  *      reads as a rendering bug, not as emphasis. The still pass caught it; this
  *      is what stops it returning.
+ *   1c. **The product's own caption is whole or it is gone, never half.** The
+ *      money shot frames the building at 85 % of the frame, which puts the
+ *      studio's caption well below the edge — deliberately, and the film draws
+ *      the sentence itself over that beat (`scenes.ts` § filmCaption). What must
+ *      never happen is the in-between: a caption with its top half showing.
  *   2. **It is never cropped** — its box, after the mount and after the push,
  *      is inside the frame at every sampled second it is readable.
  *   3. **The "AI-generated" pill is on screen whenever a rendering is >= 50 %
@@ -59,6 +64,9 @@ const { TIMELINES } = film.timeline;
 const { HONESTY_MIN_SEC } = film.cuts;
 const { SCENES } = film.scenes;
 const { shotFor, insideFrame } = film.camera;
+
+/** Entirely outside the frame — no part of it visible. */
+const outsideFrame = (r, w, h) => r.x + r.w <= 0.5 || r.y + r.h <= 0.5 || r.x >= w - 0.5 || r.y >= h - 0.5;
 const { captionDrift } = film.honesty;
 
 /* ── 4. the two copies of the sentence ────────────────────────────────────── */
@@ -121,21 +129,31 @@ for (const d of DELIVERABLES) {
     for (let f = 0; f < beat.durationInFrames; f += 1) {
       const shot = shotFor(beat, f, layout, box, { browserFrame: windowed });
       const abs = beat.startFrame + f;
-      if (abs < ink.length) ink[abs] = Math.max(ink[abs], shot.captionOpacity);
+
+      // Only a caption the camera has left WHOLE counts toward the floor. One
+      // that has been framed out of shot is not on screen, whatever its opacity.
+      const whole = insideFrame(shot.captionRect, layout.width, layout.height, MARGIN);
+      const gone = outsideFrame(shot.captionRect, layout.width, layout.height);
+      const visible = whole ? shot.captionOpacity : 0;
+      if (abs < ink.length) ink[abs] = Math.max(ink[abs], visible);
 
       // 1 — fully opaque means the envelope is at its plateau, not on a tail.
-      if (shot.captionOpacity >= 0.999) opaqueFrames += 1;
+      if (visible >= 0.999) opaqueFrames += 1;
 
-      // 2 — readable at all, and therefore not to be cropped.
+      // 2 — whole, or gone. Never half.
       if (shot.captionOpacity > 0.02) {
         captionSamples += 1;
-        if (!insideFrame(shot.captionRect, layout.width, layout.height, MARGIN)) {
+        const ok = shot.filmCaption ? whole || gone : whole;
+        if (!ok) {
           fail(
-            "cropped",
+            shot.filmCaption ? "half" : "cropped",
             d.id,
-            `the honesty caption is outside the frame at ${(beat.startSec + f / FPS).toFixed(2)}s ` +
-              `(beat ${beat.index} "${beat.scene}", push ${shot.push.scale.toFixed(3)}): ` +
-              `box ${fmt(shot.captionRect)} in ${layout.width}x${layout.height}`,
+            (shot.filmCaption
+              ? "the product's own caption is PART of the way off screen at "
+              : "the honesty caption is cropped at ") +
+              `${(beat.startSec + f / FPS).toFixed(2)}s (beat ${beat.index} "${beat.scene}", ` +
+              `push ${shot.push.scale.toFixed(3)}): box ${fmt(shot.captionRect)} in ` +
+              `${layout.width}x${layout.height}`,
           );
           f = beat.durationInFrames; // one report per beat is enough to act on
         }

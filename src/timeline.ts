@@ -166,8 +166,8 @@ export interface ResolvedBeat {
   replicaTo?: number;
   /** Camera push over the beat, end/start scale. 1 holds. */
   push: number;
-  /** The standing scale the shot frames at, before the push. 1 is the wide shot. */
-  frame: number;
+  /** How much of the frame this beat's subject fills, 0..1. 1 is the wide shot. */
+  fill: number;
   /**
    * How fast the replica's clock runs during this beat. 1 is real time, >1 is
    * compressed. Null on a card.
@@ -284,7 +284,7 @@ export const resolveCut = (cut: CutId, grid?: BeatGrid | null): ResolvedCut => {
       replicaFrom: win?.from,
       replicaTo: win?.to,
       push: edit.push ?? scene.camera?.to ?? 1,
-      frame: edit.frame ?? scene.camera?.frame ?? 1,
+      fill: edit.fill ?? scene.camera?.fill ?? 1,
       replicaRate: win && durationSec > 0 ? (win.to - win.from) / durationSec : null,
     };
   });
@@ -400,17 +400,23 @@ export interface HonestyWindow {
  * longest run is what the floor is measured against.
  */
 export const honestyWindowFor = (resolved: ResolvedCut): HonestyWindow => {
+  /** Runs in which the replica's OWN caption is fully opaque and on screen. */
   const runs: { from: number; to: number; scene: SceneId }[] = [];
   /**
-   * The earliest film second at which the replica's caption is visible AT ALL —
-   * the beat's start, not the opaque core's.
+   * Runs in which the caption beat is PLAYING, whether the product draws it or
+   * the film has taken it over. This is where the film's band belongs: the
+   * disclosure goes over the compression it is about, not somewhere convenient.
+   */
+  const playing: { from: number; to: number }[] = [];
+  /**
+   * The earliest film second at which the replica's own caption is visible at
+   * all — the beat's start, not the opaque core's.
    *
-   * ⚠ This is what the film's band has to hand over at, and using the core's
-   * start instead is a four-frame bug: the product's caption spends the first
-   * 10 % of its beat fading IN, so a band that ran up to the core's start was
-   * still on screen while the pill was already at a quarter opacity. Two copies
-   * of one sentence, in two places, for four frames. `verify:honesty` fails on
-   * a single doubled frame now, which is how this was found at all.
+   * The film's band hands over there. Using the core's start instead is a
+   * four-frame bug: the product's caption spends the first 10 % of its beat
+   * fading IN, so a band running to the core's start was still up while the pill
+   * was already at a quarter opacity. `verify:honesty` fails on one doubled
+   * frame, which is how that was found.
    */
   let firstVisible = Infinity;
 
@@ -424,6 +430,20 @@ export const honestyWindowFor = (resolved: ResolvedCut): HonestyWindow => {
 
     const vLo = Math.max(beat.replicaFrom, REPLICA_CAPTION.beatAt);
     const vHi = Math.min(beat.replicaTo, REPLICA_CAPTION.beatAt + REPLICA_CAPTION.beatDur);
+    if (vHi > vLo) {
+      const from = mapped(vLo);
+      const to = mapped(vHi);
+      const last = playing[playing.length - 1];
+      if (last && Math.abs(last.to - from) < 1e-6) last.to = to;
+      else playing.push({ from, to });
+    }
+
+    /*
+     * A scene that declares `filmCaption` has framed the product's caption out
+     * of shot on purpose — the money shot is the case — so it contributes
+     * nothing to the replica's own run and does not move the handover.
+     */
+    if (SCENES[beat.scene].filmCaption) continue;
     if (vHi > vLo) firstVisible = Math.min(firstVisible, mapped(vLo));
 
     const lo = Math.max(beat.replicaFrom, REPLICA_CAPTION_WINDOW.from);
@@ -442,52 +462,47 @@ export const honestyWindowFor = (resolved: ResolvedCut): HonestyWindow => {
     (acc, r) => (acc === null || r.to - r.from > acc.to - acc.from ? r : acc),
     null,
   );
+  const naturalSec = best ? best.to - best.from : 0;
 
-  if (!best) {
-    // No beat of this cut shows the caption at all. The film owns the whole
-    // window, and it is placed over the first replica beat there is.
+  if (best && naturalSec >= HONESTY_MIN_SEC) {
+    return { ...best, sec: naturalSec, source: "replica", naturalSec };
+  }
+
+  /* ── the film draws it ─────────────────────────────────────────────────── */
+
+  const place = playing.reduce<{ from: number; to: number } | null>(
+    (acc, r) => (acc === null || r.to - r.from > acc.to - acc.from ? r : acc),
+    null,
+  );
+
+  if (!place) {
+    // No beat of this cut plays the caption at all. The band goes over the first
+    // replica beat there is, and the shortfall is recorded rather than hidden.
     const firstReplica = resolved.beats.find((b) => b.replicaFrom !== undefined);
     const from = firstReplica ? firstReplica.startSec : 0;
     const to = Math.min(from + HONESTY_OVERLAY_SEC, resolved.totalSeconds);
     warn(
-      `cut "${resolved.cut}" never plays the replica's own honesty caption — the film overlays the whole ${HONESTY_OVERLAY_SEC}s itself.`,
+      `cut "${resolved.cut}" never plays the honesty caption's own beat — the film overlays the whole ${HONESTY_OVERLAY_SEC}s itself.`,
     );
-    return { from, to, sec: to - from, source: "film", naturalSec: 0 };
-  }
-
-  const naturalSec = best.to - best.from;
-  if (naturalSec >= HONESTY_MIN_SEC) {
-    return { ...best, sec: naturalSec, source: "replica", naturalSec };
+    return { from, to, sec: to - from, source: "film", naturalSec };
   }
 
   /*
-   * Short. The film draws it — BEFORE the replica's own, ending exactly where
-   * the replica's becomes fully opaque.
-   *
-   * ⚠ The first version started it where the replica's own starts, on the
-   * reasoning that "a subtitle restating an on-screen caption is ordinary film
-   * language and reads as emphasis". It does not. The replica's caption is a
-   * dark in-app pill and the film's is a band under the stage, and the still
-   * pass caught the two of them 115 px apart carrying the identical sentence —
-   * which reads as a rendering bug, not as emphasis. (It became obvious only
-   * after the replica's follow-up restored the 1 px borders that had been
-   * silently missing, which is its own lesson about reviewing on a build that
-   * is not quite the shipping one.)
-   *
-   * Placed before instead, the two are SEQUENTIAL and adjacent: the film's band
-   * carries the sentence up to the second the product's own takes it over, with
-   * no frame showing both and no frame showing neither. `to` is exactly
-   * `best.from`, which is defined as the moment the replica's caption reaches
-   * full opacity, so the run is continuous across the handoff — and the overlay
-   * deliberately does not fade OUT, because a fade at the join is the one place
-   * a dip would break it.
+   * Over the beats that PLAY the caption, for at least the overlay length — and
+   * ending where the product's own caption becomes visible, if any un-flagged
+   * beat still shows it, so the two are sequential rather than doubled.
    */
-  let to = Number.isFinite(firstVisible) ? Math.min(firstVisible, best.from) : best.from;
-  let from = to - HONESTY_OVERLAY_SEC;
+  let to = Math.min(
+    Number.isFinite(firstVisible) ? firstVisible : Infinity,
+    Math.max(place.to, place.from + HONESTY_OVERLAY_SEC),
+  );
+  if (!(to > 0)) to = Math.min(HONESTY_OVERLAY_SEC, resolved.totalSeconds);
+  let from = Math.min(place.from, to - HONESTY_OVERLAY_SEC);
   if (from < 0) {
     from = 0;
-    to = Math.min(HONESTY_OVERLAY_SEC, to > 0 ? to : best.to);
+    to = Math.min(Math.max(to, HONESTY_OVERLAY_SEC), resolved.totalSeconds);
   }
+  if (to > resolved.totalSeconds) to = resolved.totalSeconds;
   return { from, to, sec: to - from, source: "film", naturalSec };
 };
 
@@ -589,7 +604,7 @@ export const describe = (): string => {
           "replica".padStart(13),
           "rate".padStart(7),
           "push".padStart(6),
-          "frame".padStart(6),
+          "fill".padStart(6),
         ].join(" "),
     );
     for (const b of t.beats) {
@@ -604,7 +619,7 @@ export const describe = (): string => {
             (b.replicaFrom === undefined ? "-" : `${b.replicaFrom}-${b.replicaTo}`).padStart(13),
             (b.replicaRate === null ? "-" : `${b.replicaRate.toFixed(2)}x`).padStart(7),
             (b.push === 1 ? "-" : b.push.toFixed(2)).padStart(6),
-            (b.frame === 1 ? "-" : b.frame.toFixed(2)).padStart(6),
+            (b.fill === 1 ? "-" : b.fill.toFixed(2)).padStart(6),
           ].join(" "),
       );
     }

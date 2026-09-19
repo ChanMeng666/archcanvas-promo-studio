@@ -41,7 +41,17 @@
  * in one and wrong in the other.
  */
 
-import { layoutSpec, sheetChrome, tweaksBox, type LayoutId, type LayoutSpec, type Rect } from "./replica/layout";
+import {
+  layoutSpec,
+  parseViewBox,
+  planToWorld,
+  sheetChrome,
+  tweaksBox,
+  worldToDesign,
+  type LayoutId,
+  type LayoutSpec,
+  type Rect,
+} from "./replica/layout";
 import {
   exportMenuBox,
   findingCardBox,
@@ -58,7 +68,7 @@ import type { ReplicaState } from "./replica/types";
 import { CAPTION_SPAN, DEMO, PAGES, RENDERING_SPAN, overlaps, stateAt } from "./film-demo";
 import { DRAFTING_SPAN } from "./honesty";
 import type { Layout, StageRect } from "./layout-core";
-import type { SceneId } from "./scenes";
+import { SCENES, type SceneId } from "./scenes";
 import { clamp01, easeOutCubic, frameToSec, type ResolvedBeat } from "./timeline";
 
 /* ── the mount ────────────────────────────────────────────────────────────── */
@@ -144,6 +154,18 @@ export interface FrameInput {
   /** Rectangles that must stay entirely inside the frame, in film pixels. */
   protect?: readonly StageRect[];
   /**
+   * Rectangles that must end up entirely BELOW the bottom edge, in film pixels.
+   *
+   * The money shot's case, and the only one: framed on the building, the studio's
+   * own honesty caption belongs off screen — the film draws the sentence in its
+   * own band instead. Half of it hanging into the bottom of the frame is the
+   * state that would actually be wrong, and "push it further" is not a thing a
+   * hand-tuned number can promise across eight compositions. Downward only,
+   * because that is the one direction the caption can leave by and a general
+   * four-way rule would be four ways to get it wrong.
+   */
+  expel?: readonly StageRect[];
+  /**
    * The box a protected rectangle must stay inside, if not the whole frame.
    *
    * ⚠ A `split` scene CLIPS the picture at the top of its type band, and a rect
@@ -202,6 +224,7 @@ export const framePush = ({
   scale,
   focus,
   protect = [],
+  expel = [],
   protectBounds,
   margin = 8,
 }: FrameInput): FramePush => {
@@ -228,6 +251,24 @@ export const framePush = ({
     }
   }
 
+  /*
+   * An expelled rectangle raises the scale until it CAN leave the frame.
+   *
+   * The translate is bounded above by 0 (coverage), so at best the rectangle
+   * sits at `r.y * s`. Requiring that to clear the bottom edge is a floor on the
+   * scale, and solving it here rather than hoping the authored `fill` is big
+   * enough is what makes the rule hold in all eight compositions instead of the
+   * two it was tuned in.
+   */
+  for (const r of expel) {
+    if (!(r.y > 0)) continue;
+    const need = (bounds.y + bounds.h + margin) / r.y;
+    if (need > s) {
+      s = need;
+      scaleClamped = true;
+    }
+  }
+
   if (s <= 1 + 1e-9) {
     return { scale: 1, tx: 0, ty: 0, scaleClamped, focusClamped: false };
   }
@@ -250,6 +291,9 @@ export const framePush = ({
     hiX = Math.min(hiX, bounds.x + bounds.w - margin - (r.x + r.w) * s);
     loY = Math.max(loY, bounds.y + margin - r.y * s);
     hiY = Math.min(hiY, bounds.y + bounds.h - margin - (r.y + r.h) * s);
+  }
+  for (const r of expel) {
+    loY = Math.max(loY, bounds.y + bounds.h + margin - r.y * s);
   }
 
   const wantX = anchorX - fx * s;
@@ -310,29 +354,36 @@ export const focusRectFor = (
     case "brief":
       return spec.composer.card;
 
+    case "second-brief":
+      return null;
+
     case "draw":
-      // The money shot: the sheet, plus the drafting card on the beat the card
-      // OWNS. Decided from the beat's window rather than from
-      // `state.drafting.visible`, because the sheet now outlives the drawing's
-      // first strokes by half a second — read per frame, the framing would have
-      // snapped from card-and-sheet to sheet alone in the middle of the money
-      // shot's opening.
+      // The drafting card on the beat the card OWNS; the BUILDING on the beat
+      // the drawing owns. Decided from the beat's window rather than from
+      // `state.drafting.visible`, because the sheet outlives the drawing's first
+      // strokes by half a second — read per frame, the framing would have
+      // snapped in the middle of the money shot's opening.
       return span && overlapFraction(span, DRAFTING_SPAN) > 0.5
-        ? unionR(spec.draftCard, sheetOnScreen(ctx))
-        : sheetOnScreen(ctx);
+        ? spec.draftCard
+        : buildingBox(ctx) ?? sheetOnScreen(ctx);
 
     case "edit": {
+      // The kitchen AND the command bar someone is typing into: the beat is the
+      // sentence and the change it makes, and a frame with only one of them is
+      // half the beat.
       const p = resolveTarget(ctx, { kind: "room", archId: DEMO.kitchen.archId });
-      const sheet = sheetOnScreen(ctx);
-      // The kitchen, with enough of the building around it to read the change.
-      const w = sheet.w * 0.66;
-      const h = sheet.h * 0.66;
-      return { x: p.x * spec.W - w / 2, y: p.y * spec.H - h / 2, w, h };
+      const building = buildingBox(ctx);
+      const w = (building?.w ?? spec.W * 0.4) * 0.72;
+      const h = (building?.h ?? spec.H * 0.4) * 0.72;
+      const room: Rect = { x: p.x * spec.W - w / 2, y: p.y * spec.H - h / 2, w, h };
+      return unionR(room, spec.commandBar);
     }
 
     case "tweak": {
-      const t = tweaksControls(ctx).track;
-      return unionR(spec.tweaks.mode === "docked" ? tweaksBox(spec) : t, sheetOnScreen(ctx));
+      // The knob and the wall it moves, and nothing else.
+      const panel = tweaksBox(spec);
+      const building = buildingBox(ctx) ?? sheetOnScreen(ctx);
+      return unionR(spec.tweaks.mode === "docked" ? panel : tweaksControls(ctx).track, building);
     }
 
     case "receipt": {
@@ -342,23 +393,68 @@ export const focusRectFor = (
       if (!a) return sheetOnScreen(ctx);
       const pinBox: Rect = { x: a.x - 20 * spec.ck, y: a.y - 30 * spec.ck, w: 40 * spec.ck, h: 40 * spec.ck };
       const card = findingCardBox(ctx, a);
-      return card ? unionR(pinBox, card) : unionR(pinBox, sheetOnScreen(ctx));
+      // The pin and the card that has to be READ. Not the sheet — a frame wide
+      // enough to hold the whole drawing is a frame the finding is illegible in.
+      return card ? unionR(pinBox, card) : unionR(pinBox, buildingBox(ctx) ?? sheetOnScreen(ctx));
     }
 
     case "storey": {
       const chrome = sheetChrome(spec, ctx.storeys, state.review.badgeCount);
-      return unionR(chrome.storeyGroup, sheetOnScreen(ctx));
+      return unionR(chrome.storeyGroup, buildingBox(ctx) ?? sheetOnScreen(ctx));
     }
 
     case "render":
-      return state.rendering.p > 0.02 ? unionR(spec.rendering, sheetOnScreen(ctx)) : sheetOnScreen(ctx);
+      return span && overlaps(span, RENDERING_SPAN)
+        ? unionR(spec.rendering, buildingBox(ctx) ?? sheetOnScreen(ctx))
+        : buildingBox(ctx) ?? sheetOnScreen(ctx);
 
     case "export":
-      return state.exportMenu.open > 0.05 ? unionR(exportMenuBox(ctx), sheetOnScreen(ctx)) : sheetOnScreen(ctx);
+      return unionR(exportMenuBox(ctx), buildingBox(ctx) ?? sheetOnScreen(ctx));
 
     default:
       return null;
   }
+};
+
+/**
+ * The BUILDING's box in design coordinates — the union of the page's rooms,
+ * padded — rather than the paper's.
+ *
+ * ⚠ The difference is the whole money shot. The sheet is the paper, and the
+ * drawing occupies about two thirds of it: framing the sheet to 85 % of the
+ * frame puts the building at 56 %, which is what the first cut looked like and
+ * why the art-direction note said the UI was too small. Framing THIS to 85 %
+ * puts the building at 85 %.
+ *
+ * Static across a beat: room boxes come from the baked page, so a plan that is
+ * only half drawn is framed for the plan it will be. A framing that grew as the
+ * drawing appeared would be a camera chasing its own subject.
+ */
+export const buildingBox = (ctx: TargetContext): Rect | null => {
+  const page = ctx.page;
+  if (!page || page.rooms.length === 0) return null;
+  const vb = parseViewBox(page.viewBox);
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  for (const room of page.rooms) {
+    const [x0, y0, x1, y1] = room.bbox;
+    const a = planToWorld(ctx.spec, vb, x0, y0);
+    const b = planToWorld(ctx.spec, vb, x1, y1);
+    minX = Math.min(minX, a.x, b.x);
+    minY = Math.min(minY, a.y, b.y);
+    maxX = Math.max(maxX, a.x, b.x);
+    maxY = Math.max(maxY, a.y, b.y);
+  }
+  if (!Number.isFinite(minX)) return null;
+  const tl = worldToDesign(ctx.spec, ctx.state.camera, minX, minY);
+  const br = worldToDesign(ctx.spec, ctx.state.camera, maxX, maxY);
+  // A building framed to its own walls has no air. 9 % on every side is the
+  // dimension chains and enough paper to read it as a drawing on a sheet.
+  const w = br.x - tl.x;
+  const h = br.y - tl.y;
+  return { x: tl.x - w * 0.09, y: tl.y - h * 0.09, w: w * 1.18, h: h * 1.18 };
 };
 
 /** How much of `a` lies inside `b`, 0..1. */
@@ -385,6 +481,8 @@ export interface Shot {
   push: FramePush;
   /** The replica's own honesty caption, in film pixels AFTER the push. */
   captionRect: StageRect;
+  /** The film draws the sentence on this beat; the replica's own may leave frame. */
+  filmCaption: boolean;
   /** How opaque that caption is at this instant, 0..1. */
   captionOpacity: number;
   /** The rendering card's box after the push, and how opaque it is. */
@@ -431,7 +529,24 @@ export const shotFor = (
   const renderingRaw = designRect(mount, mount.spec.rendering);
   const span = { from: Math.min(from, to), to: Math.max(from, to) };
   const protect: StageRect[] = [];
-  if (overlaps(span, CAPTION_SPAN)) protect.push(pad(captionRaw, layout.u(6)));
+  /*
+   * The money shot is allowed to push PAST the product's own caption, and this
+   * flag is how. Framed so the building fills 85 % of the frame, the caption —
+   * which sits at the bottom of the studio's design box — is well below the
+   * frame edge, and protecting it would cap the push at about 1.2 and hand back
+   * the small-UI problem the art direction was about.
+   *
+   * The obligation does not move: a scene that declares `filmCaption` makes the
+   * FILM draw the sentence in its own band, above the camera, where nothing can
+   * crop it. What the gate enforces instead is the thing that would actually be
+   * wrong — a caption half in frame. Either it is whole or it is gone.
+   */
+  const filmCaption = SCENES[beat.scene].filmCaption === true;
+  const expel: StageRect[] = [];
+  if (overlaps(span, CAPTION_SPAN)) {
+    if (filmCaption) expel.push(captionRaw);
+    else protect.push(pad(captionRaw, layout.u(6)));
+  }
   if (overlaps(span, RENDERING_SPAN)) protect.push(pad(renderingRaw, layout.u(6)));
   /*
    * The export menu is the subject of its own beat, and in 9:16 it is a
@@ -442,16 +557,17 @@ export const shotFor = (
   if (beat.scene === "export") protect.push(pad(designRect(mount, exportMenuBox(ctx)), layout.u(8)));
 
   const focusRect = focusRectFor(beat.scene, ctx, span);
-  const focus = focusRect
-    ? centreOf(designRect(mount, focusRect))
-    : centreOf(mount.rect);
+  const focusFilm = focusRect ? designRect(mount, focusRect) : mount.rect;
+  const focus = centreOf(focusFilm);
+  const stand = fillScale(focusFilm, layout.width, layout.height, beat.fill);
 
   const push = framePush({
     frameW: layout.width,
     frameH: layout.height,
-    scale: beat.frame * pushAt(beat.push, p) * entryScale(localSec),
+    scale: stand * pushAt(beat.push, p) * entryScale(localSec),
     focus,
     protect,
+    expel,
     // A split scene CLIPS the picture at the top of its type band, and a
     // rectangle comfortably inside the frame can be entirely below that clip.
     // The protection is about what a viewer can see, so it is bounded by the
@@ -474,6 +590,7 @@ export const shotFor = (
     push,
     captionRect: pushRect(push, captionRaw),
     captionOpacity: state.caption.p,
+    filmCaption,
     renderingRect: pushRect(push, renderingRaw),
     renderingOpacity: state.rendering.p,
   };
@@ -523,8 +640,28 @@ export const entryOpacity = (localSec: number): number =>
  * never be zero or negative whatever `p` does.
  */
 export const pushAt = (push: number, p: number): number => {
-  if (!(push > 1)) return 1;
+  if (!(push > 0) || push === 1) return 1;
   return Math.exp(Math.log(push) * easeOutCubic(clamp01(p)));
+};
+
+/**
+ * The scale at which a design-space rectangle fills `fill` of the frame.
+ *
+ * A FRACTION, not a scale, and the difference is what the art-direction pass
+ * was about. A scale means something different at 1920x1080 and 1080x1920 and
+ * different again when the replica is mounted into a split scene's shorter box
+ * — so a hand-tuned 1.35 that framed the drawing well in one composition framed
+ * it small in five others. A fraction means the same thing everywhere: "the
+ * thing this beat is about spans this much of the frame".
+ *
+ * The limiting axis wins, so the rectangle is never larger than `fill` on
+ * either — and the result is floored at 1, because a scale below 1 would expose
+ * the page behind the picture.
+ */
+export const fillScale = (rect: StageRect, frameW: number, frameH: number, fill: number): number => {
+  if (!(rect.w > 0) || !(rect.h > 0)) return 1;
+  const f = clamp01(fill);
+  return Math.max(1, Math.min((frameW * f) / rect.w, (frameH * f) / rect.h));
 };
 
 /** `viewBox` width / height — what `layoutSpec` sizes the paper from. */

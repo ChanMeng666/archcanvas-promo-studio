@@ -6,7 +6,7 @@ import { CHAPTER_LABELS } from "../film-demo";
 import { splitStage, useLayout } from "../layout";
 import { SCENES } from "../scenes";
 import type { ResolvedBeat } from "../timeline";
-import { APP } from "../tokens";
+import { APP, BAND, SPOT, STAGE } from "../tokens";
 import { EndCard } from "./EndCard";
 import { ChapterChip, KineticCard, SplitLine } from "./KineticCard";
 import { ReplicaSlot } from "./ReplicaSlot";
@@ -93,9 +93,17 @@ const Split: React.FC<{ beat: ResolvedBeat; dur: number }> = ({ beat, dur }) => 
   const scene = SCENES[beat.scene];
   const { replica, line } = splitStage(layout);
   const clipBottom = line.y - layout.u(10);
+  /*
+   * The band takes the chapter's own colour, so the type sits in the film's
+   * colour script rather than on beige under a coloured stage. The review
+   * chapter is the dark one: ivory type on aubergine at 9.6:1.
+   */
+  const chapter = scene.chapter;
+  const band = chapter ? STAGE[chapter] : APP.page;
+  const dark = chapter === "review";
 
   return (
-    <AbsoluteFill style={{ backgroundColor: APP.page }}>
+    <AbsoluteFill style={{ backgroundColor: band }}>
       {/*
         ⚠ CLIPPED, and it is not decoration.
 
@@ -109,7 +117,14 @@ const Split: React.FC<{ beat: ResolvedBeat; dur: number }> = ({ beat, dur }) => 
         <ReplicaSlot beat={beat} stage={replica} clipBottom={clipBottom} />
       </AbsoluteFill>
       {scene.chapter ? <ChapterChip label={CHAPTER_LABELS[scene.chapter]} /> : null}
-      {scene.copy && lineIsOn(beat) ? <SplitLine copy={scene.copy.copy} dur={dur} /> : null}
+      {scene.copy && lineIsOn(beat) ? (
+        <SplitLine
+          copy={scene.copy.copy}
+          dur={dur}
+          ink={dark ? APP.page : APP.ink}
+          rule={dark ? BAND.buttercream : SPOT.action}
+        />
+      ) : null}
     </AbsoluteFill>
   );
 };

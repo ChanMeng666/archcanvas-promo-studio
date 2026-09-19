@@ -117,6 +117,55 @@ export const BAND = {
   mint: "#2EC08B",
 } as const;
 
+/* ── the colour script ────────────────────────────────────────────────────── */
+
+/**
+ * The stage BEHIND the replica window, per chapter.
+ *
+ * The first cut was twenty-eight beige frames out of thirty, which is a
+ * competent film and not a lively one. The product's own surface must not be
+ * tinted — the window keeps the true ivory and the true canvas, because it is a
+ * picture of the product — so the colour goes on the ground it floats on, and
+ * changes on the chapter boundary with the cut.
+ *
+ * Tints, not the raw band colours: `#AB9FF2` behind a bright window is a poster,
+ * and the founder's objection to large flat violet is on the record. These are
+ * the marketing band palette mixed into the page — periwinkle at 50 % and 70 %,
+ * mint at 40 % — computed once and written out, because this file is parsed as
+ * TEXT and a `mix()` is exactly what a text-parsing gate cannot see.
+ *
+ * ⚠ The first pass mixed at 28 % and 22 % and the stills showed why that is not
+ * enough: at the framings the money shot uses, the stage is a sliver either side
+ * of the window, and a 28 % tint in a sliver is white. A colour script has to be
+ * legible in the frames that show least of it.
+ *
+ * Aubergine is the one that is not a tint. The receipt beat is the film's
+ * differentiated claim and it gets the frame that says so — a bright window on a
+ * dark ground, with the split line in ivory at 9.6:1.
+ */
+export const STAGE = {
+  /** --background. Where the film starts and ends. */
+  brief: "#FBF8F2",
+  /** Periwinkle at 50 % over the page. */
+  draw: "#D3CCF2",
+  /** --band-buttercream, straight. */
+  edit: "#FFFFC4",
+  /** Mint at 40 % over the page. */
+  tweak: "#A9E2C9",
+  /** --band-aubergine, straight. The one dark stage in the film. */
+  review: "#3C315B",
+  /** Periwinkle at 70 % — the deepest light stage, under the rendering. */
+  render: "#C3BAF2",
+  /** Buttercream, softened — the last colour before the end card. */
+  export: "#F7EFC9",
+} as const;
+
+/** The lattice on a dark stage has to be light. */
+export const STAGE_DOT_ON_DARK = "rgb(255 255 255 / 0.10)";
+
+/** Type on a dark stage. */
+export const STAGE_DARK = ["#3C315B"] as const;
+
 /* ── contrast ─────────────────────────────────────────────────────────────── */
 
 /**
@@ -132,6 +181,13 @@ export const CONTRAST_PAIRS = [
   { fg: "#13110F", bg: "#FFFDFA", min: 4.5, use: "ink on a card" },
   { fg: "#FFFFFF", bg: "#6A3DF0", min: 4.5, use: "white on the action fill" },
   { fg: "#FFFFFF", bg: "#3C315B", min: 4.5, use: "white on the aubergine band" },
+  { fg: "#FBF8F2", bg: "#3C315B", min: 4.5, use: "ivory type on the aubergine stage" },
+  { fg: "#FBF8F2", bg: "#6A3DF0", min: 4.5, use: "ivory type on the plum card" },
+  { fg: "#13110F", bg: "#D3CCF2", min: 4.5, use: "ink on the periwinkle-wash stage" },
+  { fg: "#13110F", bg: "#FFFFC4", min: 4.5, use: "ink on the buttercream stage" },
+  { fg: "#13110F", bg: "#A9E2C9", min: 4.5, use: "ink on the mint-wash stage" },
+  { fg: "#13110F", bg: "#C3BAF2", min: 4.5, use: "ink on the deep periwinkle stage" },
+  { fg: "#13110F", bg: "#F7EFC9", min: 4.5, use: "ink on the soft buttercream stage" },
 ] as const;
 
 /* ── type ─────────────────────────────────────────────────────────────────── */
@@ -152,7 +208,7 @@ export const TYPE = {
    * like a slide with a caption on it — visible in the first still pass, which
    * is the only reason this token exists.
    */
-  hero: 150,
+  hero: 190,
   /** A kinetic card's headline, and the ceiling for type over a picture. Sans. */
   display: 96,
   /** A section-weight line. Sans. */
@@ -254,3 +310,16 @@ export const MOTION = {
  * React-free modules.
  */
 export const CARD_RULE_FLOOR = 0.18;
+
+/**
+ * How a card's words rise into frame: the rise, and the wait between words.
+ *
+ * ⚠ 0.1 s and 0.035 s, and both are floors the art direction set rather than
+ * taste: **the hook must be on screen by frame 3**, which at 30 fps is 0.1 s. So
+ * the first word's rise has to be over by then and the stagger has to be a
+ * fraction of it. `capture/verify-opening.mjs` reads these and checks the first
+ * word is essentially up at frame 3 — a slower reveal is a film waiting for
+ * itself, which is the opposite of the brief.
+ */
+export const WORD_RISE_SEC = 0.1;
+export const WORD_STAGGER_SEC = 0.035;

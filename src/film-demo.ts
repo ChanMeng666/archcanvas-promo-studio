@@ -104,6 +104,7 @@ export const CHAPTER_LABELS: Readonly<Record<string, string>> = Object.fromEntri
 
 /* ── the honesty caption ──────────────────────────────────────────────────── */
 
+
 /**
  * Re-exported from `honesty.ts`, which derives it from the SYNCED screenplay.
  *

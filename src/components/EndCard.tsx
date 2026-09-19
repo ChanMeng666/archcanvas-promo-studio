@@ -50,9 +50,21 @@ export const EndCard: React.FC<{ dur: number }> = ({ dur }) => {
   const line = easeOutCubic(clamp01((sec - MOTION.wipeSec * 0.55 - MOTION.cutSec * 0.5) / MOTION.cutSec));
   const tail = easeOutCubic(clamp01((sec - MOTION.wipeSec * 0.55 - MOTION.cutSec) / MOTION.cutSec));
 
-  // The mark holds its size; only the rule under it draws itself out, so the
-  // frame the viewer photographs is stable from half a second in.
-  const markWidth = layout.aspect === "landscape" ? layout.u(760) : layout.u(620);
+  /*
+   * The lockup, bigger — and the URL is the largest thing after the mark,
+   * because the URL is the CALL TO ACTION and the first cut set it at half the
+   * size of the wordmark like a caption.
+   *
+   * The mark holds its size; only the rule under it draws itself out, so the
+   * frame a viewer screenshots is stable from half a second in. Sized off the
+   * STAGE rather than as a fixed token so 9:16 keeps it clear of the bottom
+   * 390 px the platforms cover.
+   */
+  const markWidth = Math.min(
+    layout.stage.w * (layout.aspect === "landscape" ? 0.54 : 0.86),
+    layout.u(1180),
+  );
+  const domainSize = markWidth * 0.132;
 
   // The last third of a second belongs to the picture, not to the animation —
   // an end card still moving when the file ends reads as a truncated render.
@@ -68,7 +80,7 @@ export const EndCard: React.FC<{ dur: number }> = ({ dur }) => {
           height: layout.stage.h,
           justifyContent: "center",
           alignItems: "center",
-          gap: layout.u(36),
+          gap: layout.u(30),
           opacity: Math.min(1, settle + 0.0),
         }}
       >
@@ -85,9 +97,9 @@ export const EndCard: React.FC<{ dur: number }> = ({ dur }) => {
 
         <div
           style={{
-            width: markWidth * 0.34 * line,
-            height: layout.u(5),
-            borderRadius: layout.u(3),
+            width: markWidth * 0.38 * line,
+            height: layout.u(7),
+            borderRadius: layout.u(4),
             backgroundColor: SPOT.action,
           }}
         />
@@ -95,9 +107,10 @@ export const EndCard: React.FC<{ dur: number }> = ({ dur }) => {
         <div
           style={{
             fontFamily: FONT.sans,
-            fontSize: layout.u(TYPE.title * 0.82),
+            fontSize: domainSize,
             fontWeight: WEIGHT.bold,
             letterSpacing: `${TRACKING.display}em`,
+            lineHeight: 1.05,
             color: APP.ink,
             whiteSpace: "nowrap",
             opacity: line,
@@ -109,7 +122,7 @@ export const EndCard: React.FC<{ dur: number }> = ({ dur }) => {
         <div
           style={{
             fontFamily: FONT.mono,
-            fontSize: layout.u(TYPE.caption),
+            fontSize: layout.u(TYPE.caption * 1.15),
             fontWeight: WEIGHT.regular,
             letterSpacing: `${TRACKING.caps}em`,
             textTransform: "uppercase",

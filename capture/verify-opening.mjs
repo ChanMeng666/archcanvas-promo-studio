@@ -45,7 +45,7 @@ const { TIMELINES } = film.timeline;
 const { SCENES } = film.scenes;
 const { entryOpacity, ENTRY_OPACITY_FLOOR } = film.camera;
 const { MONTAGE_PANE_ENTRY_FLOOR } = film.film;
-const { CARD_RULE_FLOOR } = film.tokens;
+const { CARD_RULE_FLOOR, WORD_RISE_SEC, WORD_STAGGER_SEC, CONTRAST_PAIRS } = film.tokens;
 
 /**
  * How much ink a frame must carry to count as arrived.
@@ -73,6 +73,22 @@ const OPENING_MIN = 0.5;
  */
 const CARD_RULE_MIN = 0.1;
 
+/**
+ * The hook has to be ON SCREEN BY FRAME 3 — the art-direction note's words.
+ *
+ * At 30 fps that is 0.1 s, so the first word's rise must be essentially over by
+ * then. Read off the same constants the component eases with, not restated: a
+ * check that restates the timing is a check that stops describing it.
+ */
+const BY_FRAME = 3;
+const FIRST_WORD_MIN = 0.9;
+
+/** `easeOutExpo`, the curve the reveal uses. */
+const easeOutExpo = (t) => {
+  const x = t < 0 ? 0 : t > 1 ? 1 : t;
+  return x >= 1 ? 1 : 1 - Math.pow(2, -10 * x);
+};
+
 let openings = 0;
 
 for (const cut of CUT_IDS) {
@@ -94,6 +110,17 @@ for (const cut of CUT_IDS) {
         );
       }
     } else if (scene.kind === "card") {
+      // The first word of the first line, at frame 3.
+      const p = easeOutExpo((BY_FRAME / FPS - WORD_STAGGER_SEC * 0) / WORD_RISE_SEC);
+      const ink = 0.25 + 0.75 * p;
+      if (ink < FIRST_WORD_MIN) {
+        fail(
+          "slow",
+          `cut ${cut}s beat ${beat.index} "${beat.scene}"`,
+          `the card's first word is only ${(ink * 100).toFixed(0)} % up at frame ${BY_FRAME} — ` +
+            `the hook has to be on screen by then (rise ${WORD_RISE_SEC}s, stagger ${WORD_STAGGER_SEC}s)`,
+        );
+      }
       if (CARD_RULE_FLOOR < CARD_RULE_MIN) {
         fail(
           "blank",
@@ -108,6 +135,36 @@ for (const cut of CUT_IDS) {
   }
 }
 
+/* ── every colour pair the film sets type in ──────────────────────────────── */
+
+/** WCAG relative luminance of an `#rrggbb`. */
+const luminance = (hex) => {
+  const v = hex.replace("#", "");
+  const ch = [0, 2, 4].map((i) => {
+    const c = parseInt(v.slice(i, i + 2), 16) / 255;
+    return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+  });
+  return 0.2126 * ch[0] + 0.7152 * ch[1] + 0.0722 * ch[2];
+};
+const ratio = (a, b) => {
+  const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+  return (hi + 0.05) / (lo + 0.05);
+};
+
+let pairs = 0;
+for (const row of CONTRAST_PAIRS) {
+  pairs += 1;
+  const r = ratio(row.fg, row.bg);
+  if (r + 1e-6 < row.min) {
+    fail(
+      "contrast",
+      `${row.fg} on ${row.bg}`,
+      `${r.toFixed(2)}:1, under the ${row.min}:1 this row claims — ${row.use}`,
+    );
+  }
+}
+if (pairs === 0) fail("vacuous", "CONTRAST_PAIRS", "the contrast table is empty — nothing was checked");
+
 if (openings === 0) {
   fail("vacuous", "every cut", "no beat was examined at all — this gate looked at nothing");
 }
@@ -120,6 +177,7 @@ const summary = {
   entryOpacityFloor: ENTRY_OPACITY_FLOOR,
   montagePaneFloor: MONTAGE_PANE_ENTRY_FLOOR,
   cardRuleFloor: CARD_RULE_FLOOR,
+  contrastPairs: pairs,
   fps: FPS,
   failures,
 };
@@ -135,9 +193,13 @@ console.log(
   `    replica/split entrances open at ${ENTRY_OPACITY_FLOOR}; the montage's panes at ${MONTAGE_PANE_ENTRY_FLOOR}; ` +
     `a card's accent rule at ${CARD_RULE_FLOOR}`,
 );
+console.log(
+  `    a card's first word is ${((0.25 + 0.75 * easeOutExpo(BY_FRAME / FPS / WORD_RISE_SEC)) * 100).toFixed(0)} % up at frame ${BY_FRAME}; ` +
+    `${pairs} colour pair(s) checked for contrast`,
+);
 
 if (!failures.length) {
-  console.log("\n  ✓ no scene opens on a blank frame\n");
+  console.log("\n  ✓ no scene opens on a blank frame, the hook is up by frame 3, every colour pair clears\n");
   process.exit(0);
 }
 

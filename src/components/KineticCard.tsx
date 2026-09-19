@@ -4,8 +4,21 @@ import { AbsoluteFill, useCurrentFrame } from "remotion";
 import { linesFor, type CardCopy } from "../copy";
 import { FONT } from "../fonts";
 import { splitStage, useLayout, type Layout } from "../layout";
+import type { CardTone } from "../scenes";
 import { FPS, clamp01, easeOutCubic, easeOutExpo } from "../timeline";
-import { APP, BAND, CARD_RULE_FLOOR, MOTION, RADIUS, SPOT, TRACKING, TYPE, WEIGHT } from "../tokens";
+import {
+  APP,
+  BAND,
+  CARD_RULE_FLOOR,
+  MOTION,
+  RADIUS,
+  SPOT,
+  TRACKING,
+  TYPE,
+  WEIGHT,
+  WORD_RISE_SEC,
+  WORD_STAGGER_SEC,
+} from "../tokens";
 import { fitLines } from "../typefit";
 
 /**
@@ -42,19 +55,26 @@ export const KineticCard: React.FC<{
   copy: CardCopy;
   /** The beat's length in frames — never `useVideoConfig().durationInFrames`. */
   dur: number;
-  /** Full-bleed aubergine with ivory type, instead of ink on paper. */
-  tone?: "paper" | "deep";
+  /** The card's ground. See `scenes.ts` § tone. */
+  tone?: CardTone;
 }> = ({ copy, dur, tone = "paper" }) => {
   const frame = useCurrentFrame();
   const layout = useLayout();
   const lines = linesFor(copy, layout.aspect);
   const centred = layout.aspect === "portrait";
-  const deep = tone === "deep";
 
+  /*
+   * HERO SCALE. `maxContent` is the width a BLOCK of running type may use; a
+   * card is one or two lines that are meant to carry the whole frame, and
+   * holding them to a reading measure is what made the first cut's "Describe
+   * your home." sit small in an empty frame. A card gets the safe area, less a
+   * margin, and the ceiling is high enough that the character count is what
+   * decides — not the token.
+   */
   const size = fitLines(lines, {
     preferred: TYPE.hero,
     min: TYPE.body,
-    maxWidth: layout.maxContent / layout.scale,
+    maxWidth: (layout.stage.w * 0.97) / layout.scale,
     weight: "bold",
   });
 
@@ -64,14 +84,13 @@ export const KineticCard: React.FC<{
   const outSec = MOTION.cutSec * 0.5;
   const out = 1 - clamp01((sec - (dur / FPS - outSec)) / outSec);
 
-  const ink = deep ? APP.page : APP.ink;
-  const rule = deep ? BAND.periwinkle : SPOT.action;
+  const { ground, ink, rule } = TONES[tone];
 
   return (
-    <AbsoluteFill style={{ backgroundColor: deep ? BAND.aubergine : APP.page }}>
+    <AbsoluteFill style={{ backgroundColor: ground }}>
       {/* The same lattice the canvas has, so a card is the same world as the
           picture it cuts to rather than a slide that arrived from elsewhere. */}
-      <CardGround layout={layout} frame={frame} deep={deep} />
+      <CardGround layout={layout} frame={frame} tone={tone} />
 
       <AbsoluteFill
         style={{
@@ -97,7 +116,9 @@ export const KineticCard: React.FC<{
           <MaskedLine
             key={line}
             text={line}
-            p={easeOutExpo(clamp01((sec - (MOTION.cutSec / 3) * i) / MOTION.cutSec))}
+            sec={sec}
+            delay={WORD_STAGGER_SEC * wordsBefore(lines, i)}
+            centred={centred}
             style={{
               fontFamily: FONT.sans,
               fontSize: layout.u(size),
@@ -114,32 +135,72 @@ export const KineticCard: React.FC<{
   );
 };
 
+const TONES: Record<CardTone, { ground: string; ink: string; rule: string }> = {
+  /** Ink on the product's own paper. */
+  paper: { ground: APP.page, ink: APP.ink, rule: SPOT.action },
+  /** The marketing band's aubergine, ivory type at 9.6:1. */
+  deep: { ground: BAND.aubergine, ink: APP.page, rule: BAND.periwinkle },
+  /** The brand violet, full bleed, ivory type at 5.7:1. One card only. */
+  plum: { ground: SPOT.action, ink: APP.page, rule: BAND.buttercream },
+};
+
+const wordsOf = (line: string): string[] => line.split(" ").filter(Boolean);
+
+/** How many words precede line `i`, so the stagger runs across the whole card. */
+const wordsBefore = (lines: readonly string[], i: number): number =>
+  lines.slice(0, i).reduce((n, l) => n + wordsOf(l).length, 0);
+
 /**
- * One line, revealed from behind a clip rather than faded up.
+ * One line, revealed WORD BY WORD from behind a clip rather than faded up.
  *
- * The band is `overflow: hidden` and the line rises into it. `lineHeight` on the
- * band is what stops a descender being clipped at rest — the mask is 1.16 of the
- * type size, and the travel is 0.9 of it, so the glyph is entirely outside the
- * band at `p = 0` and entirely inside it at `p = 1`.
+ * The band is `overflow: hidden` and each word rises into it. A fade is what a
+ * slide deck does; a mask reveal is what says the words are being written, and
+ * doing it per word rather than per line is the difference between type
+ * arriving and type appearing.
+ *
+ * The mask is 1.16 of the type size and the travel is 1.06 of it, so a glyph is
+ * entirely outside the band at rest and entirely inside it — descenders and all
+ * — when it lands. Word spacing is drawn as a margin rather than a space
+ * character, because a space inside an `overflow: hidden` span collapses.
  */
 const MaskedLine: React.FC<{
   text: string;
-  p: number;
+  /** Seconds since the beat started. */
+  sec: number;
+  /** How long this line waits before its first word. */
+  delay: number;
+  centred: boolean;
   style: React.CSSProperties;
-}> = ({ text, p, style }) => {
+}> = ({ text, sec, delay, centred, style }) => {
   const size = typeof style.fontSize === "number" ? style.fontSize : 0;
+  const words = wordsOf(text);
   return (
-    <div style={{ overflow: "hidden", height: size * 1.16, width: "100%" }}>
-      <div
-        style={{
-          ...style,
-          whiteSpace: "nowrap",
-          transform: `translateY(${((1 - p) * size * 1.06).toFixed(2)}px)`,
-          opacity: 0.25 + 0.75 * p,
-        }}
-      >
-        {text}
-      </div>
+    <div
+      style={{
+        overflow: "hidden",
+        height: size * 1.16,
+        width: "100%",
+        display: "flex",
+        justifyContent: centred ? "center" : "flex-start",
+      }}
+    >
+      {words.map((word, i) => {
+        const p = easeOutExpo(clamp01((sec - delay - WORD_STAGGER_SEC * i) / WORD_RISE_SEC));
+        return (
+          <span
+            key={`${i}-${word}`}
+            style={{
+              ...style,
+              whiteSpace: "pre",
+              marginRight: i === words.length - 1 ? 0 : size * 0.26,
+              transform: `translateY(${((1 - p) * size * 1.06).toFixed(2)}px)`,
+              opacity: 0.25 + 0.75 * p,
+            }}
+          >
+            {word}
+          </span>
+        );
+      })}
     </div>
   );
 };
@@ -175,15 +236,16 @@ const AccentRule: React.FC<{
  * something to sit on — 7 % on the deep card, a hair of the canvas dot on the
  * paper one. Visible in motion, invisible as texture.
  */
-const CardGround: React.FC<{ layout: Layout; frame: number; deep: boolean }> = ({
+const CardGround: React.FC<{ layout: Layout; frame: number; tone: CardTone }> = ({
   layout,
   frame,
-  deep,
+  tone,
 }) => {
+  const deep = tone !== "paper";
   const pitch = layout.u(deep ? 56 : 44);
   const drift = (frame * (deep ? 0.3 : 0.2)) % pitch;
   const dot = Math.max(1, layout.u(deep ? 2 : 1.6));
-  const colour = deep ? "rgb(255 255 255 / 0.07)" : "rgb(19 17 15 / 0.055)";
+  const colour = deep ? "rgb(255 255 255 / 0.08)" : "rgb(19 17 15 / 0.055)";
   return (
     <AbsoluteFill
       style={{
@@ -203,7 +265,12 @@ const CardGround: React.FC<{ layout: Layout; frame: number; deep: boolean }> = (
  * reason: a line that competes with the drawing for the frame is a card, and a
  * card belongs on its own beat.
  */
-export const SplitLine: React.FC<{ copy: CardCopy; dur: number }> = ({ copy, dur }) => {
+export const SplitLine: React.FC<{ copy: CardCopy; dur: number; ink?: string; rule?: string }> = ({
+  copy,
+  dur,
+  ink = APP.ink,
+  rule: ruleColour = SPOT.action,
+}) => {
   const frame = useCurrentFrame();
   const layout = useLayout();
   const lines = linesFor(copy, layout.aspect);
@@ -214,13 +281,16 @@ export const SplitLine: React.FC<{ copy: CardCopy; dur: number }> = ({ copy, dur
   // two-line receipt sentence 72 px past the bottom of a 16:9 frame in the first
   // still pass — the character count says nothing about how many lines there
   // are, and the band is the shorter constraint on a wide frame.
-  const lineBox = band.h / (lines.length * 1.18 * 1.16);
+  const lineBox = band.h / (lines.length * 1.16 * 1.14);
   const size = Math.min(
     lineBox / layout.scale,
     fitLines(lines, {
-      preferred: TYPE.title,
+      // A chapter verb is not a caption. `TYPE.title` held it to about half the
+      // band's height, which read as a subtitle under a picture rather than as
+      // the film speaking.
+      preferred: TYPE.title * 1.45,
       min: TYPE.caption,
-      maxWidth: band.w / layout.scale,
+      maxWidth: (band.w * 0.96) / layout.scale,
       weight: "medium",
     }),
   );
@@ -248,7 +318,7 @@ export const SplitLine: React.FC<{ copy: CardCopy; dur: number }> = ({ copy, dur
             width: layout.u(10),
             height: layout.u(size * 1.05 * lines.length),
             borderRadius: layout.u(5),
-            backgroundColor: SPOT.action,
+            backgroundColor: ruleColour,
             transform: `scaleY(${rule.toFixed(4)})`,
             transformOrigin: "50% 0%",
             flex: "0 0 auto",
@@ -260,14 +330,16 @@ export const SplitLine: React.FC<{ copy: CardCopy; dur: number }> = ({ copy, dur
             <MaskedLine
               key={line}
               text={line}
-              p={easeOutExpo(clamp01((sec - (MOTION.cutSec / 3) * i) / MOTION.cutSec))}
+              sec={sec}
+              delay={WORD_STAGGER_SEC * wordsBefore(lines, i)}
+              centred={centred}
               style={{
                 fontFamily: FONT.sans,
                 fontSize: layout.u(size),
                 fontWeight: WEIGHT.medium,
                 letterSpacing: `${TRACKING.body}em`,
                 lineHeight: 1.18,
-                color: APP.ink,
+                color: ink,
                 textAlign: centred ? "center" : "left",
               }}
             />
