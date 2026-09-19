@@ -1,131 +1,64 @@
-import React from "react";
-import { AbsoluteFill, useCurrentFrame } from "remotion";
+import React, { useMemo } from "react";
+import { AbsoluteFill, Sequence } from "remotion";
 
-import { FONT } from "./fonts";
+import { HonestyCaption } from "./components/HonestyCaption";
+import { SceneRouter } from "./components/SceneRouter";
+import { BEAT_GRID } from "./data/music-grid";
 import { useLayout, type CutId } from "./layout";
 import { SCENES } from "./scenes";
-import { TIMELINES, beatAtFrame, progressInBeat, replicaTimeAt } from "./timeline";
-import { APP, CANVAS_DOT_PITCH, RADIUS, SPOT, TRACKING, TYPE, WEIGHT } from "./tokens";
+import { honestyWindowFor, resolveCut } from "./timeline";
+import { APP } from "./tokens";
 
 /**
- * THE SCAFFOLD, AND NOTHING ELSE YET.
+ * The cut, laid out.
  *
- * Every visible string in this file lives inside `Placeholder`, which is not
- * copy: `capture/verify-copy.mjs` classes it as scaffolding, lists it on every
- * run, and fails on it only under `--strict`. So the film cannot ship with one
- * of these on screen, and the gate does not hold the repo red while WP-7 and
- * WP-9 are writing the real scenes.
+ * One `<Sequence>` per beat of the resolved edit, and **not one frame number
+ * typed anywhere**: `resolveCut` derives every `from` and every length from the
+ * seconds in `cuts.ts`, and `capture/verify-timeline.mjs` greps this file (and
+ * every other file but `timeline.ts`) for a frame literal. Two clocks in a film
+ * is the state where a cut slips a beat against the music and still looks fine
+ * in Studio.
  *
- * What this proves today: the fonts load, `useLayout()` gives both arrangements
- * sensible numbers, and the derived timeline puts the right scene under the
- * right frame in all eight compositions.
+ * ── Three things this component owns, and nothing else ─────────────────────
+ *
+ * **The ground.** Ivory paper under every beat, so a card cutting to a replica
+ * shot never flashes a different background for a frame. `verify:flash` runs on
+ * all eight masters because cutting between a full-bleed card and a bright
+ * drawing is exactly what can strobe.
+ *
+ * **The beat grid.** `BEAT_GRID` is `null` until WP-8 lands `music.json`; with
+ * one, `resolveCut` pulls the interior boundaries onto the nearest downbeat
+ * within ±150 ms and the last beat absorbs the remainder, so the composition
+ * length is identical either way.
+ *
+ * **The honesty caption.** Derived, not placed: `honestyWindowFor` says how long
+ * the replica's own caption survives this cut's time warp and who has to draw
+ * it. Where the warp leaves it under the three-second floor, the film overlays
+ * the identical sentence for the whole window — ABOVE the sequences, so it
+ * cannot be cut off by a beat boundary landing inside it.
  */
-const Placeholder: React.FC<{
-  cut: CutId;
-  frame: number;
-}> = ({ cut, frame }) => {
+export const Film: React.FC<{ cut: CutId }> = ({ cut }) => {
   const layout = useLayout();
-  const timeline = TIMELINES[cut];
-  const beat = beatAtFrame(cut, frame);
-  const scene = beat ? SCENES[beat.scene] : null;
-  const replicaAt = replicaTimeAt(cut, frame);
-  const through = beat ? progressInBeat(beat, frame) : 0;
-
-  const stack = layout.aspect === "portrait";
+  const resolved = useMemo(() => resolveCut(cut, BEAT_GRID), [cut]);
+  const honesty = useMemo(() => honestyWindowFor(resolved), [resolved]);
 
   return (
-    <AbsoluteFill
-      style={{
-        backgroundColor: APP.page,
-        color: APP.ink,
-        fontFamily: FONT.sans,
-        // The product's own canvas lattice, so the scaffold already sits on the
-        // ground the replica will land on rather than on a blank rectangle.
-        backgroundImage: `radial-gradient(${APP.canvasDot} 1px, transparent 1px)`,
-        backgroundSize: `${CANVAS_DOT_PITCH}px ${CANVAS_DOT_PITCH}px`,
-      }}
-    >
-      <AbsoluteFill
-        style={{
-          left: layout.stage.x,
-          top: layout.stage.y,
-          width: layout.stage.w,
-          height: layout.stage.h,
-          justifyContent: "center",
-          alignItems: stack ? "center" : "flex-start",
-          textAlign: stack ? "center" : "left",
-          gap: layout.u(24),
-        }}
-      >
-        <div
-          style={{
-            fontFamily: FONT.mono,
-            fontSize: layout.u(TYPE.dimension),
-            fontWeight: WEIGHT.medium,
-            letterSpacing: `${TRACKING.caps}em`,
-            textTransform: "uppercase",
-            color: APP.inkMuted,
-          }}
+    <AbsoluteFill style={{ backgroundColor: APP.page, width: layout.width, height: layout.height }}>
+      {resolved.beats.map((beat) => (
+        <Sequence
+          key={`${beat.index}-${beat.scene}`}
+          name={`${beat.index} ${beat.scene}${SCENES[beat.scene].needs ? " (needs)" : ""}`}
+          from={beat.startFrame}
+          durationInFrames={beat.durationInFrames}
+          layout="none"
         >
-          scaffold
-        </div>
+          <SceneRouter beat={beat} />
+        </Sequence>
+      ))}
 
-        <div
-          style={{
-            fontSize: layout.u(TYPE.display),
-            fontWeight: WEIGHT.bold,
-            letterSpacing: `${TRACKING.display}em`,
-            lineHeight: 1.02,
-            maxWidth: layout.maxContent,
-          }}
-        >
-          {scene ? scene.id : "no beat"}
-        </div>
-
-        <div
-          style={{
-            fontFamily: FONT.mono,
-            fontSize: layout.u(TYPE.label),
-            color: APP.inkMuted,
-            lineHeight: 1.6,
-            whiteSpace: "pre-line",
-          }}
-        >
-          {[
-            `${cut}s · ${layout.width}x${layout.height} · ${layout.replicaLayout}`,
-            `frame ${frame} / ${timeline.totalFrames}`,
-            beat
-              ? `beat ${beat.index} · ${beat.durationSec}s · ${(through * 100).toFixed(0)}%`
-              : "beat -",
-            replicaAt === null
-              ? "replica -"
-              : `replica t = ${replicaAt.toFixed(2)}s`,
-          ].join("\n")}
-        </div>
-
-        <div
-          style={{
-            width: stack ? layout.stage.w * 0.7 : layout.stage.w * 0.55,
-            height: layout.u(6),
-            borderRadius: RADIUS.pill,
-            backgroundColor: APP.hairline,
-            overflow: "hidden",
-          }}
-        >
-          <div
-            style={{
-              width: `${(frame / Math.max(1, timeline.totalFrames)) * 100}%`,
-              height: "100%",
-              backgroundColor: SPOT.action,
-            }}
-          />
-        </div>
-      </AbsoluteFill>
+      {honesty.source === "film" ? (
+        <HonestyCaption from={honesty.from} to={honesty.to} />
+      ) : null}
     </AbsoluteFill>
   );
-};
-
-export const Film: React.FC<{ cut: CutId }> = ({ cut }) => {
-  const frame = useCurrentFrame();
-  return <Placeholder cut={cut} frame={frame} />;
 };

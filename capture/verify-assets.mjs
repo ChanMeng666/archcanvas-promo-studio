@@ -62,9 +62,24 @@ const sourceFiles = walk(SRC);
 const calls = [];
 const dynamic = [];
 
+/**
+ * Strip comments before matching.
+ *
+ * A doc comment that EXPLAINS the `staticFile()` trap contains the token
+ * `staticFile()`, and an unstripped scan reports it as an unverifiable dynamic
+ * call. That is worse than a cosmetic bug: this line exists to make the
+ * unchecked calls visible, and a permanent false entry is how a reader learns
+ * to skip it. Comments are blanked rather than deleted so line numbers survive,
+ * and `://` is spared so a URL does not swallow the rest of its line.
+ */
+const stripComments = (src) =>
+  src
+    .replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, " "))
+    .replace(/(^|[^:])\/\/[^\n]*/g, "$1");
+
 for (const file of sourceFiles) {
   const rel = slash(path.relative(ROOT, file));
-  const text = fs.readFileSync(file, "utf8");
+  const text = stripComments(fs.readFileSync(file, "utf8"));
   for (const m of text.matchAll(/staticFile\(\s*(["'`])([^"'`]*)\1\s*\)/g)) {
     calls.push({ rel, asset: m[2] });
   }

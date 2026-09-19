@@ -132,7 +132,18 @@ export const CONTRAST_PAIRS = [
  * never read `useVideoConfig().width` to do it yourself.
  */
 export const TYPE = {
-  /** A kinetic card's headline. Sans. */
+  /**
+   * A full-bleed kinetic card, when the line is short enough to take it. Sans.
+   *
+   * This is a CEILING, not a size: `fitLines()` shrinks from here toward
+   * `body` on the character count, so "Describe your home." fills the frame and
+   * "You pay only when you get" sets smaller without either one being typed as
+   * a number. 96 was the original ceiling and left a 1920-wide frame looking
+   * like a slide with a caption on it — visible in the first still pass, which
+   * is the only reason this token exists.
+   */
+  hero: 150,
+  /** A kinetic card's headline, and the ceiling for type over a picture. Sans. */
   display: 96,
   /** A section-weight line. Sans. */
   title: 64,

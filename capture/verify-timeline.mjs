@@ -159,20 +159,67 @@ for (const cut of layout.CUT_IDS) {
     }
   }
 
-  /* every scene named by an edit exists, and a replica beat has a window */
+  /* every scene named by an edit exists, and the RESOLVED beat has (or has not)
+     a replica window. Resolved, not declared: a beat may omit the window and
+     inherit `defaultReplica` from its scene, and checking the declaration would
+     miss a scene whose default is missing. */
   for (const [i, e] of edl.entries()) {
     if (!scenes.SCENE_IDS.includes(e.scene)) {
       fail(`cut "${cut}" beat ${i} names scene "${e.scene}", which is not in SCENE_IDS`);
-      continue;
     }
-    const s = scenes.SCENES[e.scene];
-    const hasWindow = e.replicaFrom !== undefined && e.replicaTo !== undefined;
-    if (s.kind === "replica" && !hasWindow) {
-      fail(`cut "${cut}" beat ${i} ("${e.scene}") is a replica scene with no replicaFrom/replicaTo window`);
+  }
+  for (const b of t.beats) {
+    const wants = scenes.hasReplica(b.scene);
+    const has = b.replicaFrom !== undefined && b.replicaTo !== undefined;
+    if (wants && !has) {
+      fail(`cut "${cut}" beat ${b.index} ("${b.scene}") shows the replica but resolves to no window`);
     }
-    if (s.kind === "card" && hasWindow) {
-      fail(`cut "${cut}" beat ${i} ("${e.scene}") is a card but declares a replica window`);
+    if (!wants && has) {
+      fail(`cut "${cut}" beat ${b.index} ("${b.scene}") is a card but resolves to a replica window`);
     }
+    if (has && b.replicaTo <= b.replicaFrom) {
+      fail(
+        `cut "${cut}" beat ${b.index} ("${b.scene}") runs the replica backwards: ${b.replicaFrom} -> ${b.replicaTo}`,
+      );
+    }
+  }
+}
+
+/* ── 3. the honesty caption survives every cut's time warp ────────────────── */
+//
+// A real design takes two to three minutes; the replica compresses it to
+// seconds, and time compression read as a speed promise is a claim nobody made.
+// The sentence has to be readable for at least three seconds of FILM time in
+// every one of the eight masters — so the window is DERIVED from the edit and
+// checked here, never typed. A hand-written window is a number that stops being
+// true the first time a beat moves, and this is the film's one honesty
+// obligation.
+
+const FLOOR = cuts.HONESTY_MIN_SEC;
+
+for (const cut of layout.CUT_IDS) {
+  const h = timeline.HONESTY_WINDOWS[cut];
+  if (!h) {
+    fail(`cut "${cut}" derives no honesty-caption window at all`);
+    continue;
+  }
+  if (h.sec + 1e-9 < FLOOR) {
+    fail(
+      `cut "${cut}" keeps the honesty caption on screen for ${h.sec.toFixed(2)}s of film time, under the ${FLOOR}s floor ` +
+        `(the replica's own caption alone gives ${h.naturalSec.toFixed(2)}s; source "${h.source}")`,
+    );
+  }
+  if (h.to > timeline.TIMELINES[cut].totalSeconds + 1e-9 || h.from < -1e-9) {
+    fail(`cut "${cut}" puts the honesty caption at ${h.from.toFixed(2)}–${h.to.toFixed(2)}s, outside the cut`);
+  }
+  // The film only draws it where the warp left the replica short. A cut whose
+  // natural window already clears the floor but is marked "film" means the
+  // derivation disagrees with itself.
+  const expected = h.naturalSec >= FLOOR ? "replica" : "film";
+  if (h.source !== expected) {
+    fail(
+      `cut "${cut}" marks the honesty caption source "${h.source}" but its natural window is ${h.naturalSec.toFixed(2)}s (expected "${expected}")`,
+    );
   }
 }
 
@@ -211,6 +258,23 @@ for (const d of layout.DELIVERABLES) {
       `${L.aspect.padEnd(9)} replica=${L.replicaLayout.padEnd(9)} ` +
       `stage ${Math.round(L.stage.w)}x${Math.round(L.stage.h)}  u(40)=${L.u(40)}`,
   );
+}
+
+/* what the cut still leans on that does not exist yet */
+
+const needs = scenes.SCENES_WITH_NEEDS ?? [];
+if (needs.length) {
+  console.log(`\n  ${needs.length} scene(s) waiting on something that does not exist yet:`);
+  for (const s of needs) console.log(`    · ${s.id} — needs ${s.needs}`);
+}
+
+/* pace — fast and bright, and checkable */
+
+const pace = timeline.paceNotes();
+if (pace.length) {
+  console.log(`\n  ${pace.length} pace note(s):`);
+  for (const p of pace) console.log(`    ! cut ${p.cut}s beat ${p.index} (${p.scene}): ${p.detail}`);
+  if (STRICT) fail(`${pace.length} pace note(s) under --strict`);
 }
 
 if (timeline.warnings.length) {

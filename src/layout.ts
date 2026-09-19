@@ -24,11 +24,13 @@ export {
   FPS,
   aspectOf,
   deriveLayout,
+  splitStage,
   type Aspect,
   type CutId,
   type Deliverable,
   type Layout,
   type ReplicaLayout,
+  type StageRect,
 } from "./layout-core";
 
 export const useLayout = (): Layout => {

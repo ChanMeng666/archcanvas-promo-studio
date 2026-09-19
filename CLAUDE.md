@@ -83,22 +83,36 @@ Six that will bite:
 ## Structure
 
 ```
-src/layout-core.ts   FPS, the cut lengths, the 8 DELIVERABLES, deriveLayout()  [React-free]
+src/layout-core.ts   FPS, cut lengths, the 8 DELIVERABLES, deriveLayout(),     [React-free]
+                     splitStage() — the safe-area split a `split` scene uses
 src/layout.ts        useLayout() — the hook every component reads
-src/cuts.ts          four EDLs, in SECONDS                                     [React-free]
-src/scenes.ts        the scene roster and its types                            [React-free]
-src/timeline.ts      the ONLY frame arithmetic in the repo                     [React-free]
+src/cuts.ts          four EDLs, in SECONDS + the honesty caption's numbers     [React-free]
+src/scenes.ts        the 13-scene roster, its four kinds, the pace rules       [React-free]
+src/copy.ts          every word the FILM says in its own voice, with sources   [React-free]
+src/timeline.ts      the ONLY frame arithmetic in the repo; resolveCut(),      [React-free]
+                     honestyWindowFor(), snapToDownbeat()
+src/typefit.ts       size-from-character-count, because measuring needs fonts  [React-free]
 src/tokens.ts        the product's own colours, converted from OKLCH to sRGB   [React-free]
 src/fonts.ts         Space Grotesk + Geist Mono, narrowed
 src/Root.tsx         8 <Composition>s, mapped from DELIVERABLES
-src/Film.tsx         the scaffold placeholder today; the cut tomorrow
+src/Film.tsx         <Sequence> per resolved beat + the honesty overlay
+src/components/      SceneRouter · KineticCard/SplitLine · ReplicaSlot ·
+                     EndCard · HonestyCaption · Camera
+src/data/music-grid.ts  the beat-grid seam; null until WP-8 lands music.json
 src/replica/         SYNCED, NOT EDITABLE — the product's own studio replica
 src/replica-data/    SYNCED types + the generated seam (index.ts)
 src/data/            drawlist.json (synced) + replica-lock.json (the ledger)
+public/brand/        the product's wordmark + icon, for the end card
 public/renders/      SYNCED renderings
 capture/             the gates
 scripts/             sync-replica.mjs + verify-replica.mjs
 ```
+
+**Two things in `src/` are still scaffolding**, both deliberately visible rather
+than pretended away: `<ReplicaSlot>` draws a labelled placeholder until the
+replica is synced (`verify:copy` lists it every run and `--strict` makes it
+fatal), and the `second-brief` scene is marked `needs` until a second screenplay
+exists (`verify:timeline` prints it every run).
 
 The React-free files are bundled and executed in Node by `capture/lib/load-core.mjs`, so
 the gates test the real code rather than a re-implementation of it. **Keep them free of
