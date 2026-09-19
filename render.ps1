@@ -105,8 +105,13 @@ $targets = @(
 )
 
 if ($Only -ne "all") {
-  if ($Only -match '^\d+$') { $targets = $targets | Where-Object { $_.cut -eq $Only } }
-  else                      { $targets = $targets | Where-Object { $_.tag -eq $Only } }
+  # @(...) is load-bearing. A pipeline that matches ONE target returns the
+  # hashtable itself rather than a one-element array, and `.Count` on a
+  # hashtable is the number of KEYS -- so `-Only 15l` announced a plan of "5
+  # master(s)" and then listed one. A wrong count in the banner of a script
+  # whose whole job is to say what it actually did is not a cosmetic bug.
+  if ($Only -match '^\d+$') { $targets = @($targets | Where-Object { $_.cut -eq $Only }) }
+  else                      { $targets = @($targets | Where-Object { $_.tag -eq $Only }) }
 }
 
 New-Item -ItemType Directory -Force -Path $outDir | Out-Null

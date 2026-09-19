@@ -137,7 +137,32 @@ npx remotion bundle --out-dir out/bundle          # once, not eight times
 filed under the wrong music is worse than no master — it looks like a
 deliverable. Omit it and the masters are filed under whatever is active.
 
-Then, for every one of the eight:
+### 5. Measure, record, and make the review copies
+
+```powershell
+./tools/package-masters.ps1 -MusicVersion B-<slug>
+```
+
+It probes every master, writes `out/masters/B-<slug>/MANIFEST.json`, and
+transcodes the review copies. It fails if a master is missing, the wrong size,
+not 30 fps, not `yuv420p`, short of its frame count, silent, or over the
+true-peak ceiling.
+
+Every number in the manifest is **measured from the delivered file**, never
+copied from what the render was asked for. That is this project's oldest lesson
+restated: every number about the broken sound effects was right while the files
+were wrong (`docs/decisions.md` D10).
+
+Two things it reports that are **not** faults:
+
+- **The container runs ~60 ms long.** An mp4's format duration is its longest
+  stream, and AAC pads its tail to a whole 1024-sample frame. The manifest
+  carries the video stream's own duration and frame count beside it, and those
+  are exact — 450 / 900 / 1800 / 3600 frames at 30 fps.
+- **A master reads a little hotter than its bed.** The beds are normalised to
+  −16 LUFS and the effects sit on top of them.
+
+### 6. Screen every master
 
 ```powershell
 npm run verify:flash out/masters/B-<slug>/<file>.mp4
@@ -145,6 +170,12 @@ npm run verify:flash out/masters/B-<slug>/<file>.mp4
 
 **Every one.** `capture/check-flash.mjs` deliberately has no default filename; a
 default is how seven go unchecked.
+
+Then look at the frames, which no gate does. Pull eight evenly spaced stills out
+of each master and check the things only an eye catches: the replica UI is
+really there rather than a blank, the honesty caption is in the draw section,
+the "AI-generated" pill is on the rendering, the end card says `archcanvas.uk`,
+and no frame carries a bare `$` or names the DSL.
 
 ---
 
