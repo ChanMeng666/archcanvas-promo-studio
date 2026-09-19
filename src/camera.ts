@@ -65,7 +65,7 @@ import {
 import type { PlanPage } from "./replica/planTypes";
 import { pickPage } from "./replica/resolvePages";
 import type { ReplicaState } from "./replica/types";
-import { CAPTION_SPAN, DEMO, PAGES, RENDERING_SPAN, overlaps, stateAt } from "./film-demo";
+import { CAPTION_SPAN, DEMO, OPEN_PIN_SEC, PAGES, RENDERING_SPAN, overlaps, stateAt } from "./film-demo";
 import { DRAFTING_SPAN } from "./honesty";
 import type { Layout, StageRect } from "./layout-core";
 import { SCENES, type SceneId } from "./scenes";
@@ -388,8 +388,23 @@ export const focusRectFor = (
 
     case "receipt": {
       const anchors = pinAnchors(ctx);
+      const building0 = buildingBox(ctx) ?? sheetOnScreen(ctx);
+      /*
+       * BEFORE a pin is opened there is no card to read, and the subject is the
+       * three pins landing on the drawing — so the shot holds all of them and
+       * the building. The contact sheet caught the other version: aimed at the
+       * first finding, which is the sheet-wide one and therefore anchored to the
+       * paper's top edge, the 120 s cut's first receipt beat was six seconds of
+       * empty canvas with a corner of drawing in it.
+       */
+      if (!span || span.to < OPEN_PIN_SEC) {
+        return anchors.reduce<Rect>(
+          (acc, a) => unionR(acc, { x: a.x - 20 * spec.ck, y: a.y - 30 * spec.ck, w: 40 * spec.ck, h: 40 * spec.ck }),
+          building0,
+        );
+      }
       const open = state.review.openPin;
-      const a = (open !== null ? anchors[open] : undefined) ?? anchors[0];
+      const a = (open !== null ? anchors[open] : undefined) ?? anchors[1] ?? anchors[0];
       if (!a) return sheetOnScreen(ctx);
       /*
        * The card that has to be READ, the pin it belongs to, and enough of the

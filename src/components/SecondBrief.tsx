@@ -7,7 +7,7 @@ import { useLayout } from "../layout";
 import { typedLength } from "../replica/at";
 import { PlanSvg } from "../replica/parts/PlanSvg";
 import { clamp01, easeOutCubic, easeOutExpo, frameToSec, type ResolvedBeat } from "../timeline";
-import { APP, CANVAS_DOT_PITCH, CANVAS_DRIFT_PX, RADIUS, SPOT, TRACKING, TYPE, WEIGHT } from "../tokens";
+import { APP, CANVAS_DOT_PITCH, CANVAS_DRIFT_PX, RADIUS, SPOT, STAGE, TRACKING, TYPE, WEIGHT } from "../tokens";
 import { fitLines } from "../typefit";
 
 /**
@@ -63,9 +63,17 @@ export const SecondBrief: React.FC<{ beat: ResolvedBeat }> = ({ beat }) => {
   const plan = MONTAGE[index];
   const page = MONTAGE_PAGES[index];
 
+  /*
+   * The montage keeps the colour script running. Four plans over sixteen
+   * seconds on one ground is the stretch where the film would go quiet again,
+   * so each plan gets its own stage and the change lands on the slot boundary
+   * with the plan.
+   */
+  const ground = MONTAGE_STAGES[index % MONTAGE_STAGES.length];
+
   return (
-    <AbsoluteFill style={{ backgroundColor: APP.page }}>
-      <Lattice frame={frame} pitch={layout.u(CANVAS_DOT_PITCH)} />
+    <AbsoluteFill style={{ backgroundColor: ground }}>
+      <Lattice frame={frame} pitch={layout.u(CANVAS_DOT_PITCH)} ground={ground} />
       <MontagePane key={index} plan={plan} page={page} p={local} layout={layout} />
     </AbsoluteFill>
   );
@@ -240,6 +248,9 @@ const MontagePane: React.FC<{
   );
 };
 
+/** One stage per montage plan, from the film's own script. */
+const MONTAGE_STAGES = [STAGE.edit, STAGE.tweak, STAGE.draw, STAGE.export] as const;
+
 const size = (p: number): number => 0.4 + 0.6 * p;
 
 /** The typing caret, on the replica's own blink period. */
@@ -292,12 +303,12 @@ const breakBrief = (text: string, budget: number): string[] => {
 };
 
 /** The canvas lattice, drifting — the same ground the replica scenes stand on. */
-const Lattice: React.FC<{ frame: number; pitch: number }> = ({ frame, pitch }) => {
+const Lattice: React.FC<{ frame: number; pitch: number; ground: string }> = ({ frame, pitch, ground }) => {
   const drift = (frame * CANVAS_DRIFT_PX) % pitch;
   return (
     <AbsoluteFill
       style={{
-        backgroundColor: APP.canvas,
+        backgroundColor: ground,
         backgroundImage: `radial-gradient(${APP.canvasDot} 1.4px, transparent 1.4px)`,
         backgroundSize: `${pitch}px ${pitch}px`,
         backgroundPosition: `${drift.toFixed(2)}px ${(drift * 0.6).toFixed(2)}px`,

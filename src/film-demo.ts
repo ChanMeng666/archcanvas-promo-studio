@@ -191,6 +191,18 @@ export const RENDERING_SPAN = {
   to: SCREENPLAY.durationSec,
 } as const;
 
+/**
+ * When the review chapter OPENS a pin, in screenplay seconds.
+ *
+ * The receipt beat frames differently before and after: while the pins are
+ * dropping there is no card to read and the shot has to hold the drawing they
+ * are landing on; once one is open, the sentence in the card is the subject.
+ * Read per BEAT against this, not per frame, for the usual reason — a framing
+ * that changes halfway through a beat is a lurch.
+ */
+const openPinBeat = SCREENPLAY.beats.find((b) => b.action.k === "openPin");
+export const OPEN_PIN_SEC: number = openPinBeat ? openPinBeat.at + openPinBeat.dur * 0.5 : Infinity;
+
 /** Do two closed intervals meet? */
 export const overlaps = (a: { from: number; to: number }, b: { from: number; to: number }): boolean =>
   a.from <= b.to && b.from <= a.to;
