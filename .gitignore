@@ -1,0 +1,30 @@
+node_modules/
+.env
+
+# Renders.
+#
+# A 120s 1080p master is tens of MB, there are eight of them, and git keeps
+# every version forever. Masters ship as GitHub Release assets, not as commits.
+# Stills are cheap and they are the reviewable record of what a frame looked
+# like, so out/stills/ stays.
+out/*
+!out/stills/
+!out/*.srt
+!out/*.vtt
+
+# ── What IS tracked, and why it is the opposite of the sibling film ─────────
+#
+# `../archcanvas-promo-remotion` gitignores `public/` because everything in it
+# is copied from elsewhere and re-syncable. THIS repo tracks both `public/` and
+# `src/replica/`, and the rule is the same rule reaching the opposite answer:
+# a fresh clone must be able to render the film.
+#
+# There, a clone could re-run `npm run sync:assets` against a sibling repo that
+# is public. Here the source is the PRIVATE product repo, and the replica is the
+# picture — without it there is no film at all, only a scaffold. So the synced
+# bytes are committed, and `src/data/replica-lock.json` is the sha256 ledger
+# that says which upstream commit they came from. `npm run verify:replica`
+# fails on any drift between the two.
+#
+# Nothing else about the product is copied here, and this repo must never gain
+# an archcanvas git remote.

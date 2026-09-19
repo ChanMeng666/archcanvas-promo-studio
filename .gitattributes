@@ -1,0 +1,26 @@
+# Normalize text to LF. Without this, Windows autocrlf makes every synced file
+# in src/replica/ show as modified with no real content change -- and worse,
+# the sha256 in src/data/replica-lock.json would be computed over CRLF bytes on
+# one machine and LF bytes on another, so `verify:replica` would report drift
+# that does not exist. The sync script writes LF explicitly for the same reason.
+* text=auto eol=lf
+
+# Explicit binaries -- never normalize. A CRLF-mangled font or media file is
+# silently corrupt rather than loudly broken.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.svg text
+*.pdf binary
+*.ttf binary
+*.otf binary
+*.woff binary
+*.woff2 binary
+*.mp3 binary
+*.wav binary
+*.mp4 binary
+*.mkv binary
+*.mov binary
+*.webm binary

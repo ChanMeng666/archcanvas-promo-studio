@@ -1,0 +1,46 @@
+{
+  "name": "archcanvas-promo-studio",
+  "version": "0.1.0",
+  "license": "UNLICENSED",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "remotion studio",
+    "build": "remotion bundle",
+    "lint": "tsc",
+    "typecheck": "tsc",
+    "sync:replica": "node scripts/sync-replica.mjs",
+    "verify": "npm run verify:assets && npm run verify:replica && npm run verify:timeline && npm run verify:copy && npm run verify:numbers",
+    "verify:assets": "node capture/verify-assets.mjs",
+    "verify:replica": "node scripts/verify-replica.mjs",
+    "verify:timeline": "node capture/verify-timeline.mjs",
+    "verify:copy": "node capture/verify-copy.mjs",
+    "verify:copy:strict": "node capture/verify-copy.mjs --strict",
+    "verify:numbers": "node capture/verify-numbers.mjs",
+    "verify:flash": "node capture/check-flash.mjs",
+    "verify:assets:strict": "node capture/verify-assets.mjs --strict",
+    "verify:timeline:strict": "node capture/verify-timeline.mjs --strict",
+    "verify:strict": "npm run verify:assets:strict && npm run verify:replica && npm run verify:timeline:strict && npm run verify:copy:strict && npm run verify:numbers",
+    "ship": "npm run lint && npm run verify:strict && pwsh -File ./render.ps1"
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.522",
+    "@remotion/google-fonts": "4.0.522",
+    "@remotion/media-utils": "4.0.522",
+    "@remotion/shapes": "4.0.522",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "remotion": "4.0.522"
+  },
+  "devDependencies": {
+    "@types/react": "19.2.7",
+    "@types/web": "0.0.166",
+    "typescript": "5.9.3"
+  },
+  "allowScripts": {
+    "esbuild@0.28.1": true
+  }
+}
