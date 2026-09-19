@@ -1187,6 +1187,40 @@ were not. It now says `N NOT on disk`.
 
 Full procedure, both directions: `docs/release.md`.
 
+## D32a. The masters land at −17.6 LUFS, and the duck is the whole reason.
+
+Version A's eight masters measure **−17.3 to −17.9 LUFS integrated**, against beds
+normalised to −15.6 … −16.2. Adding sound effects to a bed should make it louder.
+These are **1.1 to 2.0 dB quieter**, and the number is not noise: it is ordered by
+cut length, which is the clue.
+
+`DUCK` pulls the music down 4 dB under a run of cues, and `duckWindows` merges any
+cues closer together than the hold. Measured by sampling the real envelope at 30 fps:
+
+| cut | cues | duck windows | frames ducked | mean bed gain | bed | master |
+|---|---|---|---|---|---|---|
+| 15 s | 39 | 6 | **73.8 %** | −2.45 dB | −15.6 | −17.6 |
+| 30 s | 78 | 12 | **70.8 %** | −2.33 dB | −15.9 | −17.9 |
+| 60 s | 118 | 33 | **59.0 %** | −1.84 dB | −16.1 | −17.6 |
+| 120 s | 185 | 45 | **50.7 %** | −1.53 dB | −16.2 | −17.3 |
+
+Bed + mean duck gain predicts each master to within 0.1 dB, with the effects adding
+a consistent ~0.4 dB back. The model fits exactly, so nothing else is going on.
+
+**The finding is about coverage, not depth.** `audio.ts` chose −4 dB so the movement
+would be "heard as space rather than as an effect", and at the density this film
+runs the windows merge into **half to three-quarters of the runtime** — so the duck
+is not really ducking, it is a −2 dB trim on the bed with a shape. That is a
+defensible mix and it is not what the constant reads as.
+
+**Nothing was changed, deliberately.** Depth, coverage and bed level are sound-design
+decisions the founder has not heard yet, and the placeholder take is being replaced
+anyway. The consequence is benign in both directions: every platform normalises up
+from here (YouTube and the vertical feeds target about −14), and true peak is −3.4 to
+−4.6 dBTP, so **+1.6 dB is available without a re-mix and without clipping** — a
+constant and a re-render, if the founder wants it. Recorded so the next person reads
+a measurement rather than rediscovering a 2 dB mystery.
+
 ## D33. `Tweak a number.` is cleared. The flag stays.
 
 The one line in the film that no growth-repo or product line says, and the only

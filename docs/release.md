@@ -42,7 +42,18 @@ same discipline `src/data/music-grid.ts` already records under "one clock".
 
 ---
 
-## Version A — what shipped
+## Version A — rendered 2026-09-20
+
+Eight masters, `out/masters/A-confident-arrival/`, at commit `8593e72`. Every one
+exact on frame count (450 / 900 / 1800 / 3600), 30 fps, h264 / yuv420p, AAC audio
+present and not silent, and past `verify:flash` with zero flash pairs. The record
+is `MANIFEST.json`; the review copies are in `review/`.
+
+The container duration reads ~60 ms over each cut length on all eight. That is the
+AAC tail padding — the **video** stream is exactly 15.000 / 30.000 / 60.000 /
+120.000 s.
+
+
 
 | | |
 |---|---|
@@ -159,8 +170,12 @@ Two things it reports that are **not** faults:
   stream, and AAC pads its tail to a whole 1024-sample frame. The manifest
   carries the video stream's own duration and frame count beside it, and those
   are exact — 450 / 900 / 1800 / 3600 frames at 30 fps.
-- **A master reads a little hotter than its bed.** The beds are normalised to
-  −16 LUFS and the effects sit on top of them.
+- **A master reads a little QUIETER than its bed** — about −17.6 LUFS against a
+  −16 bed. That is the duck, which at this cue density covers 51–74 % of the
+  runtime and acts as a ~2 dB trim. Measured and explained in
+  `docs/decisions.md` D32a. Platforms normalise up from here and there is 3–4 dB
+  of true-peak headroom, so it is a constant and a re-render if the founder
+  wants it louder — not a re-mix.
 
 ### 6. Screen every master
 
