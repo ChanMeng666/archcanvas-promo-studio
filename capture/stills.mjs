@@ -32,12 +32,11 @@
  *   node capture/stills.mjs --sheet              contact sheets instead
  *   node capture/stills.mjs --at 30L:4.2,12.8    ad-hoc seconds, for a look-fix pass
  *
- * Output: `out/stills/wp9/<comp>/<nn>-<name>.png` and
- *         `out/stills/wp9/contact/<comp>.png`.
+ * Output: `out/stills/wp9/<comp>/<nn>-<name>.png`, and for `--sheet` the frames
+ * in `out/stills/wp9/contact/` that `npm run stills:sheet` tiles.
  */
 
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -192,58 +191,17 @@ for (const d of comps) {
   }
 }
 
-/* ── the contact sheet ────────────────────────────────────────────────────── */
+/* ── the contact sheet is a SEPARATE step ─────────────────────────────────── */
 
-/**
- * Tile a cut's per-second frames into ONE image.
+/*
+ * It used to be here, at the end of this run. That is the wrong place: a
+ * thirty-frame sheet died on its twenty-ninth frame (the `fonts.gstatic.com`
+ * exhaustion above) and took the tiling of twenty-eight perfectly good frames
+ * with it. A step that takes seconds and depends only on files should not be
+ * downstream of one that takes minutes and can fail.
  *
- * The point of a contact sheet is the thing no single frame shows: the colour
- * rhythm. Thirty stills in a folder are thirty stills; thirty in a grid are
- * either a film or a run of identical beige rectangles, and you can see which
- * in a second.
- *
- * Over the frames already on disk rather than a second render. Two ffmpeg facts
- * shape how: this machine's build has no globbing (`Pattern type 'glob' was
- * selected but globbing is not supported by this libavformat build`), and the
- * `image2` demuxer reads a `%03d` sequence and **stops at the first gap**. The
- * frames are therefore named by contiguous INDEX with the second as a suffix,
- * and copied into a scratch directory as a bare sequence before tiling. Named by
- * second, the 60 s and 120 s sheets step by 2 and 4 — `t000`, `t002`, … — and the
- * tile came out as a single frame on a black field, which looks like a render
- * failure and is a naming one. ffmpeg's stderr is progress, not errors, so it is
- * discarded rather than treated as failure.
- *
- * Landscape only, per the work package: a tiled 9:16 grid at a readable width
- * is taller than a screen, which defeats the purpose.
+ *   node capture/stills.mjs --sheet --comp <id>    # as many times as it takes
+ *   npm run stills:sheet                           # then tile, once
  */
-if (SHEETS) {
-  const { execFileSync } = await import("node:child_process");
-  for (const d of comps) {
-    if (!d.id.includes("Landscape")) continue;
-    const dir = path.join(OUT, "contact");
-    const files = fs.readdirSync(dir).filter((n) => n.startsWith(`${d.id}-c`) && n.endsWith(".png"));
-    if (files.length === 0) continue;
-    const cols = Math.ceil(Math.sqrt(files.length * 1.6));
-    const rows = Math.ceil(files.length / cols);
-    const sheet = path.join(OUT, `contact-sheet-${d.id}.png`);
-    try {
-      // The frames carry a `-<seconds>s` suffix, which `%03d` cannot express, so
-      // they are linked into a scratch directory as a bare sequence first.
-      const staging = fs.mkdtempSync(path.join(os.tmpdir(), "contact-"));
-      files.sort().forEach((f, i) => fs.copyFileSync(path.join(dir, f), path.join(staging, `${String(i).padStart(3, "0")}.png`)));
-      execFileSync(
-        "ffmpeg",
-        ["-y", "-v", "error", "-i", path.join(staging, "%03d.png"),
-         "-vf", `scale=320:-1,tile=${cols}x${rows}:margin=6:padding=4:color=0x13110F`,
-         "-frames:v", "1", sheet],
-        { stdio: ["ignore", "ignore", "pipe"] },
-      );
-      fs.rmSync(staging, { recursive: true, force: true });
-      console.log(`  contact sheet  ${path.relative(ROOT, sheet)}  ${files.length} frame(s), ${cols}x${rows}`);
-    } catch (err) {
-      console.log(`  contact sheet  FAILED for ${d.id}: ${String(err.message).split("\n")[0]}`);
-    }
-  }
-}
 
 console.log(`\nstills: ${written} file(s) under ${path.relative(ROOT, OUT)}\n`);

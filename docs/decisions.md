@@ -606,3 +606,11 @@ mark to open on, and `verify:opening` checks it.
 **Mutation evidence.** `CARD_RULE_FLOOR = 0` reddens every card opening in every
 cut. Putting the export windows back to 35 is shown by the timeline's own
 derivation: 0.57 s of a 2.50 s beat playing a dissolve.
+
+**And the tiling moved out of the render.** It used to run at the end of
+`stills.mjs --sheet`, in the same process: a thirty-frame batch died on its
+twenty-ninth frame and took the tiling of twenty-eight perfectly good frames
+with it. `capture/tile-contact.mjs` (`npm run stills:sheet`) reads whatever is on
+disk, so a batch that dies part-way still produces a sheet and a re-run only has
+to fill the gap. A step that takes seconds and depends only on files should not
+be downstream of one that takes minutes and can fail.

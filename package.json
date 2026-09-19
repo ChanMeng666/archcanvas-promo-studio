@@ -29,6 +29,7 @@
     "verify:honesty": "node capture/verify-honesty.mjs",
     "verify:opening": "node capture/verify-opening.mjs",
     "stills": "node capture/stills.mjs",
+    "stills:sheet": "node capture/tile-contact.mjs",
     "verify:flash": "node capture/check-flash.mjs",
     "verify:assets:strict": "node capture/verify-assets.mjs --strict",
     "verify:timeline:strict": "node capture/verify-timeline.mjs --strict",
