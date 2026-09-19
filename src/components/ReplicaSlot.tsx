@@ -6,6 +6,8 @@ import { entryOpacity, pushTransform, shotFor } from "../camera";
 import { FONT } from "../fonts";
 import { useLayout, type StageRect } from "../layout";
 import { SCENES, type ChapterId } from "../scenes";
+import { ColourWipe } from "./ColourWipe";
+import { groundOf } from "./SceneRouter";
 import { DEMO, PAGES } from "../film-demo";
 import { StudioReplica } from "../replica/StudioReplica";
 import { frameToSec, type ResolvedBeat } from "../timeline";
@@ -68,6 +70,10 @@ export const ReplicaSlot: React.FC<{
   const chapter: ChapterId | undefined = SCENES[beat.scene].chapter;
   const ground = chapter ? STAGE[chapter] : APP.page;
   const onDark = chapter === "review";
+  // The colour the cut is leaving, from the one table both this and the router
+  // read — two copies of "what colour is that scene" is how a wipe ends up
+  // wiping the wrong colour off.
+  const prevGround = groundOf(beat.prevScene);
 
   return (
     <AbsoluteFill style={{ backgroundColor: ground }}>
@@ -89,6 +95,7 @@ export const ReplicaSlot: React.FC<{
           a scale >= 1 always covers the frame.
         */}
         <CanvasGround frame={frame} layout={layout} ground={ground} onDark={onDark} />
+        <ColourWipe from={prevGround} to={ground} frame={frame} seed={beat.index} width={layout.width} />
         <div
           style={{
             position: "absolute",

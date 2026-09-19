@@ -5,6 +5,7 @@ import { linesFor, type CardCopy } from "../copy";
 import { FONT } from "../fonts";
 import { splitStage, useLayout, type Layout } from "../layout";
 import type { CardTone } from "../scenes";
+import { ColourWipe } from "./ColourWipe";
 import { FPS, clamp01, easeOutCubic, easeOutExpo } from "../timeline";
 import {
   APP,
@@ -57,7 +58,11 @@ export const KineticCard: React.FC<{
   dur: number;
   /** The card's ground. See `scenes.ts` § tone. */
   tone?: CardTone;
-}> = ({ copy, dur, tone = "paper" }) => {
+  /** The colour the cut is leaving, for the wipe. */
+  from?: string | null;
+  /** The beat's index — alternates the wipe's direction. */
+  seed?: number;
+}> = ({ copy, dur, tone = "paper", from = null, seed = 0 }) => {
   const frame = useCurrentFrame();
   const layout = useLayout();
   const lines = linesFor(copy, layout.aspect);
@@ -91,6 +96,7 @@ export const KineticCard: React.FC<{
       {/* The same lattice the canvas has, so a card is the same world as the
           picture it cuts to rather than a slide that arrived from elsewhere. */}
       <CardGround layout={layout} frame={frame} tone={tone} />
+      <ColourWipe from={from} to={ground} frame={frame} seed={seed} width={layout.width} />
 
       <AbsoluteFill
         style={{

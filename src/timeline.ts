@@ -153,6 +153,8 @@ const MIN_BEAT_SEC = 0.5;
 export interface ResolvedBeat {
   index: number;
   scene: SceneId;
+  /** The scene the cut came FROM, so a beat can wipe the colour it replaces. */
+  prevScene: SceneId | null;
   edit: Edit;
   startSec: number;
   endSec: number;
@@ -289,6 +291,7 @@ export const resolveCut = (cut: CutId, grid?: BeatGrid | null): ResolvedCut => {
     return {
       index,
       scene: edit.scene,
+      prevScene: index > 0 ? edits[index - 1].scene : null,
       edit,
       startSec,
       endSec,
