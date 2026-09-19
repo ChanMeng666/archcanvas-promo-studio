@@ -111,6 +111,59 @@ if (fs.existsSync(LOCK)) {
   fail("unprovenanced", "public/renders/", "holds files but there is no replica lock to account for them");
 }
 
+/* ── 3. the audio manifests ───────────────────────────────────────────────── */
+/*
+ * The beds and the cues are not reached through `staticFile("literal")` — WP-9
+ * mounts them from `src/audio.ts`, which reads two generated manifests. A
+ * `staticFile` call whose argument is a variable cannot be resolved by check 1
+ * above, which can only report it as unverified. This section verifies them.
+ *
+ * It calls `audioProblems()` out of `src/audio.ts` rather than re-deriving the
+ * rules here, for the reason `capture/lib/load-core.mjs` gives at length: a gate
+ * that re-implements what it checks eventually disagrees with it, and a gate
+ * that disagrees goes green on a broken film and red on a good one.
+ */
+
+const MUSIC = path.join(SRC, "data", "music.json");
+const SFX = path.join(SRC, "data", "sfx.json");
+let audioNote = "no audio manifests — run `npm run audio:all`";
+let audioFiles = 0;
+
+if (fs.existsSync(MUSIC) || fs.existsSync(SFX)) {
+  const declared = [];
+  if (fs.existsSync(MUSIC)) {
+    const music = JSON.parse(fs.readFileSync(MUSIC, "utf8"));
+    for (const bed of Object.values(music.beds ?? {})) declared.push({ from: "music.json", file: bed.file });
+  } else fail("audio", "src/data/music.json", "missing — run `npm run audio:beds`");
+  if (fs.existsSync(SFX)) {
+    const sfx = JSON.parse(fs.readFileSync(SFX, "utf8"));
+    for (const cue of sfx.cues ?? []) declared.push({ from: "sfx.json", file: cue.file });
+  } else fail("audio", "src/data/sfx.json", "missing — run `npm run audio:sfx`");
+
+  for (const { from, file } of declared) {
+    if (!fs.existsSync(path.join(PUBLIC_DIR, file))) {
+      fail("missing", file, `declared by ${from}, but public/${file} does not exist — the film would play silence here`);
+    }
+  }
+  audioFiles = declared.length;
+
+  // The real invariants, from the real module.
+  try {
+    const { createRequire } = await import("node:module");
+    const esbuild = createRequire(import.meta.url)("esbuild");
+    const built = await esbuild.build({
+      stdin: { contents: `export { audioProblems } from "./audio";`, resolveDir: SRC, sourcefile: "audio-gate.ts", loader: "ts" },
+      bundle: true, write: false, format: "esm", platform: "node", target: "node22", logLevel: "silent",
+    });
+    const mod = await import(`data:text/javascript;base64,${Buffer.from(built.outputFiles[0].text).toString("base64")}`);
+    for (const problem of mod.audioProblems()) fail("audio", "src/audio.ts", problem);
+    audioNote = `${audioFiles} audio file(s) declared by the manifests, all on disk; src/audio.ts self-check ran`;
+  } catch (err) {
+    fail("audio", "src/audio.ts", `could not be evaluated: ${String(err.message).split("\n")[0]}`);
+    audioNote = `${audioFiles} audio file(s) declared; the self-check could NOT run`;
+  }
+}
+
 /* ── report ───────────────────────────────────────────────────────────────── */
 
 const vacuous = calls.length === 0;
@@ -124,6 +177,7 @@ const summary = {
   staticFileCalls: calls.length,
   dynamicCalls: dynamic.length,
   lockNote,
+  audioNote,
   violations,
 };
 
@@ -136,6 +190,7 @@ console.log(`\n  verify-assets${STRICT ? " --strict" : ""}`);
 console.log(`    ${sourceFiles.length} source file(s) scanned`);
 console.log(`    ${calls.length} literal staticFile() call(s) checked against public/`);
 console.log(`    ${lockNote}`);
+console.log(`    ${audioNote}`);
 if (dynamic.length) {
   console.log(`    ! ${dynamic.length} staticFile() call(s) with a non-literal argument — NOT checked:`);
   for (const d of dynamic) console.log(`        ${d.rel}`);
