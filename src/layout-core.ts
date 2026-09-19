@@ -121,6 +121,46 @@ export const deriveLayout = (width: number, height: number): Layout => {
   };
 };
 
+/* ── the split stage ──────────────────────────────────────────────────────── */
+
+/**
+ * How much of the stage a `split` scene's line takes, as a fraction.
+ *
+ * ── Why the line is INSIDE the stage and not under it ──────────────────────
+ *
+ * The first still pass put it in the band below the stage, which looked
+ * obvious and was wrong twice. In 16:9 that band is 88 px and the two-line
+ * receipt sentence is about 160 px, so it ran off the bottom of the frame — a
+ * thing a still shows instantly and a green gate never will. And in 9:16 it
+ * would have "fitted", into the 390 px **Reels and TikTok cover with their own
+ * interface**: type that is comfortably inside the frame and completely behind
+ * a share sheet.
+ *
+ * The safe area is the whole point of `SAFE`. So a split scene divides the
+ * STAGE — picture above, line below, both inside the area a viewer can
+ * actually see — and the picture gives up the room rather than the type
+ * leaving the readable frame.
+ */
+const SPLIT_BAND: Record<Aspect, number> = {
+  landscape: 0.23,
+  portrait: 0.21,
+};
+
+export type StageRect = { x: number; y: number; w: number; h: number };
+
+/**
+ * The two rectangles of a split scene. Both inside `stage`, so neither can
+ * reach the platform's own furniture.
+ */
+export const splitStage = (l: Layout): { replica: StageRect; line: StageRect } => {
+  const band = Math.round(l.stage.h * SPLIT_BAND[l.aspect]);
+  const gap = l.u(28);
+  return {
+    replica: { x: l.stage.x, y: l.stage.y, w: l.stage.w, h: l.stage.h - band - gap },
+    line: { x: l.stage.x, y: l.stage.y + l.stage.h - band, w: l.stage.w, h: band },
+  };
+};
+
 /* ── the deliverables ─────────────────────────────────────────────────────── */
 
 export type Deliverable = {

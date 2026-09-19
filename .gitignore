@@ -1,6 +1,11 @@
 node_modules/
 .env
 
+# Agent worktrees. `git worktree add .worktrees/<wp>` keeps two agents out of
+# one working tree; the checkout inside is a full copy of this repo and must
+# never be committed into it.
+.worktrees/
+
 # Renders.
 #
 # A 120s 1080p master is tens of MB, there are eight of them, and git keeps

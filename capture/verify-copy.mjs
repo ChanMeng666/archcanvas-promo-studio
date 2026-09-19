@@ -141,6 +141,13 @@ const BANNED_PATTERNS = [
     why: "no bare dollar price on screen - USD on a .uk surface is DMCCA drip-pricing exposure",
   },
   {
+    // The film compresses two to three minutes of real work into seconds and
+    // says so on screen. A line that ALSO promises speed turns an editing
+    // decision into a claim, and the honesty caption into a contradiction.
+    re: /\b(in seconds|in a second|in an instant|instantly|instant results?|within seconds)\b/i,
+    why: "no speed claim - a generation takes 100-160s and the film compresses it; the honesty caption exists because that compression is not a promise",
+  },
+  {
     re: /\b(first|only)\b.{0,24}\b(tool|product|app|platform|way)\b/i,
     why: "B8 - no primacy claim; it was audited against ~60 prior-art items and retired",
   },
@@ -170,6 +177,81 @@ if (existsSync(scriptPath)) {
       }
     }
   }
+}
+
+/**
+ * `src/copy.ts` — the film's own authored lines, and the hole this closes.
+ *
+ * The TSX half below harvests `JsxText` nodes. A line held in a `.ts` module and
+ * rendered as `{line}` is a JSX **expression**, not JsxText, so it is invisible
+ * to that harvest — which would make "put the copy in a constants file" the
+ * quiet way to ship an uncleared sentence. So this file is parsed on its own
+ * terms and every string that reaches the screen is treated exactly like a card
+ * line: scanned for banned terms AND required to have a backticked row.
+ *
+ * What counts as on-screen: a string inside a `landscape`, `portrait` or
+ * `lines` array, or the value of a `text` property. Everything else in that file
+ * — the `source` and `note` fields, the ids — is metadata ABOUT the copy and
+ * quotes the very phrases it is documenting, so scanning it would fail the build
+ * for citing a ban.
+ */
+const ON_SCREEN_ARRAYS = new Set(["landscape", "portrait", "lines"]);
+const ON_SCREEN_PROPS = new Set(["text"]);
+
+const copyPhrases = [];
+const copyPath = join(PROJECT, "src", "copy.ts");
+if (existsSync(copyPath)) {
+  const sf = ts.createSourceFile(
+    copyPath,
+    readFileSync(copyPath, "utf8"),
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TS,
+  );
+  const lineOf = (node) => sf.getLineAndCharacterOfPosition(node.getStart(sf)).line + 1;
+  const literal = (node) =>
+    node && (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node))
+      ? node.text
+      : null;
+
+  const visit = (node) => {
+    if (ts.isPropertyAssignment(node) && node.name) {
+      const name = ts.isIdentifier(node.name) || ts.isStringLiteral(node.name) ? node.name.text : "";
+      if (ON_SCREEN_ARRAYS.has(name) && ts.isArrayLiteralExpression(node.initializer)) {
+        for (const el of node.initializer.elements) {
+          // `[HONESTY_CAPTION_TEXT]` is an identifier, not a literal: the string
+          // itself is declared (and harvested) at its own const.
+          const text = literal(el);
+          if (text && text.trim()) {
+            copyPhrases.push({ phrase: text, where: `src/copy.ts ${name}`, line: lineOf(el) });
+          }
+        }
+      } else if (ON_SCREEN_PROPS.has(name)) {
+        const text = literal(node.initializer);
+        if (text && text.trim()) {
+          copyPhrases.push({ phrase: text, where: `src/copy.ts ${name}`, line: lineOf(node) });
+        }
+      }
+    }
+    // A top-level `export const FOO_TEXT = "…"` that a copy array references by
+    // identifier. Named by the *_TEXT convention so a helper string cannot slip
+    // onto the screen unregistered.
+    if (
+      ts.isVariableDeclaration(node) &&
+      node.name &&
+      ts.isIdentifier(node.name) &&
+      /_TEXT$/.test(node.name.text)
+    ) {
+      const text = literal(node.initializer);
+      if (text && text.trim()) {
+        copyPhrases.push({ phrase: text, where: `src/copy.ts ${node.name.text}`, line: lineOf(node) });
+      }
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(sf);
+} else {
+  note("src/copy.ts", "missing", "the film's own copy module does not exist - nothing to clear");
 }
 
 /** Every visible string in the compositions. */
@@ -255,8 +337,8 @@ for (const file of tsxFiles) {
 
 // The empty-input-set trap. A refactor that moved every component out of src/
 // would otherwise turn this gate into a no-op that prints a tick.
-if (tsxFiles.length === 0 && scriptPhrases.length === 0) {
-  note("src/**", "empty-input", "no .tsx files and no script.json — this gate looked at nothing");
+if (tsxFiles.length === 0 && scriptPhrases.length === 0 && copyPhrases.length === 0) {
+  note("src/**", "empty-input", "no .tsx files, no script.json and no copy.ts — this gate looked at nothing");
 }
 
 /** The clearance table. Every backtick-quoted string in the whole file is cleared. */
@@ -289,6 +371,21 @@ for (const { phrase, where } of scriptPhrases) {
     note(where, "unregistered", `no backticked row in docs/copy-clearance.md for ${JSON.stringify(phrase)}`);
   }
 }
+
+// EVERY string from copy.ts is registration-gated, `isProse` or not. An authored
+// break can leave a fragment as short as one word ("dimensioned"), and a
+// fragment reaches the screen exactly as hard as a sentence does.
+for (const { phrase, where, line } of copyPhrases) {
+  scan(phrase, where, line);
+  if (!cleared.has(phrase.trim().toLowerCase())) {
+    note(
+      where,
+      "unregistered",
+      `authored line with no clearance row: ${JSON.stringify(phrase)} - add a backticked row to docs/copy-clearance.md with the source it came from`,
+      line,
+    );
+  }
+}
 for (const { phrase, where, line, gated } of componentText) {
   scan(phrase, where, line);
   if (gated && isProse(phrase) && !cleared.has(phrase.trim().toLowerCase())) {
@@ -313,6 +410,7 @@ const pending = violations.filter((v) => v.kind === "placeholder" && !STRICT);
 
 const summary = {
   strict: STRICT,
+  copyPhrases: copyPhrases.length,
   scriptPhrases: scriptPhrases.length,
   componentFiles: tsxFiles.length,
   componentStrings: componentText.length,
@@ -327,6 +425,7 @@ if (JSON_OUT) {
 }
 
 console.log(`\n  verify-copy${STRICT ? " --strict" : ""}`);
+console.log(`    ${summary.copyPhrases} authored line(s) in src/copy.ts, parsed as TS`);
 console.log(`    ${summary.scriptPhrases} card line(s) in src/data/script.json`);
 console.log(`    ${summary.componentStrings} visible string(s) across ${tsxFiles.length} component file(s), parsed as TSX`);
 console.log(`    ${cleared.size} phrase(s) cleared in docs/copy-clearance.md`);
