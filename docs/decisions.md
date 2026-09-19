@@ -710,6 +710,15 @@ drawing at one edge. The focus now also takes half the building around the pin:
 enough drawing to see what the finding is about, without widening the shot to the
 point where the sentence in the card stops being legible.
 
+**The receipt beat lurched, twice, for the same reason.** `pinAnchors` reads the
+findings off the state, and the state has none until the pins start dropping a
+second into the beat — so the shot opened wide on the sheet at 1.9x and snapped
+to 4.5x the instant they appeared. It is framed against `DEMO.findings` and the
+screenplay's own `openPin` index now, so the framing is a decision about the
+SHOT rather than a reaction to its subject arriving. The 120 s cut's two-beat
+structure then comes out as the two shots it was written as: wide on the three
+pins landing, then close enough to read the one that opens.
+
 **The stage barely shows on the closest framings.** At the money shot's 85 % the
 window covers the frame and the coloured ground is a sliver either side. That is
 the trade the framing was asked for, and it is why the colour lands mostly on the
