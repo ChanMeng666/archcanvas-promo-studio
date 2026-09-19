@@ -85,7 +85,7 @@ export type SceneKind = "replica" | "split" | "card" | "endcard";
  * `scenes.ts` is bundled and executed in Node by the gates and a `.tsx` import
  * would drag React into that bundle — which is the tripwire, not a nuisance.
  */
-export type CardTone = "paper" | "deep" | "plum";
+export type CardTone = "paper" | "deep" | "bright";
 
 /**
  * The camera's behaviour on a scene, as a DEFAULT that a cut may override.
@@ -149,13 +149,17 @@ export interface Scene {
    */
   filmCaption?: boolean;
   /**
-   * A card's ground: `paper` (ink on ivory), `deep` (aubergine) or `plum`.
+   * A card's ground: `paper` (ink on ivory), `deep` (aubergine) or `bright`
+   * (buttercream).
    *
    * ⚠ The cards ALTERNATE, and that is the point rather than a preference — a
    * film whose every card is ivory is a film whose contact sheet is one colour.
-   * `docs/decisions.md` D11 records that the plum card was asked for explicitly
-   * in the art direction, which is why `tokens.ts`'s standing note about large
-   * flat violet does not settle it: one card, full bleed, ivory type at 5.7:1.
+   *
+   * There is no `plum`. There was, for one pass, on the art direction's explicit
+   * instruction; the founder's standing objection to large flat violet is older
+   * and stands, so the price card is buttercream with obsidian type instead —
+   * which is the warmer, lighter frame the "you pay" moment wanted anyway.
+   * `docs/decisions.md` D24.
    */
   tone?: CardTone;
   /**
@@ -330,8 +334,8 @@ export const SCENES: Readonly<Record<SceneId, Scene>> = {
     kind: "card",
     intent: "The pay-per-result frame. No bare figure ever appears on screen.",
     copy: PRICE,
-    // The film's loudest frame, and it lands on the money line.
-    tone: "plum",
+    // The film's brightest frame, and it lands on the money line.
+    tone: "bright",
   },
 
   /**

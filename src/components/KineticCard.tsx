@@ -146,8 +146,12 @@ const TONES: Record<CardTone, { ground: string; ink: string; rule: string }> = {
   paper: { ground: APP.page, ink: APP.ink, rule: SPOT.action },
   /** The marketing band's aubergine, ivory type at 9.6:1. */
   deep: { ground: BAND.aubergine, ink: APP.page, rule: BAND.periwinkle },
-  /** The brand violet, full bleed, ivory type at 5.7:1. One card only. */
-  plum: { ground: SPOT.action, ink: APP.page, rule: BAND.buttercream },
+  /**
+   * Buttercream, full bleed, obsidian type at 18:1 — the film's brightest frame.
+   *
+   * It was plum for one pass. `tokens.ts` says why it is not.
+   */
+  bright: { ground: BAND.buttercream, ink: APP.ink, rule: SPOT.action },
 };
 
 const wordsOf = (line: string): string[] => line.split(" ").filter(Boolean);

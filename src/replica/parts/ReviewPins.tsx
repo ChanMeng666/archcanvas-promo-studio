@@ -200,7 +200,7 @@ function FindingCard({
         className="sr-clamp sr-wrap"
         style={{
           margin: `${u(4 * k)} 0 0`,
-          ...typeStyle(10.5 * k, 1.4),
+          ...typeStyle(spec.findingSize, 1.4),
           WebkitLineClamp: spec.pinCardLines,
         }}
       >
@@ -213,7 +213,7 @@ function FindingCard({
             padding: `${u(2 * k)} ${u(8 * k)}`,
             background: "rgb(106 61 240 / 0.1)",
             color: "var(--sr-action)",
-            ...typeStyle(10 * k, 1.4),
+            ...typeStyle(11 * k, 1.4),
           }}
         >
           {PIN_FIX}
@@ -224,7 +224,7 @@ function FindingCard({
             padding: `${u(2 * k)} ${u(8 * k)}`,
             border: "var(--sr-hair) solid var(--sr-border)",
             color: "var(--sr-muted-foreground)",
-            ...typeStyle(10 * k, 1.4),
+            ...typeStyle(11 * k, 1.4),
           }}
         >
           {PIN_DISMISS}

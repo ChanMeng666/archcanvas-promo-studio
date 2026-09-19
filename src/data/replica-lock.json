@@ -2,12 +2,12 @@
   "$comment": "WRITTEN BY scripts/sync-replica.mjs — NEVER HAND-EDIT.\n\nThe one-way boundary between this film and the product. Every row is a file\nCOPIED out of the archcanvas checkout named below, with the bytes it was copied\nas (text normalised to LF) and their sha256.\n\nsrc/replica/** IS NOT EDITABLE HERE. Fix it upstream and re-sync. `npm run\nverify:replica` re-hashes every row and fails on any difference, so an edit made\nhere shows up as drift rather than as a divergence nobody notices.\n\nRegenerate with `npm run sync:replica`. Check without writing: `--check`.",
   "generatedBy": "scripts/sync-replica.mjs",
   "sourceRepo": "D:/.claude-scratch/2026-09-19/studio-replica/wp9/sync-src",
-  "sourceCommit": "20ce8c878676ef532dfd8b212f515b73c3f5cd4d",
+  "sourceCommit": "84348f553c57c8eaa5f907854789c5f34b032b74",
   "sourceBranch": "HEAD",
   "sourceDirty": false,
   "totals": {
-    "files": 43,
-    "bytes": 3136665,
+    "files": 44,
+    "bytes": 3155538,
     "byRole": {
       "render": 6,
       "drawlist": 1,
@@ -16,7 +16,7 @@
       "seam": 1,
       "demo": 1,
       "types": 1,
-      "replica": 31
+      "replica": 32
     }
   },
   "files": [
@@ -128,8 +128,8 @@
     },
     {
       "path": "src/replica/StudioReplica.tsx",
-      "bytes": 10145,
-      "sha256": "08e21207eb01ac463bae5356bd7a24fdbfff3ed947a754a20d510bc79d50a42b",
+      "bytes": 10572,
+      "sha256": "10d3d11e54e99d5306c7f2c7d42f5a865493bd186312974d5169bb3806ae9cc8",
       "role": "replica",
       "source": "src/components/marketing/studio-replica/StudioReplica.tsx"
     },
@@ -163,15 +163,15 @@
     },
     {
       "path": "src/replica/layout.ts",
-      "bytes": 24222,
-      "sha256": "99acc95532376e38a8dd5302d9511d6f2eaf4a1018e58c30f96bbacca9344a78",
+      "bytes": 29081,
+      "sha256": "d7b292bbd33df90cfdb385e186a536d7d050e98e9639d68a7d2fda168c16c6dc",
       "role": "replica",
       "source": "src/components/marketing/studio-replica/layout.ts"
     },
     {
       "path": "src/replica/layoutMap.ts",
-      "bytes": 14333,
-      "sha256": "092f9f99deae5b00f90c945d8bf84ae7e323b747635e6a3b6ce6d90e41297ce5",
+      "bytes": 16065,
+      "sha256": "e13a3ed653512dc3c1eb53a20cc3c89097bf8f583aab5a7f6243f7ff919d6b9e",
       "role": "replica",
       "source": "src/components/marketing/studio-replica/layoutMap.ts"
     },
@@ -191,15 +191,15 @@
     },
     {
       "path": "src/replica/parts/CanvasToolbar.tsx",
-      "bytes": 2472,
-      "sha256": "c24ea968c47d18973498e2cae11bd29d73540564d1589379535f4a65243382d7",
+      "bytes": 3195,
+      "sha256": "3f13b7be5fc2f7d8dea9c1674d9d06feb81ab83b604fd0d69027aa826d1bbc05",
       "role": "replica",
       "source": "src/components/marketing/studio-replica/parts/CanvasToolbar.tsx"
     },
     {
       "path": "src/replica/parts/Caption.tsx",
-      "bytes": 1521,
-      "sha256": "5e8ebe43525f23c15c47baf1394d0a56165f1dd221c619217108e83c6ab165cf",
+      "bytes": 2332,
+      "sha256": "cf7197457123a71247132e7a9f5274deb88a10f4030fca4ee2307b4f486519d9",
       "role": "replica",
       "source": "src/components/marketing/studio-replica/parts/Caption.tsx"
     },
@@ -240,8 +240,8 @@
     },
     {
       "path": "src/replica/parts/PlanSvg.tsx",
-      "bytes": 8716,
-      "sha256": "af4d0d05c5198e8da83804c600f2b914ab07d83551f75ed0b13a331b88b043b0",
+      "bytes": 10888,
+      "sha256": "33da5f043b5a54bc8c0ebb3dd7985352f93f7ab7fcf1de9d475c472252392ba9",
       "role": "replica",
       "source": "src/components/marketing/studio-replica/parts/PlanSvg.tsx"
     },
@@ -254,8 +254,8 @@
     },
     {
       "path": "src/replica/parts/ReviewPins.tsx",
-      "bytes": 7697,
-      "sha256": "cd58036c1dddb710632432147f6157bfa877325972bebf8b23a43f21e8dddfb9",
+      "bytes": 7705,
+      "sha256": "37850d93c8da7ad6455015ca936a9fb8fb219075f13c5e3c397bc99d6040dc21",
       "role": "replica",
       "source": "src/components/marketing/studio-replica/parts/ReviewPins.tsx"
     },
@@ -342,6 +342,13 @@
       "sha256": "b46a17edf07e3b56ce24b61665156385bc483e728e29bca9b6325ccb48a5682c",
       "role": "replica",
       "source": "src/components/marketing/studio-replica/types.ts"
+    },
+    {
+      "path": "src/replica/useReplicaClock.ts",
+      "bytes": 8141,
+      "sha256": "87c3129bd604ccfac39d7a29f978e23e8f855b1e81a7b8239d3aa67376e00c25",
+      "role": "replica",
+      "source": "src/components/marketing/studio-replica/useReplicaClock.ts"
     }
   ]
 }

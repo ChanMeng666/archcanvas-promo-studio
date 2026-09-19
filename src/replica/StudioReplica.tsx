@@ -80,6 +80,17 @@ export interface StudioReplicaProps {
 /** The web host serves the screenplay's paths as-is; the film remaps them. */
 const identity = (src: string): string => src;
 
+/**
+ * The three drawing overlays' boxes, hoisted to constants.
+ *
+ * `PlanSvg` is memoised on its props (see its own header), and a style object
+ * built inside the render is a new object on every frame — which would make the
+ * memo miss on every frame and cost exactly what it was added to save. Frozen
+ * module constants instead: these never depend on state.
+ */
+const FILL: CSSProperties = { position: "absolute", inset: 0 };
+const FILL_ON_PAPER: CSSProperties = { position: "absolute", inset: 0, background: "#ffffff" };
+
 export function StudioReplica({
   state,
   demo,
@@ -209,7 +220,7 @@ function Studio({
               page={page}
               state={state}
               selectedArchId={state.selection.archId}
-              style={{ position: "absolute", inset: 0 }}
+              style={FILL}
             />
             {/* The plan we are leaving, opaque over the new one. */}
             {crossPage && cross ? (
@@ -219,7 +230,7 @@ function Studio({
                 state={state}
                 complete
                 opacity={1 - cross.p}
-                style={{ position: "absolute", inset: 0, background: "#ffffff" }}
+                style={FILL_ON_PAPER}
               />
             ) : null}
             {/* …and its geometry, dashed, for a second or so afterwards. */}
@@ -231,7 +242,7 @@ function Studio({
                 complete
                 layers={GHOST_LAYERS}
                 opacity={ghost.opacity}
-                style={{ position: "absolute", inset: 0 }}
+                style={FILL}
               />
             ) : null}
           </div>

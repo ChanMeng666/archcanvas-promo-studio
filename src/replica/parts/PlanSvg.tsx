@@ -35,7 +35,7 @@
  *    `id="poche"` would give one plan's walls the other's hatch.
  */
 
-import { createElement } from "react";
+import { createElement, memo } from "react";
 import type { CSSProperties, JSX } from "react";
 import { clamp01, slice } from "../easing";
 import { nodeProgress } from "../at";
@@ -95,7 +95,7 @@ const FILL_HOLD = 0.55;
 const SELECT_FILL = "rgb(106 61 240 / 0.16)";
 const SELECT_STROKE = "#6a3df0";
 
-export function PlanSvg({
+function PlanSvgFrame({
   page,
   state,
   opacity = 1,
@@ -194,6 +194,58 @@ export function PlanSvg({
       </svg>
     </div>
   );
+}
+
+/**
+ * The drawing, memoised on the only thing it reads out of `ReplicaState`.
+ *
+ * This component builds 250-odd SVG elements. The web host re-renders the whole
+ * replica thirty times a second, and for all but the three and a half seconds
+ * the drawing is being laid down, what it produces is IDENTICAL — the bands are
+ * all 1 and nothing else on its props has moved.
+ *
+ * ⚠ Honest about the evidence: this is REASONED, not measured. Frame timings on
+ * the landing page (1x and 4x CPU, 20 s windows) did not separate it from the
+ * noise, because the windows that were slow were slow for other reasons and the
+ * window where this matters is three seconds long. It is kept because the work
+ * it skips is real and its comparator is cheap — not because a number moved.
+ * The measured win in that round belongs to the clock's load back-off
+ * (`useReplicaClock.ts`).
+ *
+ * ⚠ The comparator is a claim about what the render function READS: `page`, the
+ * five numbers in `state.plan.bands`, and its own flags. Anything new taken out
+ * of `state` below has to be added here, or it will be a value that silently
+ * stops updating. It is a memo rather than a `useMemo` because this directory's
+ * components are pure functions of their props and take no hooks — see the
+ * header of `StudioReplica.tsx`.
+ *
+ * The frame renderer is unaffected: it paints each frame in a fresh tree, where
+ * a memo has nothing to compare against and simply renders.
+ */
+export const PlanSvg = memo(PlanSvgFrame, samePlanFrame);
+
+function samePlanFrame(a: Props, b: Props): boolean {
+  if (
+    a.page !== b.page ||
+    a.opacity !== b.opacity ||
+    a.selectedArchId !== b.selectedArchId ||
+    a.complete !== b.complete ||
+    a.layers !== b.layers ||
+    a.className !== b.className ||
+    a.style !== b.style
+  ) {
+    return false;
+  }
+  // A `complete` drawing ignores the bands outright.
+  if (a.complete && b.complete) return true;
+  const x = a.state.plan.bands;
+  const y = b.state.plan.bands;
+  if (x === y) return true;
+  if (x.length !== y.length) return false;
+  for (let i = 0; i < x.length; i++) {
+    if (x[i] !== y[i]) return false;
+  }
+  return true;
 }
 
 /** `LAYER_BANDS.indexOf`, without re-importing the array into the hot path. */

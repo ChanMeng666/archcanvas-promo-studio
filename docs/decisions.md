@@ -340,6 +340,10 @@ because every gate already understands a replica beat's window.
 
 ## D11. Colour rhythm without relitigating the violet.
 
+> **Superseded twice and back again — see D22 and then D24.** The conclusion
+> below is the one that stands; what changed is that it was overturned on
+> instruction and then restored.
+
 The brief asked for "occasional full-bleed colour cards (plum with ivory type)".
 `tokens.ts` says the opposite in as many words — *violet is a SPOT colour, never
 a field and never a fill behind a paragraph; the founder's standing objection to
@@ -356,6 +360,8 @@ nine frames and then gone**, i.e. a transition and not a page of flat violet.
 **This is a deviation from the work package and it is flagged as one.** If the
 founder wants the plum card after all, `scenes.ts` grows a third `tone` and one
 card changes; nothing else does.
+
+*(It was asked for, built, and withdrawn again: D24.)*
 
 ## D12. The cue sheet is derived from the picture, frame by frame.
 
@@ -690,10 +696,10 @@ Two things about that. The tints were mixed at 28 % and 22 % first, and the
 stills showed why that is not enough: at the framings the money shot uses the
 stage is a sliver either side of the window, and a 28 % tint in a sliver is
 white. **A colour script has to be legible in the frames that show least of it.**
-And the plum card overrides `tokens.ts`'s standing note about large flat violet
-because the art direction asked for it explicitly — one card, full bleed, ivory
-type at 5.7:1. That supersedes D11, which is left standing as the record of why
-it was not there before.
+And the plum card overrode `tokens.ts`'s standing note about large flat violet
+because the art direction asked for it explicitly. **That lasted one round: D24
+withdrew it.** The card is buttercream, the note is back, and the episode is
+recorded rather than tidied away.
 
 **Type was timid.** A card's measure was `maxContent`, which is the width a block
 of RUNNING type may use; a card is one or two lines meant to carry the whole
@@ -800,3 +806,36 @@ the plan.
 
 End card: the wordmark is 47 % of frame width in 16:9 and 71 % in 9:16, with
 `archcanvas.uk` at 13.2 % of the mark's width — the largest element after it.
+
+## D24. The plum card was tried and withdrawn.
+
+D11 recorded that the work package asked for full-bleed plum cards and that
+`tokens.ts` says the opposite, on the founder's standing objection to large flat
+violet — and that the objection was the stronger authority, so the colour card
+was aubergine.
+
+D22 reversed that, on the art direction's explicit instruction, and the film
+carried one full-bleed plum card on the price line.
+
+**This reverses it back, and the reason is worth keeping rather than tidying
+away.** The objection is a founder decision recorded before either instruction;
+an art-direction note is a strong signal but not a licence to overturn one. The
+correct move on the first reversal would have been to build it AND say plainly
+that it contradicted a standing decision — which the PR body did, which is how it
+came back. The process worked; it worked one round slower than it should have.
+
+So:
+
+- **The price card is buttercream** (`#FFFFC4`) with obsidian type at 18:1. It is
+  the "you pay" moment, and warm and light suits it better than loud ever did.
+- **`CardTone` has no `plum`.** `paper` / `deep` / `bright`.
+- **The end card's wipe is a BAND**, a fifth of the frame wide, sweeping once on
+  the `end-hit`. It used to be a full-bleed fill for nine frames, and a standing
+  objection to large flat violet does not have a nine-frame exemption.
+- **Violet is a spot again**: rules, the chapter chip's dot, the caret, pin
+  heads, the sweeping band. Roughly a seventh of a frame is the ceiling.
+- Aubergine stays on one card and the receipt band. The live marketing site
+  already ships aubergine bands; nothing new is being claimed for it.
+
+`tokens.ts` carries the note again, with the round trip in it, so the next person
+who reaches for a violet field finds out here rather than in review.

@@ -90,10 +90,17 @@ export const CANVAS_DRIFT_PX = 0.22;
 /* ── brand accents ────────────────────────────────────────────────────────── */
 
 /**
- * Violet is a SPOT colour: a caret, a pin head, a single hairline, one pill.
- * Never a field and never a fill behind a paragraph. The founder's standing
- * objection to large flat violet is on the record and this film does not
- * relitigate it.
+ * Violet is a SPOT colour: a caret, a pin head, a single hairline, one pill, a
+ * rule under a card, the wipe on the end card. **Never a field and never a fill
+ * behind a paragraph.**
+ *
+ * ⚠ This was relitigated and the objection won. The art direction asked for
+ * full-bleed plum cards, the film got one on the price line, and the founder's
+ * standing objection to large flat violet — recorded here before any of it —
+ * settled it: the card is withdrawn. A rule of thumb for the next person to
+ * reach for it: violet may cover about a seventh of a frame, and the end card's
+ * wipe is the exception that proves it, because it is a field for nine frames
+ * and then gone. `docs/decisions.md` D11 / D22 / D24.
  */
 export const SPOT = {
   /** --plum. The brand violet. */
@@ -182,7 +189,7 @@ export const CONTRAST_PAIRS = [
   { fg: "#FFFFFF", bg: "#6A3DF0", min: 4.5, use: "white on the action fill" },
   { fg: "#FFFFFF", bg: "#3C315B", min: 4.5, use: "white on the aubergine band" },
   { fg: "#FBF8F2", bg: "#3C315B", min: 4.5, use: "ivory type on the aubergine stage" },
-  { fg: "#FBF8F2", bg: "#6A3DF0", min: 4.5, use: "ivory type on the plum card" },
+  { fg: "#13110F", bg: "#FFFFC4", min: 4.5, use: "ink on the buttercream card" },
   { fg: "#13110F", bg: "#D3CCF2", min: 4.5, use: "ink on the periwinkle-wash stage" },
   { fg: "#13110F", bg: "#FFFFC4", min: 4.5, use: "ink on the buttercream stage" },
   { fg: "#13110F", bg: "#A9E2C9", min: 4.5, use: "ink on the mint-wash stage" },

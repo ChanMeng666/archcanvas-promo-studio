@@ -24,6 +24,8 @@
  * Pure arithmetic — see the house rules in `types.ts`.
  */
 
+import { HONESTY_CAPTION } from "./strings";
+
 /**
  * Which of the two layouts to draw.
  *
@@ -117,6 +119,16 @@ export interface LayoutSpec {
   };
   commandBar: Rect;
   toolbar: Rect;
+  /**
+   * Portrait keeps only the toolbar's ZOOM CHIP.
+   *
+   * Measured: the sheet's own right cluster (Export + the tweak toggle) sweeps
+   * x 472..852 across the loop as the camera moves, and a full four-control
+   * toolbar at the top of a 1000-unit stage cannot clear it. The chip is the one
+   * part that carries STATE — the three icon buttons are affordances a picture
+   * cannot offer anyway — so the chip stays and they go.
+   */
+  toolbarCompact: boolean;
   draftCard: Rect;
   rendering: Rect;
   caption: Rect;
@@ -130,6 +142,26 @@ export interface LayoutSpec {
    * landing page and a phone actually render at.
    */
   captionSize: number;
+  /**
+   * How many lines the caption is set on.
+   *
+   * Portrait breaks it in two at its own em dash — a 64-character sentence at a
+   * legible size does not fit one line of a phone, and left to wrap it overflowed
+   * its box and landed on the zoom chip and the cursor. The break is derived from
+   * the string by {@link captionTextLines}, never re-typed, so the two halves
+   * still concatenate to the constant and the copy tripwire still sees it.
+   */
+  captionLines: number;
+  /**
+   * The review finding's type size, in design units.
+   *
+   * ⚠ A CAMERA PUSH CANNOT FIX THIS ONE. The finding card is design-space chrome,
+   * like the command bar — it does not ride the camera, so zooming the canvas
+   * makes the drawing bigger and leaves the card exactly as it was. The receipt
+   * beat is the product's differentiator and the card is the receipt, so the size
+   * is a layout number with a floor the tests assert.
+   */
+  findingSize: number;
   toast: Rect;
   tweaks: TweaksSpec;
   exportMenu: ExportMenuSpec;
@@ -189,6 +221,46 @@ export const CAMERA_ENVELOPE = {
   /** How far `cx` may sit from 0.5. Horizontal has far more slack. */
   cxBudget: 0.09,
 } as const;
+
+/**
+ * A character's average advance, as a fraction of the type size.
+ *
+ * The replica cannot measure text — it has no DOM at layout time and has to
+ * produce the same numbers in a browser, in jsdom and in a film renderer. 0.54
+ * is Space Grotesk's mixed-case average, measured off the preview harness, and
+ * every box built from it is CAPPED by the space available, so an underestimate
+ * costs a wrap rather than an overflow.
+ */
+const EM_ADVANCE = 0.54;
+
+/**
+ * The caption, split the way it is set.
+ *
+ * ONE function, used by `layout.ts` to size the box and by `Caption.tsx` to
+ * render it — so the box can never be built for a different break than the one
+ * on screen. The halves concatenate to the input exactly, which is what keeps
+ * `HONESTY_CAPTION` intact in the DOM for the copy tests.
+ */
+export function captionTextLines(text: string, lines: number): string[] {
+  if (lines <= 1) return [text];
+  const at = text.indexOf("— ");
+  if (at < 0) return [text];
+  return [text.slice(0, at + 2), text.slice(at + 2)];
+}
+
+/** A caption box sized to the sentence it holds, capped to the room available. */
+function captionFit(
+  text: string,
+  size: number,
+  lines: number,
+  maxW: number,
+): { w: number; h: number } {
+  const longest = captionTextLines(text, lines).reduce((n, l) => Math.max(n, l.trim().length), 0);
+  return {
+    w: Math.min(maxW, Math.round(longest * size * EM_ADVANCE + size * 2.4)),
+    h: Math.round(lines * size * 1.35 + size * 1.15),
+  };
+}
 
 /**
  * The paper's box in WORLD space: as big as the stage allows once the chrome
@@ -255,6 +327,7 @@ function landscape(aspect: number, withFrame: boolean): LayoutSpec {
     h: cmdH,
   };
   const toolbar: Rect = { x: W - 18 - 186, y: stage.y + stage.h - 18 - 36, w: 186, h: 36 };
+  const landCap = captionFit(HONESTY_CAPTION, 18, 1, Math.round(W * 0.62));
 
   // ── Act I ── the heading, the card and the hint as ONE centred block.
   const ak = 1.55;
@@ -296,19 +369,29 @@ function landscape(aspect: number, withFrame: boolean): LayoutSpec {
     },
     commandBar,
     toolbar,
+    toolbarCompact: false,
     draftCard: { x: Math.round((W - 700) / 2), y: stage.y + Math.round((stage.h - 300) / 2), w: 700, h: 300 },
     rendering: { x: W - 40 - 330, y: stage.y + 90, w: 330, h: 220 },
     // The honesty caption is read, not glanced at — it is the one sentence that
-    // stops a compressed loop reading as a speed claim. Wide and set at 18 units
-    // so it is still ~12 px at an 1100 px render.
-    caption: { x: Math.round((W - 800) / 2), y: commandBar.y - 18 - 50, w: 800, h: 50 },
+    // stops a compressed loop reading as a speed claim. Set at 18 units so it is
+    // still ~12 px at an 1100 px render, and sized to the SENTENCE: a slab
+    // running the width of the page reads as a banner, which is not what a
+    // footnote about timing should look like.
+    caption: captionRect(landCap, W, commandBar.y - 14 - landCap.h),
     captionSize: 18,
+    captionLines: 1,
     toast: { x: W - 18 - 320, y: toolbar.y - 14 - 44, w: 320, h: 44 },
     tweaks: { mode: "floating", box: { x: 0, y: 0, w: 0, h: 0 }, w: 240, h: 132 },
     exportMenu: { mode: "anchored", w: 224, rowH: 40, labelH: 22, pad: 6 },
-    pinCardW: 224,
-    pinCardLines: 6,
+    findingSize: 16,
+    pinCardW: 300,
+    pinCardLines: 5,
   };
+}
+
+/** A caption box, centred on the design box. */
+function captionRect(fit: { w: number; h: number }, W: number, y: number): Rect {
+  return { x: Math.round((W - fit.w) / 2), y: Math.round(y), w: fit.w, h: fit.h };
 }
 
 function portrait(aspect: number, withFrame: boolean): LayoutSpec {
@@ -344,12 +427,35 @@ function portrait(aspect: number, withFrame: boolean): LayoutSpec {
   };
 
   const chromeBand = Math.round(26 * ck + 14 * ck + 12);
-  const toolbar: Rect = { x: W - 18 - 240, y: stage.y + stage.h - 16 - 58, w: 240, h: 58 };
-  const sheet = fitSheet(stage, aspect, chromeBand, 130, 0.98);
+  /**
+   * ⚠ THE ZOOM TOOLBAR SITS AT THE TOP IN PORTRAIT, and that is a re-layout
+   * rather than a slip. The product floats it bottom-right, and on a phone that
+   * corner is the only band wide and tall enough for the two things that MUST be
+   * readable there: the honesty caption, and the open review finding. Leaving a
+   * zoom chip in it cost both — the caption wrapped onto the chip and the cursor,
+   * and the finding card landed on the sheet's own caption row.
+   */
+  const toolbar: Rect = { x: W - 18 - 112, y: stage.y + 12, w: 112, h: 52 };
+  /**
+   * …and the paper gives up ~15 % so the band under it is genuinely free.
+   *
+   * MEASURED, not guessed: the open finding's card is 221 units tall on a phone
+   * (three lines at a size that is still ~9.5 px at 340 px), and the worst band
+   * the camera leaves under the sheet's caption row was 198. The alternative was
+   * dropping the card, and the receipt — "a written list of everything we
+   * couldn't get right" — is the differentiator; a demo that shows it on a
+   * desktop and hides it on a phone is showing the wrong product.
+   *
+   * Taken as a PERMANENT portrait reduction rather than a Review-only one: one
+   * sheet size is one thing to reason about, and a paper that resized itself
+   * mid-loop would read as a glitch.
+   */
+  const sheet = fitSheet(stage, aspect, chromeBand, 240, 0.98);
 
   const commandBar: Rect = { x: 28, y: H - 16 - 104, w: W - 56, h: 104 };
   /** The tweaks drawer: over the canvas's bottom edge, full width. */
   const dock: Rect = { x: 24, y: stage.y + stage.h - 14 - 240, w: W - 48, h: 240 };
+  const portCap = captionFit(HONESTY_CAPTION, 14 * k, 2, W - 64);
 
   // ── Act I ── the same block, stacked for a phone. `k` is already 2.4 here, so
   // the type is legible at 340 px; what Act I gains is the heading and the room
@@ -389,14 +495,17 @@ function portrait(aspect: number, withFrame: boolean): LayoutSpec {
     },
     commandBar,
     toolbar,
+    toolbarCompact: true,
     draftCard: { x: 40, y: stage.y + Math.round((stage.h - 480) / 2), w: W - 80, h: 480 },
-    rendering: { x: 16, y: toolbar.y - 14 - 190, w: 285, h: 190 },
-    caption: { x: 40, y: toolbar.y - 14 - 80, w: W - 80, h: 80 },
-    captionSize: 18 * k,
-    toast: { x: 40, y: toolbar.y - 14 - 84, w: W - 80, h: 84 },
+    rendering: { x: 16, y: stage.y + stage.h - 14 - 190, w: 285, h: 190 },
+    caption: captionRect(portCap, W, stage.y + stage.h - 16 - portCap.h),
+    captionSize: 14 * k,
+    captionLines: 2,
+    toast: { x: 40, y: stage.y + stage.h - 14 - 84, w: W - 80, h: 84 },
     tweaks: { mode: "docked", box: dock, w: dock.w, h: dock.h },
     exportMenu: { mode: "sheet", w: W, rowH: 84, labelH: 48, pad: 14 },
-    pinCardW: 360,
+    findingSize: 28,
+    pinCardW: W - 72,
     pinCardLines: 3,
   };
 }

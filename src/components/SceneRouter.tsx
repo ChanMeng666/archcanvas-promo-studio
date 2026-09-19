@@ -42,7 +42,7 @@ export const groundOf = (id: SceneId | null): string | null => {
   const s = SCENES[id];
   if (s.chapter) return STAGE[s.chapter];
   if (s.tone === "deep") return BAND.aubergine;
-  if (s.tone === "plum") return SPOT.action;
+  if (s.tone === "bright") return BAND.buttercream;
   return APP.page;
 };
 

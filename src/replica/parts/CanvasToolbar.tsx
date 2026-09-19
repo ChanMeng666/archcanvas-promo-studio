@@ -22,6 +22,30 @@ export function CanvasToolbar({ spec, state }: { spec: LayoutSpec; state: Replic
   const gap = 4 * k;
   const chipW = r.w - 2 * pad - 3 * btn - 3 * gap;
 
+  // ⚠ Portrait keeps the chip and drops the three icon buttons — the reason is
+  // with `toolbarCompact` in `layout.ts`. The chip is what reads the camera, so
+  // it is the part a still picture actually needs.
+  if (spec.toolbarCompact) {
+    return (
+      <div
+        className="sr-pill sr-center sr-mono"
+        style={{
+          position: "absolute",
+          left: u(r.x),
+          top: u(r.y),
+          width: u(r.w),
+          height: u(r.h),
+          background: "rgb(255 255 255 / 0.92)",
+          border: "var(--sr-hair) solid var(--sr-border)",
+          boxSizing: "border-box",
+          ...typeStyle(12 * k, 1),
+        }}
+      >
+        {zoomChip(state.zoomPercent)}
+      </div>
+    );
+  }
+
   return (
     <div
       className="sr-pill sr-row"

@@ -132,6 +132,22 @@ export function pinAnchors(ctx: TargetContext): PinAnchor[] {
   });
 }
 
+/**
+ * How tall the open finding's card is, from the parts it is made of.
+ *
+ * Exported so `ReviewPins` cannot drift from the box `findingCardBox` reserved
+ * for it, and so the layout test can assert it clears the sheet's own caption
+ * row, the toolbar and the command bar.
+ */
+export function findingCardHeight(spec: LayoutSpec): number {
+  const k = spec.ck;
+  const pad = 8 * k;
+  const label = 9 * k * 1.2;
+  const body = spec.pinCardLines * spec.findingSize * 1.4;
+  const actions = 8 * k + 22 * k;
+  return Math.round(pad * 2 + label + 4 * k + body + actions);
+}
+
 /** The sheet's box in DESIGN coordinates — where the drawing actually is. */
 export function sheetOnScreen(ctx: TargetContext): Rect {
   const { spec, state } = ctx;
@@ -160,7 +176,10 @@ export function findingCardBox(ctx: TargetContext, pin: { x: number; y: number }
   const gap = 18 * ctx.spec.ck;
   const w = spec.pinCardW;
   const sheet = sheetOnScreen(ctx);
-  const h = spec.pinCardLines * 14 * spec.ck + 58 * spec.ck;
+  // ⚠ The SAME arithmetic `FindingCard` lays itself out with: the label row, the
+  // clamped message, the two actions and the padding. A box that disagrees with
+  // the card it is placing is a card that overhangs whatever it was placed above.
+  const h = findingCardHeight(spec);
 
   const leftRoom = sheet.x - gap - 12;
   const rightRoom = spec.W - (sheet.x + sheet.w + gap) - 12;
@@ -175,10 +194,23 @@ export function findingCardBox(ctx: TargetContext, pin: { x: number; y: number }
   if (leftRoom >= w) {
     return { x: sheet.x - gap - w, y, w, h };
   }
-  // No side room — under the paper, clamped into the stage.
+  // No side room — under the paper. ⚠ Under its CAPTION ROW, not merely under
+  // the paper: the row carries the design's name and its version, and a card
+  // dropped on it takes away the one label that says which design this is.
+  const chrome = sheetChrome(spec, ctx.storeys, ctx.state.review.badgeCount);
+  const capBottom = worldToDesign(
+    spec,
+    ctx.state.camera,
+    chrome.caption.x,
+    chrome.caption.y + chrome.caption.h,
+  ).y;
   const below: Rect = {
     x: clampRange(pin.x - w / 2, 12, spec.W - w - 12),
-    y: clampRange(sheet.y + sheet.h + gap, spec.stage.y + 12, spec.stage.y + spec.stage.h - h - 12),
+    y: clampRange(
+      Math.max(sheet.y + sheet.h, capBottom) + gap,
+      spec.stage.y + 12,
+      spec.stage.y + spec.stage.h - h - 12,
+    ),
     w,
     h,
   };
@@ -281,9 +313,15 @@ export function resolveTarget(ctx: TargetContext, target: CursorTarget | null): 
 
   switch (target.kind) {
     case "point": {
+      // ⚠ Normalised to the STAGE, not to the design box. A `point` target is
+      // the screenplay saying "park it on the canvas" — and the canvas is the
+      // stage, which starts under the top bar and ends above the command bar in
+      // one layout and above a lower band in the other. Read as design
+      // coordinates, the Draw chapter's `(0.5, 0.8)` parks the pointer on the
+      // honesty caption in portrait.
       const x = Number.isFinite(target.at.x) ? target.at.x : 0.5;
       const y = Number.isFinite(target.at.y) ? target.at.y : 0.5;
-      return { x, y };
+      return norm(spec, spec.stage.x + x * spec.stage.w, spec.stage.y + y * spec.stage.h);
     }
 
     case "ref": {

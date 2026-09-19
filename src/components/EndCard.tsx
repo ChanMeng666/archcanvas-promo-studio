@@ -32,12 +32,22 @@ import { APP, MOTION, SPOT, TRACKING, TYPE, WEIGHT } from "../tokens";
  *
  * ── The wipe ───────────────────────────────────────────────────────────────
  *
- * A plum band crosses the frame once, on the `end-hit`, and the card is revealed
- * behind it. One gesture, a third of a second, and it is the only place in the
- * film where the brand violet is a FIELD rather than a spot — because it is a
- * field for nine frames and then it is gone, which is a transition and not a
- * page of flat violet. Everything after it is ivory.
+ * A plum BAND sweeps across the frame once, on the `end-hit`, and the card is
+ * revealed behind it. A band and not a full-bleed fill: the founder's objection
+ * to large flat violet stands, and a band about a fifth of the frame wide is a
+ * gesture rather than a surface. One move, a third of a second, and everything
+ * after it is ivory.
  */
+/**
+ * How wide the sweeping band is, as a fraction of the frame.
+ *
+ * A fifth. It used to be the whole frame, which made it a flat violet surface
+ * for nine frames — and the standing objection to large flat violet does not
+ * have a nine-frame exemption. A band reads as a swipe, which is what it was
+ * always meant to be.
+ */
+const WIPE_BAND = 0.2;
+
 export const EndCard: React.FC<{ dur: number }> = ({ dur }) => {
   const frame = useCurrentFrame();
   const layout = useLayout();
@@ -135,12 +145,13 @@ export const EndCard: React.FC<{ dur: number }> = ({ dur }) => {
         </div>
       </AbsoluteFill>
 
-      {/* The band, crossing once. Above the card, so the card is revealed. */}
+      {/* The band, sweeping once. Above the card, so the card is revealed. */}
       {wipe < 1 ? (
         <AbsoluteFill
           style={{
             backgroundColor: SPOT.plum,
-            transform: `translateX(${(wipe * layout.width).toFixed(1)}px)`,
+            width: layout.width * WIPE_BAND,
+            transform: `translateX(${((wipe * (1 + WIPE_BAND) - WIPE_BAND) * layout.width).toFixed(1)}px)`,
           }}
         />
       ) : null}
