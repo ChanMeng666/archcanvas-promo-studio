@@ -586,3 +586,23 @@ under-count by exactly the handoff.
 its first run: four frames in each 15 s master, before the handoff was moved. The
 floor check still reddens all eight at `HONESTY_MIN_SEC = 8`, and the crop check
 still reddens six at `[cropped]` with the protected-rectangle clamp disabled.
+
+## D20. Two more things the contact sheet showed, after the re-sync.
+
+**The export chapter was playing the landing loop's fade-out.** The screenplay is
+35 s and ends on a fade to nothing, because the landing page LOOPS. A film does
+not loop — it cuts to its end card — so an export beat whose window ran to 35
+spent its last 0.57 s watching the product dissolve, and the 15 s and 60 s sheets
+had a near-empty cell immediately before the end card. The EDLs now end the
+chapter at `LOOP_FADE_SEC`, derived from the `loopFade` beat.
+
+**The first frame of the whole film was bare.** It is a card's first frame, and a
+card's line is behind its mask on frame 0 by design — so with the accent rule
+also starting at zero width there was nothing on it. A thumbnail, a scrub and the
+first cell of every contact sheet all land there, and an empty ivory rectangle
+reads as a missing asset. `CARD_RULE_FLOOR = 0.18` gives the frame a short plum
+mark to open on, and `verify:opening` checks it.
+
+**Mutation evidence.** `CARD_RULE_FLOOR = 0` reddens every card opening in every
+cut. Putting the export windows back to 35 is shown by the timeline's own
+derivation: 0.57 s of a 2.50 s beat playing a dissolve.

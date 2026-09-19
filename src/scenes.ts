@@ -41,6 +41,7 @@ import {
   TWEAK_A_NUMBER,
   type CopyLine,
 } from "./copy";
+import { LOOP_FADE_SEC } from "./honesty";
 
 /** The seven acts of the replica's own screenplay. Mirrors its `ChapterId`. */
 export type ChapterId =
@@ -283,7 +284,9 @@ export const SCENES: Readonly<Record<SceneId, Scene>> = {
     intent: "The export menu. Image and CAD, the real menu's own two groups, cursor on DXF.",
     copy: EXPORT_LINE,
     chapter: "export",
-    defaultReplica: { from: 31.5, to: 35 },
+    // Not 35: the screenplay ends on the landing loop's fade-out and a film
+    // cuts to its end card instead. See `cuts.ts` § LOOP_FADE_SEC.
+    defaultReplica: { from: 31.5, to: LOOP_FADE_SEC },
     // The open menu and the sheet it belongs to.
     camera: { to: 1.06, frame: 1.3 },
   },

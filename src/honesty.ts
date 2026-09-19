@@ -84,6 +84,19 @@ export const DRAFTING_SPAN = {
 } as const;
 
 /**
+ * Where the replica's own loop fade begins, in screenplay seconds.
+ *
+ * ⚠ The 35 s screenplay ends on a fade to nothing, because it LOOPS on the
+ * landing page. A film does not loop — it cuts to the end card — so an export
+ * beat whose window runs to 35 spends its last half-second watching the product
+ * dissolve, and the contact sheet showed exactly that: a near-empty frame
+ * immediately before the end card in the 15 s and 60 s cuts. The EDLs end the
+ * export chapter here instead.
+ */
+const loopBeat = SP.beats.find((b) => b.action.k === "loopFade");
+export const LOOP_FADE_SEC: number = loopBeat?.at ?? SP.durationSec;
+
+/**
  * The window in which the sentence is FULLY OPAQUE, in screenplay seconds.
  *
  * Measuring the envelope's tails as "on screen" would be the film marking its

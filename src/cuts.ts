@@ -42,7 +42,7 @@
  * hand-typed, so a re-cut cannot silently drop below the floor.
  */
 
-import { DRAW_HANDOFF_SEC } from "./honesty";
+import { DRAW_HANDOFF_SEC, LOOP_FADE_SEC } from "./honesty";
 import type { CutId } from "./layout-core";
 import type { SceneId } from "./scenes";
 
@@ -88,6 +88,16 @@ export type Edit = {
  */
 export { DRAW_HANDOFF_SEC } from "./honesty";
 
+/**
+ * Where the export chapter ends.
+ *
+ * NOT 35. The screenplay's last beat is a fade to nothing, because the landing
+ * page LOOPS; a film cuts to its end card instead, and a window that ran to 35
+ * spent its last half-second watching the product dissolve. Derived from the
+ * `loopFade` beat, so a screenplay that moves it moves this.
+ */
+export { LOOP_FADE_SEC } from "./honesty";
+
 /* ── 15 s — What ──────────────────────────────────────────────────────────── */
 
 /**
@@ -124,7 +134,7 @@ const CUT_15: readonly Edit[] = [
     why: "1.12x — the money shot, the longest beat in a fifteen-second film.",
   },
   { scene: "claim-what", sec: 1.8 },
-  { scene: "export", sec: 2.5, replicaFrom: 31.5, replicaTo: 35, push: 1.05 },
+  { scene: "export", sec: 2.5, replicaFrom: 31.5, replicaTo: LOOP_FADE_SEC, push: 1.05 },
   { scene: "endcard", sec: 1.9 },
 ];
 
@@ -216,7 +226,7 @@ const CUT_60: readonly Edit[] = [
     why: "Parked — the render chapter's one push is on the rendering.",
   },
   { scene: "render", sec: 4.0, replicaFrom: 29.8, replicaTo: 31.5, push: 1.05 },
-  { scene: "export", sec: 6.0, replicaFrom: 31.5, replicaTo: 35, push: 1.06 },
+  { scene: "export", sec: 6.0, replicaFrom: 31.5, replicaTo: LOOP_FADE_SEC, push: 1.06 },
   { scene: "price", sec: 2.2 },
   { scene: "endcard", sec: 3.8 },
 ];
@@ -250,7 +260,7 @@ const CUT_120: readonly Edit[] = [
   { scene: "receipt", sec: 7.0, replicaFrom: 25.8, replicaTo: 28, push: 1.12, why: "One pin opens and is read. The film's slowest push." },
   { scene: "storey", sec: 8.0, replicaFrom: 28, replicaTo: 29.8, push: 1.05 },
   { scene: "render", sec: 8.0, replicaFrom: 29.8, replicaTo: 31.5, push: 1.05 },
-  { scene: "export", sec: 8.0, replicaFrom: 31.5, replicaTo: 35, push: 1.08 },
+  { scene: "export", sec: 8.0, replicaFrom: 31.5, replicaTo: LOOP_FADE_SEC, push: 1.08 },
   // ⚠ These two windows are PLAN INDICES into the montage, not screenplay
   // seconds — see `scenes.ts` § second-brief. Two plans in seven seconds, then
   // two in nine.

@@ -45,6 +45,7 @@ const { TIMELINES } = film.timeline;
 const { SCENES } = film.scenes;
 const { entryOpacity, ENTRY_OPACITY_FLOOR } = film.camera;
 const { MONTAGE_PANE_ENTRY_FLOOR } = film.film;
+const { CARD_RULE_FLOOR } = film.tokens;
 
 /**
  * How much ink a frame must carry to count as arrived.
@@ -58,15 +59,19 @@ const { MONTAGE_PANE_ENTRY_FLOOR } = film.film;
 const OPENING_MIN = 0.5;
 
 /**
- * A card's first frame, as `KineticCard` computes it.
+ * A card's first frame carries its accent rule, and that is all it has to.
  *
- * ⚠ A MIRROR, and the one thing here that could drift. The card's reveal is a
- * clip plus a translate, which is not a number `camera.ts` owns, so this gate
- * restates the opacity half of it. The mutation evidence in
- * `docs/decisions.md` D18 is what keeps it honest: break the component and this
- * must go red, so the two are checked against each other rather than trusted.
+ * A card REVEALS — its line is behind a mask on frame 0 and that is the point of
+ * it — so the thing that must not be zero is the rule. It matters most on the
+ * very first frame of the whole film, which is a card's first frame: a
+ * thumbnail, a scrub and the first cell of every contact sheet all land there,
+ * and an empty ivory rectangle reads as a missing asset.
+ *
+ * `CARD_RULE_FLOOR` comes from `tokens.ts` — the same constant the component
+ * sets the rule from — rather than being restated here, so this cannot drift
+ * from what is drawn.
  */
-const cardOpeningInk = () => 0.25 + 0.75 * 0;
+const CARD_RULE_MIN = 0.1;
 
 let openings = 0;
 
@@ -89,13 +94,12 @@ for (const cut of CUT_IDS) {
         );
       }
     } else if (scene.kind === "card") {
-      // A card's first frame IS its reveal starting, and that is the point of a
-      // card — but it may not be invisible either.
-      if (cardOpeningInk() < 0.2) {
+      if (CARD_RULE_FLOOR < CARD_RULE_MIN) {
         fail(
           "blank",
           `cut ${cut}s beat ${beat.index} "${beat.scene}"`,
-          `the card's first line opens at ${cardOpeningInk().toFixed(3)} opacity — a card reveals, it does not appear from nothing`,
+          `the card's accent rule opens at ${CARD_RULE_FLOOR} of its width, under the ${CARD_RULE_MIN} floor — ` +
+            "its line is behind a mask on frame 0 by design, so the rule is the only ink the frame has",
         );
       }
     }
@@ -115,6 +119,7 @@ const summary = {
   floor: OPENING_MIN,
   entryOpacityFloor: ENTRY_OPACITY_FLOOR,
   montagePaneFloor: MONTAGE_PANE_ENTRY_FLOOR,
+  cardRuleFloor: CARD_RULE_FLOOR,
   fps: FPS,
   failures,
 };
@@ -127,7 +132,8 @@ if (AS_JSON) {
 console.log("\n  verify-opening");
 console.log(`    ${openings} scene opening(s) across ${CUT_IDS.length} cut(s), floor ${OPENING_MIN}`);
 console.log(
-  `    replica/split entrances open at ${ENTRY_OPACITY_FLOOR}; the montage's panes at ${MONTAGE_PANE_ENTRY_FLOOR}`,
+  `    replica/split entrances open at ${ENTRY_OPACITY_FLOOR}; the montage's panes at ${MONTAGE_PANE_ENTRY_FLOOR}; ` +
+    `a card's accent rule at ${CARD_RULE_FLOOR}`,
 );
 
 if (!failures.length) {

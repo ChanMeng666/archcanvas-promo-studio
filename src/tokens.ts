@@ -239,3 +239,18 @@ export const MOTION = {
    */
   wipeSec: 0.3,
 } as const;
+
+/**
+ * How much of a card's accent rule is already drawn on its first frame.
+ *
+ * ⚠ Not zero, and the reason is the first frame of the whole film: it is a
+ * card's first frame, the card's line is behind its mask by design, and with the
+ * rule at zero width the frame is completely bare. A thumbnail, a scrub and the
+ * first cell of every contact sheet all land there, and an empty ivory rectangle
+ * reads as a missing asset. A short plum mark is an opening.
+ *
+ * It lives in this file rather than next to the component because
+ * `capture/verify-opening.mjs` reads it, and the gates bundle only the
+ * React-free modules.
+ */
+export const CARD_RULE_FLOOR = 0.18;

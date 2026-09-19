@@ -5,7 +5,7 @@ import { linesFor, type CardCopy } from "../copy";
 import { FONT } from "../fonts";
 import { splitStage, useLayout, type Layout } from "../layout";
 import { FPS, clamp01, easeOutCubic, easeOutExpo } from "../timeline";
-import { APP, BAND, MOTION, RADIUS, SPOT, TRACKING, TYPE, WEIGHT } from "../tokens";
+import { APP, BAND, CARD_RULE_FLOOR, MOTION, RADIUS, SPOT, TRACKING, TYPE, WEIGHT } from "../tokens";
 import { fitLines } from "../typefit";
 
 /**
@@ -88,7 +88,7 @@ export const KineticCard: React.FC<{
           width={layout.u(size * 1.35)}
           height={layout.u(11)}
           colour={rule}
-          p={easeOutExpo(clamp01(sec / MOTION.cutSec))}
+          p={CARD_RULE_FLOOR + (1 - CARD_RULE_FLOOR) * easeOutExpo(clamp01(sec / MOTION.cutSec))}
           origin={centred ? "50% 50%" : "0% 50%"}
           marginBottom={layout.u(size * 0.34)}
         />
