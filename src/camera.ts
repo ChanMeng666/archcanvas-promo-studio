@@ -391,11 +391,27 @@ export const focusRectFor = (
       const open = state.review.openPin;
       const a = (open !== null ? anchors[open] : undefined) ?? anchors[0];
       if (!a) return sheetOnScreen(ctx);
+      /*
+       * The card that has to be READ, the pin it belongs to, and enough of the
+       * building around that pin to see what the finding is about.
+       *
+       * ⚠ The third term is not decoration. The card sits on the empty canvas
+       * BESIDE the paper, so a frame holding only the card and the pin is mostly
+       * empty canvas — the contact sheet showed the receipt beat opening on a
+       * pale rectangle with a sliver of drawing at one edge. Half the building
+       * around the pin keeps a drawing in frame without widening the shot to the
+       * point where the sentence in the card stops being legible.
+       */
       const pinBox: Rect = { x: a.x - 20 * spec.ck, y: a.y - 30 * spec.ck, w: 40 * spec.ck, h: 40 * spec.ck };
+      const building = buildingBox(ctx) ?? sheetOnScreen(ctx);
+      const near: Rect = {
+        x: a.x - building.w * 0.26,
+        y: a.y - building.h * 0.26,
+        w: building.w * 0.52,
+        h: building.h * 0.52,
+      };
       const card = findingCardBox(ctx, a);
-      // The pin and the card that has to be READ. Not the sheet — a frame wide
-      // enough to hold the whole drawing is a frame the finding is illegible in.
-      return card ? unionR(pinBox, card) : unionR(pinBox, buildingBox(ctx) ?? sheetOnScreen(ctx));
+      return card ? unionR(unionR(pinBox, card), near) : unionR(pinBox, building);
     }
 
     case "storey": {

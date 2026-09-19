@@ -637,3 +637,82 @@ The 9:16 export shot is now clamped twice over — the scale down to 1.16 by the
 menu's full-bleed width, and the translate to −230 px by its height against the
 clip — and the whole menu is on screen. The 16:9 shot is unclamped at 1.38,
 because there the menu is a small anchored popover.
+
+## D22. The art-direction pass: bigger UI, a colour script, hero type.
+
+The first cut read correctly — what, draw, say the change, receipt, render,
+price, end — and was not the film the brief asked for. The review named three
+things and all three were real.
+
+**The UI was about a quarter of the picture.** Two causes. `camera.frame` was a
+SCALE, and a scale means something different at 1920x1080, at 1080x1920 and
+inside a split scene's shorter box, so one hand-tuned number framed well in one
+composition out of eight. And the money shot aimed at the PAPER: the drawing is
+about two thirds of the sheet, so framing the sheet to 85 % put the building at
+56 %.
+
+`camera.fill` is a FRACTION — "the thing this beat is about spans this much of
+the frame" — and `camera.ts` derives the scale from that rectangle's real size in
+the composition being rendered. The draw scene aims at `buildingBox`, the union
+of the page's own room boxes, which is static across the beat so a half-drawn
+plan is framed for the plan it will be. `to` may now be **below 1**, so the money
+shot pushes in on the drawing and pulls out to reveal the studio as the last
+strokes land, and the receipt beat opens tight enough to read the finding and
+eases back to show what the finding is about.
+
+**The caption had to follow the shot.** At that framing the product's own caption
+is below the frame edge. Protecting it would cap the push at about 1.2 and hand
+the problem straight back, so the `draw` scene declares `filmCaption`: the FILM
+draws the sentence in its own band, above the camera, where nothing can crop it.
+All four cuts now carry it that way, 3.20 s to 9.40 s.
+
+The obligation did not move — it got sharper. `framePush` grew an `expel` rule
+that RAISES the scale until the caption is genuinely off screen, because "push it
+further" is not something a hand-tuned number can promise across eight
+compositions. And `verify:honesty` now fails on the state that would actually be
+wrong: a caption half in frame. Whole, or gone.
+
+**Twenty-eight of thirty frames were beige.** The stage behind the window takes
+the chapter's colour — ivory, periwinkle, buttercream, mint, aubergine, deep
+periwinkle, soft buttercream — and the window keeps the product's true ivory,
+because it is a picture of the product and a tinted one would be a lie about it.
+Cards alternate paper / aubergine / plum.
+
+Two things about that. The tints were mixed at 28 % and 22 % first, and the
+stills showed why that is not enough: at the framings the money shot uses the
+stage is a sliver either side of the window, and a 28 % tint in a sliver is
+white. **A colour script has to be legible in the frames that show least of it.**
+And the plum card overrides `tokens.ts`'s standing note about large flat violet
+because the art direction asked for it explicitly — one card, full bleed, ivory
+type at 5.7:1. That supersedes D11, which is left standing as the record of why
+it was not there before.
+
+**Type was timid.** A card's measure was `maxContent`, which is the width a block
+of RUNNING type may use; a card is one or two lines meant to carry the whole
+frame. It now gets the safe area less a margin, `TYPE.hero` is 190, and each line
+rises word by word out of a clipped band rather than fading. The end card's
+lockup is bigger with the URL as the largest element after the mark, because the
+URL is the call to action.
+
+**Mutation evidence for the two new checks.** `verify:opening` computes the
+contrast ratios rather than trusting `CONTRAST_PAIRS`, and checks the first word
+is up at frame 3 off the same constants the component eases with — lengthening
+`WORD_RISE_SEC` past 0.1 s reddens every card in every cut.
+
+### D22a. What the second contact sheet found
+
+The colour script and the framing landed; two frames did not.
+
+**The receipt beat opened on empty canvas.** The finding card sits on the canvas
+BESIDE the paper — correctly, so it does not cover the room it is about — so a
+frame holding only the card and its pin is mostly empty canvas with a sliver of
+drawing at one edge. The focus now also takes half the building around the pin:
+enough drawing to see what the finding is about, without widening the shot to the
+point where the sentence in the card stops being legible.
+
+**The stage barely shows on the closest framings.** At the money shot's 85 % the
+window covers the frame and the coloured ground is a sliver either side. That is
+the trade the framing was asked for, and it is why the colour lands mostly on the
+cards, the split bands and the wider beats. The 60 s sheet is the one that shows
+the script whole: ivory, aubergine, buttercream, mint, aubergine, periwinkle,
+buttercream, plum, ivory.
