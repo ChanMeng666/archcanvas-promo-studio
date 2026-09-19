@@ -566,6 +566,69 @@ const settledReview = (ctx: TargetContext): TargetContext => ({
   },
 });
 
+/**
+ * The things a viewer can actually SEE on the replica right now, in design
+ * space.
+ *
+ * ⚠ The word is *visible*, and it is the whole point. `focusRectFor` frames a
+ * beat against what the beat is ABOUT — deliberately, because a framing that
+ * changes because its subject arrived is a lurch. The cost is the other failure:
+ * a shot framed for "the pin and its open card" holds a card-shaped hole for as
+ * long as the card takes to appear, and the master's 19.5 s frame in the 30 s
+ * cut was half bare canvas with the drawing cropped off the right edge.
+ *
+ * So this reports what is on screen at THIS second, and `verify:framing` uses it
+ * to ask whether the frame is mostly a space being saved for something that is
+ * not there yet. The 0.5 thresholds are the same "readable" line the honesty
+ * gate uses for the caption; a thing half faded in is a thing a viewer sees.
+ */
+export const visibleSubjects = (ctx: TargetContext): Rect[] => {
+  const { spec, state } = ctx;
+  const out: Rect[] = [];
+
+  /*
+   * The PAPER, not the building. A wide shot of the whole sheet is a composed
+   * frame; measured against the building inside it, the same shot looks like a
+   * small object in a large emptiness. What a viewer reads here is the drawing
+   * ON its sheet.
+   */
+  if (state.actProgress >= 0.5) {
+    out.push(sheetOnScreen(ctx));
+    // The command bar is on screen through the whole of Act II and it is real
+    // interface, not canvas — a frame that holds the drawing and the bar is not
+    // holding a space for anything.
+    out.push(spec.commandBar);
+  } else {
+    // The whole Act I column — heading, card and hint. The card alone left the
+    // top third of the frame "empty" in the gate's eyes while a viewer was
+    // reading a heading in it.
+    out.push(unionR(unionR(spec.composer.heading, spec.composer.card), spec.composer.hint));
+  }
+
+  if (state.drafting.visible) out.push(draftCardBox(spec));
+
+  const anchors = pinAnchors(ctx);
+  anchors.forEach((a, i) => {
+    if (!a.onThisPage) return;
+    if ((state.review.pinsDropped[i] ?? 0) < 0.5) return;
+    out.push({ x: a.x - 20 * spec.ck, y: a.y - 30 * spec.ck, w: 40 * spec.ck, h: 40 * spec.ck });
+  });
+  const open = state.review.openPin;
+  if (open !== null) {
+    const a = anchors[open];
+    if (a?.onThisPage) {
+      const card = findingCardBox(ctx, a);
+      if (card) out.push(card);
+    }
+  }
+
+  if (state.rendering.p >= 0.5) out.push(spec.rendering);
+  if (state.exportMenu.open >= 0.5) out.push(exportMenuBox(ctx));
+  if (state.tweaks.open >= 0.5) out.push(spec.tweaks.mode === "docked" ? tweaksBox(spec) : tweaksControls(ctx).track);
+
+  return out;
+};
+
 /** How much of `a` lies inside `b`, 0..1. */
 const overlapFraction = (a: { from: number; to: number }, b: { from: number; to: number }): number => {
   const width = a.to - a.from;
