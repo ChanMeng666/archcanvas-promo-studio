@@ -72,9 +72,15 @@ gate and `verify:numbers` **fail on purpose**: a gate that passes with nothing t
 is how a repo ends up believing it holds a film when it holds a scaffold.
 
 ```bash
-npm run stills                                # six beats, one composition at a time
-node capture/stills.mjs --sheet               # a contact sheet per landscape cut
+node capture/stills.mjs --comp <id>           # six beats of one master
+node capture/stills.mjs --sheet --comp <id>   # contact frames, one second apart
+npm run stills:sheet                          # tile them into one sheet per cut
 ```
+
+⚠ Run the still sweep **per composition**. `@remotion/google-fonts` fetches from
+`fonts.gstatic.com` on every page, and past about forty stills in one browser
+session that fetch starts failing — surfacing as a bare `[NetworkError]` that
+takes the whole run down, part-written.
 
 | | Owner | State |
 | --- | --- | --- |
