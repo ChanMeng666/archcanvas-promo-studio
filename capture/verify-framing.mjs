@@ -174,14 +174,40 @@ for (const d of DELIVERABLES) {
       // The montage draws four other plans on its own ground and has no layout
       // map to ask. `focusRectFor` says so by returning null — the same answer
       // the cropping check above reads.
-      if (
-        focusRectFor(beat.scene, ctx, {
-          from: Math.min(beat.replicaFrom, beat.replicaTo),
-          to: Math.max(beat.replicaFrom, beat.replicaTo),
-        }) === null
-      ) {
-        break;
-      }
+      if (focusRectFor(beat.scene, ctx) === null) break;
+      /*
+       * ⚠ A MOVING camera is exempt, and the exemption is derived rather than
+       * declared: the focus rect is asked for at this frame and three frames
+       * later, and if it has moved the shot is mid-travel. A camera easing from
+       * "the pins landing" to "the pin and its card" leans by construction while
+       * it moves — that is what a move looks like — and both ENDS of the move are
+       * judged like any other frame.
+       *
+       * Deriving it this way is what keeps it honest: delete the travel and the
+       * rect stops changing, the exemption stops applying, and the thirty frames
+       * this round was opened by go red again.
+       */
+      const lookahead = shotFor(beat, Math.min(f + 3, beat.durationInFrames - 1), layout, box, {
+        browserFrame: layout.aspect === "landscape",
+        clipBottom,
+      });
+      const span = {
+        from: Math.min(beat.replicaFrom, beat.replicaTo),
+        to: Math.max(beat.replicaFrom, beat.replicaTo),
+      };
+      const r0 = focusRectFor(beat.scene, ctx, span, shot.t);
+      const r1 = focusRectFor(
+        beat.scene,
+        { spec: lookahead.mount.spec, state: lookahead.state, page: lookahead.page, storeys: 2 },
+        span,
+        lookahead.t,
+      );
+      const moving =
+        r0 !== null &&
+        r1 !== null &&
+        Math.max(Math.abs(r1.x - r0.x), Math.abs(r1.y - r0.y), Math.abs(r1.w - r0.w), Math.abs(r1.h - r0.h)) >
+          Math.max(r0.w, r0.h) * 0.004;
+
       const subjects = visibleSubjects(ctx)
         .map((r) => pushRect(shot.push, designRect(shot.mount, r)))
         .map((r) => ({
@@ -208,7 +234,7 @@ for (const d of DELIVERABLES) {
         worstHere = { band: worst.v, where: `${beat.index} "${beat.scene}" @${(f / FPS).toFixed(1)}s`, side: worst.axis };
       }
 
-      if (worst.v > LOPSIDED_MAX) {
+      if (!moving && worst.v > LOPSIDED_MAX) {
         const [n0, n1] = worst.names;
         fail(
           "empty",
@@ -220,7 +246,7 @@ for (const d of DELIVERABLES) {
         );
       }
       const covered = (u.w * u.h) / (layout.width * viewH);
-      if (covered < SUBJECT_MIN) {
+      if (!moving && covered < SUBJECT_MIN) {
         fail(
           "small",
           `${d.id} beat ${beat.index} "${beat.scene}" at ${(f / FPS).toFixed(2)}s`,

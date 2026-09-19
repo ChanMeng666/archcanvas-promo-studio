@@ -70,8 +70,10 @@ import {
   DEMO,
   OPEN_PIN_INDEX,
   OPEN_PIN_SEC,
+  OPEN_PIN_TRAVEL,
   PAGES,
   RENDERING_SPAN,
+  RENDERING_TRAVEL,
   overlaps,
   stateAt,
 } from "./film-demo";
@@ -389,11 +391,40 @@ const draftCardBox = (spec: LayoutSpec): Rect => ({
   h: spec.draftCard.h + DRAFT_CARD_SPEC_SHORTFALL,
 });
 
+/**
+ * How far through a travel window a given second is, eased.
+ *
+ * `undefined` means "no frame given", and the answer is 1 — the settled
+ * composition, which is what every caller that is not the renderer wants.
+ */
+const travel = (at: number | undefined, win: { from: number; to: number }): number => {
+  if (at === undefined) return 1;
+  if (!(win.to > win.from)) return 1;
+  // Ease in AND out: the move starts from a hold and lands on one, which is
+  // what makes it read as a camera move rather than as a cut that slid.
+  const p = clamp01((at - win.from) / (win.to - win.from));
+  return p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2;
+};
+
+/** One eased move between two framings. */
+const lerpRect = (a: Rect, b: Rect, p: number): Rect =>
+  p >= 1 ? b : p <= 0 ? a : { x: a.x + (b.x - a.x) * p, y: a.y + (b.y - a.y) * p, w: a.w + (b.w - a.w) * p, h: a.h + (b.h - a.h) * p };
+
 export const focusRectFor = (
   scene: SceneId,
   ctx: TargetContext,
   /** The beat's replica window, for the decisions that are about the beat. */
   span?: { from: number; to: number },
+  /**
+   * The replica second this FRAME is at, for the two beats that travel.
+   *
+   * Omitted, every beat returns its settled composition — which is what the
+   * cropping and hero checks want, and what every other beat does at every
+   * frame. Supplied, `receipt` and `render` blend from what is on screen now to
+   * what the beat is about, over a window read off the screenplay. See
+   * `film-demo.ts` § OPEN_PIN_TRAVEL.
+   */
+  at?: number,
 ): Rect | null => {
   const { spec, state } = ctx;
 
@@ -456,12 +487,11 @@ export const focusRectFor = (
        * paper's top edge, the 120 s cut's first receipt beat was six seconds of
        * empty canvas with a corner of drawing in it.
        */
-      if (!span || span.to < OPEN_PIN_SEC) {
-        return anchors.reduce<Rect>(
-          (acc, a) => unionR(acc, { x: a.x - 20 * spec.ck, y: a.y - 30 * spec.ck, w: 40 * spec.ck, h: 40 * spec.ck }),
-          building0,
-        );
-      }
+      const pinsWide = anchors.reduce<Rect>(
+        (acc, a) => unionR(acc, { x: a.x - 20 * spec.ck, y: a.y - 30 * spec.ck, w: 40 * spec.ck, h: 40 * spec.ck }),
+        building0,
+      );
+      if (!span || span.to < OPEN_PIN_SEC) return pinsWide;
       const a = anchors[OPEN_PIN_INDEX] ?? anchors[0];
       if (!a) return sheetOnScreen(ctx);
       /*
@@ -484,7 +514,8 @@ export const focusRectFor = (
         h: building.h * 0.52,
       };
       const card = findingCardBox(settled, a);
-      return card ? unionR(unionR(pinBox, card), near) : unionR(pinBox, building);
+      const settledShot = card ? unionR(unionR(pinBox, card), near) : unionR(pinBox, building);
+      return lerpRect(pinsWide, settledShot, travel(at, OPEN_PIN_TRAVEL));
     }
 
     case "storey": {
@@ -492,10 +523,13 @@ export const focusRectFor = (
       return unionR(chrome.storeyGroup, buildingBox(ctx) ?? sheetOnScreen(ctx));
     }
 
-    case "render":
-      return span && overlaps(span, RENDERING_SPAN)
-        ? unionR(spec.rendering, buildingBox(ctx) ?? sheetOnScreen(ctx))
-        : buildingBox(ctx) ?? sheetOnScreen(ctx);
+    case "render": {
+      const drawing = buildingBox(ctx) ?? sheetOnScreen(ctx);
+      if (!span || !overlaps(span, RENDERING_SPAN)) return drawing;
+      // Same travel as the receipt beat, for the same reason: until the
+      // rendering has faded in, its half of the frame is a hole.
+      return lerpRect(drawing, unionR(spec.rendering, drawing), travel(at, RENDERING_TRAVEL));
+    }
 
     case "export":
       return unionR(exportMenuBox(ctx), buildingBox(ctx) ?? sheetOnScreen(ctx));
@@ -770,7 +804,18 @@ export const shotFor = (
     if (filmCaption) expel.push(captionRaw);
     else protect.push(pad(captionRaw, layout.u(6)));
   }
-  if (overlaps(span, RENDERING_SPAN)) protect.push(pad(renderingRaw, layout.u(6)));
+  /*
+   * ⚠ Protected while the rendering is ON SCREEN, not for every beat that will
+   * eventually hold it. The obligation is that the "AI-generated" pill is never
+   * cropped (`verify:honesty` § 3), and a card at 15 % opacity has no pill to
+   * crop — but reserving its rectangle pushed the drawing hard against the left
+   * edge and left 41 % of the frame empty on the right, waiting. Same defect as
+   * the receipt beat's, in the protection machinery rather than the framing.
+   *
+   * The 0.5 line is the same one the honesty gate reads, so the two cannot
+   * disagree about when the pill has to be whole.
+   */
+  if (overlaps(span, RENDERING_SPAN) && state.rendering.p >= 0.5) protect.push(pad(renderingRaw, layout.u(6)));
   /*
    * The export menu is the subject of its own beat, and in 9:16 it is a
    * full-width bottom sheet. Unprotected, the push slid it under the split
@@ -779,7 +824,7 @@ export const shotFor = (
    */
   if (beat.scene === "export") protect.push(pad(designRect(mount, exportMenuBox(ctx)), layout.u(8)));
 
-  const focusRect = focusRectFor(beat.scene, ctx, span);
+  const focusRect = focusRectFor(beat.scene, ctx, span, t);
   const focusFilm = focusRect ? designRect(mount, focusRect) : mount.rect;
   const focus = centreOf(focusFilm);
   /*
