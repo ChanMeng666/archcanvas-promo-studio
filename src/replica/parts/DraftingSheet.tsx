@@ -23,8 +23,20 @@ import type { ReplicaState } from "../types";
 
 export function DraftingSheet({ spec, state }: { spec: LayoutSpec; state: ReplicaState }): JSX.Element | null {
   if (!state.drafting.visible) return null;
-  const k = spec.k;
   const card = spec.draftCard;
+  // ⚠ ITS OWN SCALE, derived from the card it is drawing into (400 units is the
+  // product's `w-[min(400px,…)]` sheet). For four seconds this card IS the
+  // studio — there is no drawing yet and no canvas to be proportionate to — so
+  // it takes the stage, and at an 1100 px render a card sized for a viewport
+  // that has not opened puts the title at twelve pixels.
+  const k = card.w / 400;
+
+  // The hand-over. The first strokes of the plan appear UNDER this sheet (the
+  // drafting beat outlives `drawPlan`'s start by design, exactly as the product's
+  // sheet outlives the tool result and waits for the frame), so the sheet eases
+  // out on the drawing's own progress rather than on a timer of its own.
+  const handover = Math.min(1, Math.max(0, (state.plan.bands[0] ?? 0) / 0.3));
+  if (handover >= 1) return null;
   const d = state.drafting;
   const chips = d.chips.slice(0, d.chipsVisibleCount);
   // "45s" only once there is a wait worth naming, like the product's own timer.
@@ -43,6 +55,9 @@ export function DraftingSheet({ spec, state }: { spec: LayoutSpec; state: Replic
         background: "var(--sr-card)",
         padding: u(20 * k),
         boxSizing: "border-box",
+        opacity: 1 - handover,
+        transform: `scale(${(1 - 0.05 * handover).toFixed(4)})`,
+        transformOrigin: "50% 50%",
       }}
     >
       <div className="sr-row" style={{ gap: u(8 * k) }}>

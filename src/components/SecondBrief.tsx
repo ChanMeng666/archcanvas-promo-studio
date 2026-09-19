@@ -2,7 +2,7 @@ import React from "react";
 import { AbsoluteFill, useCurrentFrame } from "remotion";
 
 import { FONT } from "../fonts";
-import { MONTAGE, MONTAGE_PAGES, drawState } from "../film-demo";
+import { MONTAGE, MONTAGE_PAGES, MONTAGE_PANE_ENTRY_FLOOR, drawState } from "../film-demo";
 import { useLayout } from "../layout";
 import { typedLength } from "../replica/at";
 import { PlanSvg } from "../replica/parts/PlanSvg";
@@ -102,10 +102,10 @@ const MontagePane: React.FC<{
   // to the end, and both leave together.
   const typed = plan.brief.slice(0, typedLength(plan.brief, clamp01(p / 0.22)));
   const draw = clamp01((p - 0.1) / 0.8);
-  // Floored for the same reason `entryOpacity` is: a plan pane that starts at
-  // opacity 0 gives the montage one blank frame per slot, which reads as a
-  // dropped frame rather than as an entrance.
-  const enter = 0.72 + 0.28 * easeOutExpo(clamp01(p / 0.1));
+  // Floored for the same reason `entryOpacity` is — see the constant, which
+  // `verify:opening` reads so the gate checks the number the component uses.
+  const enter =
+    MONTAGE_PANE_ENTRY_FLOOR + (1 - MONTAGE_PANE_ENTRY_FLOOR) * easeOutExpo(clamp01(p / 0.1));
   const leave = 1 - clamp01((p - 0.93) / 0.07);
 
   const col = wide ? Math.round(layout.picture.w * 0.34) : layout.stage.w;

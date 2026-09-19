@@ -488,3 +488,59 @@ ONE browser session dies part-way with `net::ERR_INSUFFICIENT_RESOURCES` on a
 occurred.]` that takes the run down with it. `@remotion/google-fonts` fetches the
 two faces on every page. The sweep is run per composition instead — same shape as
 the memory trap, where the failure names one thing and the cause is the count.
+
+## D17b. The replica's follow-up, re-synced.
+
+`origin/feat/studio-replica` at `20ce8c8` (PR #211). No exported signature
+changed, so the mount did not move — but two things in it did reach this repo.
+
+**The drafting beat grew from 3.8 s to 4.3 s.** The sheet is now still up when
+`drawPlan` starts underneath it, so it hands over rather than cutting. Two
+consequences here:
+
+- `DRAW_HANDOFF_SEC` was a literal `9.3` in `cuts.ts`, and all four EDLs split
+  the draw chapter on it. The second did not move this time; **nothing in this
+  repo would have noticed if it had.** It is now derived from the synced
+  screenplay's own `drawPlan` beat (`honesty.ts`), which is where the caption's
+  numbers already came from.
+- The draw scene's camera framed "the sheet, plus the drafting card while it is
+  still up" from `state.drafting.visible`, per frame. With the card outliving
+  the first strokes by half a second, that framing would have snapped from
+  card-and-sheet to sheet-alone in the middle of the money shot's opening. It is
+  now decided from the beat's own window against `DRAFTING_SPAN` — the same
+  per-beat rule the protected rectangles already use (D8).
+
+**Every card and pill border was silently missing upstream** (a `max()` with a
+container-query unit inside the `border` shorthand). They are 1 px again, which
+is why the replica reads crisper in the final stills than in the ones the look
+passes were done on. It does not change the finding behind D15 — the composer
+card's hairline is 1.3:1 against the paper by design, so at a 1.22x framing it
+is still not a card edge a viewer sees.
+
+The SFX cue sheets needed no change: nothing in `cues.ts` names a second. They
+are derived by walking the cut and asking the fold what the product is doing, so
+a beat that moves moves the sound with it.
+
+## D18. A gate on the blank first frame.
+
+`capture/verify-opening.mjs`. Every entrance in this film was written as "start
+at nothing and arrive" — opacity from 0, a masked line translated out of its
+band, a montage pane at 0 — and together they meant **the first frame of every
+beat was blank**: one frame of bare ivory on every cut in every master. In motion
+that is not an entrance, it is a dropped frame.
+
+It was found by rendering a five-second segment and laying every third frame out
+as a strip, which is a thing you do once. The gate is what makes it a habit: it
+samples the opening of **every beat of every cut** and asserts the frame carries
+ink, reading the same pure functions the components call (`entryOpacity`,
+`MONTAGE_PANE_ENTRY_FLOOR`) rather than pixels — 60-odd renders and an
+indefensible threshold on an ivory film is not a gate anyone would keep.
+
+One honest weakness, stated rather than hidden: the card branch MIRRORS the
+reveal's opacity instead of importing it, because the reveal is a clip plus a
+translate and no shared module owns it. The mutation evidence is what keeps the
+two in step.
+
+**Mutation evidence.** `ENTRY_OPACITY_FLOOR = 0` reddens it with `[blank]` on
+every replica and split opening in all four cuts; `MONTAGE_PANE_ENTRY_FLOOR = 0`
+reddens the two `second-brief` beats. Both restore green.

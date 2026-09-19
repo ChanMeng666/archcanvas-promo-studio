@@ -198,6 +198,16 @@ export const overlaps = (a: { from: number; to: number }, b: { from: number; to:
 export const drawState = (p: number): ReplicaState =>
   stateAt(DRAW_BEAT.at + DRAW_BEAT.dur * (p < 0 ? 0 : p > 1 ? 1 : p));
 
+/**
+ * How opaque a montage pane is on its first frame.
+ *
+ * Floored for the same reason `camera.ts` floors `entryOpacity`: a pane that
+ * starts at 0 gives the montage one blank frame per slot, which reads as a
+ * dropped frame rather than as an entrance. Exported so
+ * `capture/verify-opening.mjs` checks the number the component actually uses.
+ */
+export const MONTAGE_PANE_ENTRY_FLOOR = 0.72;
+
 /** `[minX, minY, width, height]` of a montage plan's viewBox. */
 export const montageViewBox = (plan: MontagePlan): [number, number, number, number] => {
   const p = plan.viewBox.trim().split(/[\s,]+/).map(Number);

@@ -53,6 +53,36 @@ export const REPLICA_CAPTION = {
   fadeOutFraction: 0.14,
 } as const;
 
+/* ── the screenplay's other numbers the film has to agree with ───────────── */
+
+/**
+ * Where the drafting sheet hands the studio over to the drawing, in screenplay
+ * seconds — the `drawPlan` beat's own `at`, read out of the synced screenplay.
+ *
+ * ⚠ It was a literal `9.3` in `cuts.ts`, and the replica's follow-up is exactly
+ * the case that literal was waiting for: the drafting beat grew from 3.8 s to
+ * 4.3 s so that the sheet is STILL UP when the drawing starts underneath it,
+ * rather than cutting away from it. The hand-over second did not move, but
+ * nothing in this repo would have noticed if it had — all four EDLs split the
+ * draw chapter on that one number.
+ */
+const drawBeat = SP.beats.find((b) => b.action.k === "drawPlan");
+export const DRAW_HANDOFF_SEC: number = drawBeat?.at ?? 9.3;
+
+/**
+ * When the drafting sheet is on screen, in screenplay seconds.
+ *
+ * The camera reads this per BEAT: the sheet is the subject while it is up, and
+ * the drawing is the subject once it is not, and a framing that changed halfway
+ * through a beat because a card faded would be the lurch `camera.ts` already
+ * refuses elsewhere.
+ */
+const draftingBeat = SP.beats.find((b) => b.action.k === "drafting");
+export const DRAFTING_SPAN = {
+  from: draftingBeat?.at ?? 0,
+  to: (draftingBeat?.at ?? 0) + (draftingBeat?.dur ?? 0),
+} as const;
+
 /**
  * The window in which the sentence is FULLY OPAQUE, in screenplay seconds.
  *

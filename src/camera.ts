@@ -56,6 +56,7 @@ import type { PlanPage } from "./replica/planTypes";
 import { pickPage } from "./replica/resolvePages";
 import type { ReplicaState } from "./replica/types";
 import { CAPTION_SPAN, DEMO, PAGES, RENDERING_SPAN, overlaps, stateAt } from "./film-demo";
+import { DRAFTING_SPAN } from "./honesty";
 import type { Layout, StageRect } from "./layout-core";
 import type { SceneId } from "./scenes";
 import { clamp01, easeOutCubic, frameToSec, type ResolvedBeat } from "./timeline";
@@ -284,7 +285,12 @@ export const insideFrame = (r: StageRect, frameW: number, frameH: number, margin
  * when a layout or a storey count changes. `null` means "the whole picture",
  * which is what the fallback centre already is.
  */
-export const focusRectFor = (scene: SceneId, ctx: TargetContext): Rect | null => {
+export const focusRectFor = (
+  scene: SceneId,
+  ctx: TargetContext,
+  /** The beat's replica window, for the decisions that are about the beat. */
+  span?: { from: number; to: number },
+): Rect | null => {
   const { spec, state } = ctx;
 
   switch (scene) {
@@ -292,8 +298,15 @@ export const focusRectFor = (scene: SceneId, ctx: TargetContext): Rect | null =>
       return spec.composer.card;
 
     case "draw":
-      // The money shot: the sheet, and the drafting card while it is still up.
-      return state.drafting.visible ? unionR(spec.draftCard, sheetOnScreen(ctx)) : sheetOnScreen(ctx);
+      // The money shot: the sheet, plus the drafting card on the beat the card
+      // OWNS. Decided from the beat's window rather than from
+      // `state.drafting.visible`, because the sheet now outlives the drawing's
+      // first strokes by half a second — read per frame, the framing would have
+      // snapped from card-and-sheet to sheet alone in the middle of the money
+      // shot's opening.
+      return span && overlapFraction(span, DRAFTING_SPAN) > 0.5
+        ? unionR(spec.draftCard, sheetOnScreen(ctx))
+        : sheetOnScreen(ctx);
 
     case "edit": {
       const p = resolveTarget(ctx, { kind: "room", archId: DEMO.kitchen.archId });
@@ -333,6 +346,13 @@ export const focusRectFor = (scene: SceneId, ctx: TargetContext): Rect | null =>
     default:
       return null;
   }
+};
+
+/** How much of `a` lies inside `b`, 0..1. */
+const overlapFraction = (a: { from: number; to: number }, b: { from: number; to: number }): number => {
+  const width = a.to - a.from;
+  if (!(width > 0)) return 0;
+  return Math.max(0, Math.min(a.to, b.to) - Math.max(a.from, b.from)) / width;
 };
 
 const unionR = (a: Rect, b: Rect): Rect => {
@@ -401,7 +421,7 @@ export const shotFor = (
   if (overlaps(span, CAPTION_SPAN)) protect.push(pad(captionRaw, layout.u(6)));
   if (overlaps(span, RENDERING_SPAN)) protect.push(pad(renderingRaw, layout.u(6)));
 
-  const focusRect = focusRectFor(beat.scene, ctx);
+  const focusRect = focusRectFor(beat.scene, ctx, span);
   const focus = focusRect
     ? centreOf(designRect(mount, focusRect))
     : centreOf(mount.rect);

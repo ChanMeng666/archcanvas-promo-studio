@@ -91,19 +91,45 @@ export interface LayoutSpec {
   sheet: Rect;
   /** The floating chrome row above the sheet, in world coordinates. */
   sheetChrome: { h: number; gap: number };
-  /** Act I's brief composer, in design coordinates. */
+  /**
+   * Act I's brief composer, in design coordinates.
+   *
+   * ⚠ MUCH BIGGER THAN ITS ACT II COUNTERPART, on purpose. `CAMERA_ENVELOPE`
+   * exists to keep the SHEET inside the free area, and before the sheet exists —
+   * the whole Brief chapter and the drafting half of Draw, t ≈ 0 → 9.3 — there
+   * is no sheet to keep anywhere. The first nine seconds are "somebody types a
+   * brief", which is the first impression of the entire loop, and at an 1100 px
+   * render a card sized for the canvas puts that sentence at ten pixels. So Act
+   * I gets the stage: a heading, the card, the hint, laid out for the box rather
+   * than inside a viewport that has not opened yet.
+   */
   composer: {
+    heading: Rect;
+    subheading: Rect;
     card: Rect;
     input: Rect;
     typology: Rect;
     reference: Rect;
     cta: Rect;
+    hint: Rect;
+    /** The type scale of the Act I page — bigger than `k`. See above. */
+    scale: number;
   };
   commandBar: Rect;
   toolbar: Rect;
   draftCard: Rect;
   rendering: Rect;
   caption: Rect;
+  /**
+   * The honesty caption's type size, in design units.
+   *
+   * In the SPEC rather than in the component because it is the one sentence with
+   * a legibility FLOOR — it is what stops a thirty-five second loop reading as a
+   * speed claim, and a caption nobody can read is a caption nobody reads.
+   * `tests/studioReplicaLayout.test.ts` asserts it against the widths the
+   * landing page and a phone actually render at.
+   */
+  captionSize: number;
   toast: Rect;
   tweaks: TweaksSpec;
   exportMenu: ExportMenuSpec;
@@ -230,10 +256,21 @@ function landscape(aspect: number, withFrame: boolean): LayoutSpec {
   };
   const toolbar: Rect = { x: W - 18 - 186, y: stage.y + stage.h - 18 - 36, w: 186, h: 36 };
 
-  const cardW = 900;
-  const cardH = 236;
-  const card: Rect = { x: Math.round((W - cardW) / 2), y: Math.round((H - cardH) / 2), w: cardW, h: cardH };
-  const rowY = card.y + card.h - 56;
+  // ── Act I ── the heading, the card and the hint as ONE centred block.
+  const ak = 1.55;
+  const cardW = 1180;
+  const cardH = 344;
+  const blockH = 52 * ak + 26 * ak + 30 * ak + cardH + 18 * ak + 22 * ak;
+  const blockY = Math.round((H - blockH) / 2);
+  const heading: Rect = { x: Math.round((W - cardW) / 2), y: blockY, w: cardW, h: 52 * ak };
+  const subheading: Rect = { x: heading.x, y: heading.y + heading.h + 4 * ak, w: cardW, h: 26 * ak };
+  const card: Rect = {
+    x: heading.x,
+    y: Math.round(subheading.y + subheading.h + 30 * ak),
+    w: cardW,
+    h: cardH,
+  };
+  const rowY = card.y + card.h - 26 * ak - 32 * ak;
 
   return {
     id: "landscape",
@@ -247,17 +284,25 @@ function landscape(aspect: number, withFrame: boolean): LayoutSpec {
     sheet,
     sheetChrome: { h: 26, gap: 10 },
     composer: {
+      heading,
+      subheading,
       card,
-      input: { x: card.x + 20, y: card.y + 18, w: card.w - 40, h: 118 },
-      typology: { x: card.x + 78, y: rowY, w: 250, h: 34 },
-      reference: { x: card.x + 348, y: rowY, w: 124, h: 34 },
-      cta: { x: card.x + card.w - 20 - 226, y: rowY, w: 226, h: 34 },
+      input: { x: card.x + 28 * ak, y: card.y + 22 * ak, w: card.w - 56 * ak, h: 118 * ak },
+      typology: { x: card.x + 110 * ak, y: rowY, w: 220 * ak, h: 32 * ak },
+      reference: { x: card.x + 348 * ak, y: rowY, w: 118 * ak, h: 32 * ak },
+      cta: { x: card.x + card.w - 22 * ak - 214 * ak, y: rowY, w: 214 * ak, h: 32 * ak },
+      hint: { x: card.x + 4, y: Math.round(card.y + card.h + 14 * ak), w: card.w, h: 22 * ak },
+      scale: ak,
     },
     commandBar,
     toolbar,
-    draftCard: { x: Math.round((W - 400) / 2), y: stage.y + Math.round((stage.h - 208) / 2), w: 400, h: 208 },
+    draftCard: { x: Math.round((W - 700) / 2), y: stage.y + Math.round((stage.h - 300) / 2), w: 700, h: 300 },
     rendering: { x: W - 40 - 330, y: stage.y + 90, w: 330, h: 220 },
-    caption: { x: Math.round((W - 620) / 2), y: commandBar.y - 16 - 40, w: 620, h: 40 },
+    // The honesty caption is read, not glanced at — it is the one sentence that
+    // stops a compressed loop reading as a speed claim. Wide and set at 18 units
+    // so it is still ~12 px at an 1100 px render.
+    caption: { x: Math.round((W - 800) / 2), y: commandBar.y - 18 - 50, w: 800, h: 50 },
+    captionSize: 18,
     toast: { x: W - 18 - 320, y: toolbar.y - 14 - 44, w: 320, h: 44 },
     tweaks: { mode: "floating", box: { x: 0, y: 0, w: 0, h: 0 }, w: 240, h: 132 },
     exportMenu: { mode: "anchored", w: 224, rowH: 40, labelH: 22, pad: 6 },
@@ -306,7 +351,19 @@ function portrait(aspect: number, withFrame: boolean): LayoutSpec {
   /** The tweaks drawer: over the canvas's bottom edge, full width. */
   const dock: Rect = { x: 24, y: stage.y + stage.h - 14 - 240, w: W - 48, h: 240 };
 
-  const card: Rect = { x: 40, y: 300, w: W - 80, h: 600 };
+  // ── Act I ── the same block, stacked for a phone. `k` is already 2.4 here, so
+  // the type is legible at 340 px; what Act I gains is the heading and the room
+  // to breathe, not a second scale factor.
+  const ak = k;
+  const cardW = W - 72;
+  const cardH = 620;
+  const headingH = 54 * ak;
+  const subH = 66 * ak;
+  const blockH = headingH + 8 * ak + subH + 36 * ak + cardH + 14 * ak + 60 * ak;
+  const blockY = Math.round((H - blockH) / 2);
+  const heading: Rect = { x: 36, y: blockY, w: cardW, h: headingH };
+  const subheading: Rect = { x: 36, y: heading.y + headingH + 8 * ak, w: cardW, h: subH };
+  const card: Rect = { x: 36, y: Math.round(subheading.y + subH + 36 * ak), w: cardW, h: cardH };
 
   return {
     id: "portrait",
@@ -320,17 +377,22 @@ function portrait(aspect: number, withFrame: boolean): LayoutSpec {
     sheet,
     sheetChrome: { h: 26 * ck, gap: 14 * ck },
     composer: {
+      heading,
+      subheading,
       card,
-      input: { x: card.x + 30, y: card.y + 30, w: card.w - 60, h: 300 },
-      typology: { x: card.x + 168, y: card.y + 372, w: card.w - 198, h: 76 },
-      reference: { x: card.x + 30, y: card.y + 486, w: 250, h: 76 },
-      cta: { x: card.x + card.w - 30 - 430, y: card.y + 486, w: 430, h: 76 },
+      input: { x: card.x + 30, y: card.y + 30, w: card.w - 60, h: 310 },
+      typology: { x: card.x + 176, y: card.y + 386, w: card.w - 206, h: 78 },
+      reference: { x: card.x + 30, y: card.y + 500, w: 260, h: 78 },
+      cta: { x: card.x + card.w - 30 - 440, y: card.y + 500, w: 440, h: 78 },
+      hint: { x: card.x + 6, y: Math.round(card.y + cardH + 14 * ak), w: card.w, h: 60 * ak },
+      scale: ak,
     },
     commandBar,
     toolbar,
-    draftCard: { x: 60, y: stage.y + Math.round((stage.h - 420) / 2), w: W - 120, h: 420 },
+    draftCard: { x: 40, y: stage.y + Math.round((stage.h - 480) / 2), w: W - 80, h: 480 },
     rendering: { x: 16, y: toolbar.y - 14 - 190, w: 285, h: 190 },
     caption: { x: 40, y: toolbar.y - 14 - 80, w: W - 80, h: 80 },
+    captionSize: 18 * k,
     toast: { x: 40, y: toolbar.y - 14 - 84, w: W - 80, h: 84 },
     tweaks: { mode: "docked", box: dock, w: dock.w, h: dock.h },
     exportMenu: { mode: "sheet", w: W, rowH: 84, labelH: 48, pad: 14 },

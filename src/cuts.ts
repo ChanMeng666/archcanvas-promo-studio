@@ -42,6 +42,7 @@
  * hand-typed, so a re-cut cannot silently drop below the floor.
  */
 
+import { DRAW_HANDOFF_SEC } from "./honesty";
 import type { CutId } from "./layout-core";
 import type { SceneId } from "./scenes";
 
@@ -79,10 +80,13 @@ export type Edit = {
 /**
  * Where the drafting sheet hands the studio over to the drawing.
  *
- * Screenplay 9.3 s: the `drawPlan` beat's own start. Named once so the four
- * EDLs cannot disagree about where the money shot begins.
+ * The `drawPlan` beat's own `at`, DERIVED from the synced screenplay — it was a
+ * literal `9.3` until the replica's follow-up moved the drafting beat around it
+ * (3.8 s to 4.3 s, so the sheet is still up when the first strokes appear under
+ * it). The second did not move that time. Nothing here would have noticed if it
+ * had: all four EDLs split the draw chapter on this one number.
  */
-export const DRAW_HANDOFF_SEC = 9.3;
+export { DRAW_HANDOFF_SEC } from "./honesty";
 
 /* ── 15 s — What ──────────────────────────────────────────────────────────── */
 

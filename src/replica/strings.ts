@@ -23,6 +23,23 @@
 export const BRIEF_PLACEHOLDER =
   "Describe your brief — e.g., a single-story 3-bedroom family home with an open-plan kitchen and living area, a home office, and a north-facing garden.";
 
+/**
+ * The page the composer sits on (`src/app/dashboard/page.tsx`).
+ *
+ * The replica's Act I is the dashboard's front door, and the front door has a
+ * heading. Without it the opening seconds are a card floating in an empty band
+ * — the first impression of the whole loop, and the one that has to read at a
+ * glance. These two lines are the product's own, to the byte; the string test
+ * reads `page.tsx` and asserts they are still there.
+ */
+export const DASHBOARD_HEADING = "Your Projects";
+export const DASHBOARD_SUBHEADING =
+  "Each project is one strong design, refined with your AI architectural designer on an infinite canvas.";
+
+/** The line under the composer, when the architect still has credits. */
+export const COMPOSER_HINT =
+  "Enter to send, Shift+Enter for a new line. I'll design one strong floor plan and name the project for you.";
+
 /** The `<label for="dashboard-typology">`. */
 export const TYPOLOGY_LABEL = "Typology";
 

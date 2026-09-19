@@ -37,7 +37,10 @@ export function TopBar({ spec, title }: { spec: LayoutSpec; title: string }): JS
           top: u(bar.h / 2),
           transform: "translateY(-50%)",
           gap: u(6 * k),
-          maxWidth: u(bar.w * 0.55),
+          // The two action pills on the right are wider, relative to the bar, in
+          // portrait — so the breadcrumb gets less of it, or the project name
+          // runs under "Transcript" at 340 px.
+          maxWidth: u(bar.w * (spec.id === "portrait" ? 0.42 : 0.55)),
         }}
       >
         <Icon name="home" size={u(12 * k)} color="var(--sr-muted-foreground)" />

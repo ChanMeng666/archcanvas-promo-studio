@@ -33,12 +33,12 @@ export function Caption({ spec, state }: { spec: LayoutSpec; state: ReplicaState
         width: u(r.w),
         minHeight: u(r.h),
         opacity: p,
-        padding: `${u(8 * k)} ${u(16 * k)}`,
+        padding: `${u(10 * k)} ${u(20 * k)}`,
         boxSizing: "border-box",
         background: "rgb(36 31 26 / 0.88)",
         color: "#fbf8f2",
         textAlign: "center",
-        ...typeStyle(13 * k, 1.35),
+        ...typeStyle(spec.captionSize, 1.35),
       }}
     >
       <span className="sr-wrap">{state.caption.text}</span>

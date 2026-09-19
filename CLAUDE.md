@@ -91,7 +91,8 @@ src/cuts.ts          four EDLs, in SECONDS                                     [
 src/scenes.ts        the 13-scene roster, its four kinds, the pace rules,      [React-free]
                      `camera.frame` (where the camera stands) + `camera.to`
 src/copy.ts          every word the FILM says in its own voice, + COPY_FLAGS   [React-free]
-src/honesty.ts       the caption beat, DERIVED from the synced screenplay      [React-free]
+src/honesty.ts       the caption beat, the draw hand-over and the drafting     [React-free]
+                     span — all DERIVED from the synced screenplay
 src/timeline.ts      the ONLY frame arithmetic in the repo; resolveCut(),      [React-free]
                      honestyWindowFor(), TIMELINES (grid-snapped — one clock)
 src/camera.ts        the mount, the push, the protected-rectangle clamp        [React-free]
@@ -140,7 +141,7 @@ npm run dev                                   # Remotion Studio
 
 npm run lint                                  # tsc --noEmit
 npm run verify                                # assets -> replica -> timeline -> copy
-                                              #        -> numbers -> audio -> honesty
+                                              #   -> numbers -> audio -> honesty -> opening
 npm run stills                                # six beats x eight masters, one browser
 node capture/stills.mjs --sheet               # a contact sheet per landscape cut
 node capture/stills.mjs --at 30-Land:7.4,9.1  # ad-hoc seconds, for a look-fix pass

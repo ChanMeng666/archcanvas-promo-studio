@@ -135,7 +135,11 @@ export function buildScreenplay(demo: DemoInputs): Screenplay {
     /* ── Draw ──────────────────────────────────────── 5.5 – 13 ──────────── */
     // The sheet IS the studio while it is up — the drawing only begins once it
     // has finished, exactly as it does in the product.
-    b(5.5, 3.8, "draw", {
+    // 4.3 s, not 3.8: the sheet has to still be up when `drawPlan` starts at 9.3
+    // so it can hand over to the drawing appearing under it rather than cutting.
+    // That is also what the product does — the sheet outlives the tool result
+    // and waits for the FRAME (`studio/CLAUDE.md` § DraftingSheet).
+    b(5.5, 4.3, "draw", {
       k: "drafting",
       steps: DRAFTING_STEPS,
       title: demo.title,
