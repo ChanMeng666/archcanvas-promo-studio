@@ -25,15 +25,22 @@
  * from where the picture actually cut. One clock, and it is this one.
  */
 
+import { music } from "../audio";
 import type { CutId } from "../layout-core";
 import type { BeatGrid } from "../timeline";
-import music from "./music.json";
 
-const beds = music.beds as Record<string, { offsetSec: number; downbeats: number[] }>;
+/*
+ * Read through `src/audio.ts`, not out of the JSON directly. The document now
+ * holds one entry per music take and names the active one, and resolving that
+ * here as well would be a second place the film could decide which take it is
+ * cut to — which is exactly the two-clocks failure the note below records,
+ * wearing a different hat.
+ */
+const beds = music.beds as Record<string, { offsetSec: number; downbeats: readonly number[] }>;
 
 /** The bar grid for a cut's own bed, or null if it has none. */
 export const gridFor = (cut: CutId): BeatGrid | null => {
   const bed = beds[cut];
   if (!bed || !Array.isArray(bed.downbeats) || bed.downbeats.length === 0) return null;
-  return { bpm: music.bpm, offsetSec: bed.offsetSec, downbeats: bed.downbeats };
+  return { bpm: music.bpm, offsetSec: bed.offsetSec, downbeats: [...bed.downbeats] };
 };

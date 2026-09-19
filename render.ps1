@@ -6,9 +6,25 @@
 #        .\render.ps1 -Scale 0.5          half-size proof renders, for looking at
 #        .\render.ps1 -Concurrency 1      one browser tab; slower, least memory
 #        .\render.ps1 -ListOnly           print the plan and the orphan scan, render nothing
+#        .\render.ps1 -MusicVersion B-x   assert the music version and file the masters under it
+#        .\render.ps1 -Bundle <dir>       render from a bundle built once (see -ListOnly output)
 #
 # Masters are NOT committed -- tens of MB each, eight of them, and git keeps every
-# version forever. They ship as GitHub Release assets. See .gitignore.
+# version forever. They ship as GitHub Release assets. Only the MANIFEST.json
+# beside them is committed. See .gitignore.
+#
+# ── The masters are filed by MUSIC VERSION ───────────────────────────────────
+#
+#   out/masters/<version>/archcanvas-studio-...mp4
+#
+# The film's edit is snapped to the music: `timeline.ts` pulls every scene
+# boundary onto the nearest downbeat of the cut's own bed, so a master is the
+# picture AND the take, and two takes are two sets of eight. `-MusicVersion` is
+# NOT a switch -- `src/data/music.json`'s `active` field decides which take the
+# film is cut to, and this only says which one you BELIEVE is active. If the two
+# disagree the run stops, because a master filed under the wrong music is worse
+# than no master: it looks like a deliverable. Change the active version with
+# `node tools/use-music.mjs <version>`, and read docs/release.md.
 #
 # SEQUENTIAL, ALWAYS. Eight renders on a 16 GB box that is also running the
 # founder's browser is not a place to be clever. Each finishes before the next
@@ -19,6 +35,16 @@ param(
   [string] $Only = "all",
 
   [double] $Scale = 1.0,
+
+  # Defaults to whatever `src/data/music.json` says is active, so the ordinary
+  # run needs no argument and still files its output correctly. Passing it is an
+  # ASSERTION, checked below.
+  [string] $MusicVersion,
+
+  # A pre-built bundle directory (`npx remotion bundle`). Eight renders bundle
+  # the same sources eight times otherwise -- about a minute each, on the box
+  # that is also doing the rendering.
+  [string] $Bundle,
 
   # Remotion's default concurrency is roughly half the core count, which on this
   # 16 GB machine is 4+ and gets renders KILLED. Each worker is a headless Chrome
@@ -35,8 +61,37 @@ param(
 # by hand below instead.
 $ErrorActionPreference = "Continue"
 
+$repo = $PSScriptRoot
 $stamp = "2026-09"
 $base  = "archcanvas-studio-$stamp"
+
+# --- which take is this film cut to? ----------------------------------------
+#
+# Read, never assumed, and read from the one field `src/audio.ts` reads. A
+# second copy of "which version is active" is how a master ends up in the wrong
+# folder with nothing going red.
+$musicPath = Join-Path $repo "src\data\music.json"
+if (-not (Test-Path $musicPath)) { Write-Host "no src/data/music.json -- run ``npm run audio:beds``" -ForegroundColor Red; exit 1 }
+$musicDoc = Get-Content $musicPath -Raw | ConvertFrom-Json
+$activeVersion = $musicDoc.active
+if (-not $activeVersion) { Write-Host "src/data/music.json names no active version -- run ``npm run audio:beds``" -ForegroundColor Red; exit 1 }
+$activeEntry = $musicDoc.versions.$activeVersion
+if (-not $activeEntry) { Write-Host "src/data/music.json names '$activeVersion' as active, which is not one of its versions" -ForegroundColor Red; exit 1 }
+
+if ($MusicVersion -and $MusicVersion -ne $activeVersion) {
+  Write-Host ""
+  Write-Host "-MusicVersion $MusicVersion, but the film is cut to $activeVersion." -ForegroundColor Red
+  Write-Host "  The edit snaps to the ACTIVE take's downbeats, so rendering now would produce"
+  Write-Host "  $activeVersion masters in a $MusicVersion folder. Pick one:"
+  Write-Host "    node tools/use-music.mjs $MusicVersion   # switch, then re-run ``npm run verify``"
+  Write-Host "    ./render.ps1 -MusicVersion $activeVersion"
+  Write-Host ""
+  exit 1
+}
+$MusicVersion = $activeVersion
+
+$outDir = Join-Path $repo "out\masters\$MusicVersion"
+$reviewDir = Join-Path $outDir "review"
 
 $targets = @(
   @{ tag = "15l";  cut = "15";  comp = "Studio-15-Landscape-16x9";  file = "${base}_15s_landscape_1920x1080.mp4";  note = "the What cut -- YouTube, LinkedIn, the website" },
@@ -50,11 +105,16 @@ $targets = @(
 )
 
 if ($Only -ne "all") {
-  if ($Only -match '^\d+$') { $targets = $targets | Where-Object { $_.cut -eq $Only } }
-  else                      { $targets = $targets | Where-Object { $_.tag -eq $Only } }
+  # @(...) is load-bearing. A pipeline that matches ONE target returns the
+  # hashtable itself rather than a one-element array, and `.Count` on a
+  # hashtable is the number of KEYS -- so `-Only 15l` announced a plan of "5
+  # master(s)" and then listed one. A wrong count in the banner of a script
+  # whose whole job is to say what it actually did is not a cosmetic bug.
+  if ($Only -match '^\d+$') { $targets = @($targets | Where-Object { $_.cut -eq $Only }) }
+  else                      { $targets = @($targets | Where-Object { $_.tag -eq $Only }) }
 }
 
-if (-not (Test-Path "out")) { New-Item -ItemType Directory "out" | Out-Null }
+New-Item -ItemType Directory -Force -Path $outDir | Out-Null
 
 # --- orphans ---------------------------------------------------------------
 #
@@ -109,6 +169,9 @@ function Show-Orphans {
 
 Write-Host ""
 Write-Host "plan: $($targets.Count) master(s), sequential, concurrency $Concurrency, scale $Scale"
+Write-Host ("  music   {0}  --  {1}, {2} BPM, bar {3}s" -f $MusicVersion, $activeEntry.track, $activeEntry.bpm, $activeEntry.barSec)
+Write-Host ("  out     {0}" -f (Resolve-Path -Relative $outDir))
+if ($Bundle) { Write-Host ("  bundle  {0}" -f $Bundle) }
 foreach ($t in $targets) { Write-Host ("  {0,-6} {1,-26} {2}" -f $t.tag, $t.comp, $t.note) }
 
 Show-Orphans -When "before"
@@ -116,8 +179,18 @@ Show-Orphans -When "before"
 if ($ListOnly) {
   Write-Host ""
   Write-Host "-ListOnly: nothing rendered."
+  Write-Host "  To bundle once and render all eight from it:"
+  Write-Host "    npx remotion bundle --out-dir out/bundle"
+  Write-Host "    ./render.ps1 -Bundle out/bundle"
   exit 0
 }
+
+# The entry point: a pre-built bundle if one was named, otherwise the sources
+# (which Remotion then bundles itself, once per master).
+$entry = if ($Bundle) {
+  if (-not (Test-Path $Bundle)) { Write-Host "no bundle at $Bundle -- build one with ``npx remotion bundle --out-dir $Bundle``" -ForegroundColor Red; exit 1 }
+  (Resolve-Path $Bundle).Path
+} else { "src/index.ts" }
 
 foreach ($t in $targets) {
   Write-Host ""
@@ -127,7 +200,8 @@ foreach ($t in $targets) {
   # would overwrite an uncommitted master with a quarter-size one, silently, and
   # the only way back is a full re-render.
   $file = if ($Scale -ne 1.0) { $t.file -replace '\.mp4$', "_proof$($Scale.ToString().Replace('.', '-')).mp4" } else { $t.file }
-  $outPath = Join-Path "out" $file
+  $outPath = Join-Path $outDir $file
+  $started = Get-Date
 
   # NOT $args. `$args` is an automatic variable, and `@args` in a native-command
   # call splats the AUTOMATIC one -- which, in a script whose arguments all bound
@@ -138,7 +212,7 @@ foreach ($t in $targets) {
   # $args works; the variable still reads back as assigned, so this is invisible
   # from a `Write-Host $args`.
   $renderArgs = @(
-    "remotion", "render", "src/index.ts", $t.comp, $outPath,
+    "remotion", "render", $entry, $t.comp, $outPath,
     "--codec=h264", "--crf=18", "--pixel-format=yuv420p", "--log=error",
     "--concurrency=$Concurrency"
   )
@@ -151,6 +225,7 @@ foreach ($t in $targets) {
     exit 1
   }
 
+  Write-Host ("   {0} in {1:N1} min" -f $t.tag, ((Get-Date) - $started).TotalMinutes)
   Show-Orphans -When "after $($t.tag)"
 }
 
@@ -163,12 +238,13 @@ Write-Host "rendered:"
 $reported = @()
 foreach ($t in $targets) {
   $file = if ($Scale -ne 1.0) { $t.file -replace '\.mp4$', "_proof$($Scale.ToString().Replace('.', '-')).mp4" } else { $t.file }
-  $p = Join-Path "out" $file
+  $p = Join-Path $outDir $file
   if (-not (Test-Path $p)) { Write-Host "  MISSING  $file" -ForegroundColor Red; continue }
 
   $item = Get-Item $p
   $mb   = [math]::Round($item.Length / 1MB, 1)
   $age  = [math]::Round(((Get-Date) - $item.LastWriteTime).TotalMinutes, 1)
+  $when = $item.LastWriteTime.ToString("yyyy-MM-dd HH:mm:ss")
 
   # Resolution, duration AND whether there is an audio stream at all. A silent
   # master is a thing this project has shipped before: @remotion/media's <Audio>
@@ -177,12 +253,13 @@ foreach ($t in $targets) {
   $a = & ffprobe -v error -select_streams a -show_entries stream=codec_name -of csv=p=0 $p
   $audio = if ([string]::IsNullOrWhiteSpace($a)) { "NO AUDIO" } else { "audio=$($a.Trim())" }
 
-  Write-Host ("  {0,-52} {1,6} MB   {2}   {3}   written {4} min ago" -f $file, $mb, ($v -join " "), $audio, $age)
+  Write-Host ("  {0,-52} {1,6} MB   {2}   {3}   modified {4} ({5} min ago)" -f $file, $mb, ($v -join " "), $audio, $when, $age)
   $reported += $file
 }
 
 if ($reported.Count -gt 0) {
+  $rel = (Resolve-Path -Relative $outDir) -replace '\\', '/'
   Write-Host ""
   Write-Host "next: screen EVERY master, not one of them --"
-  foreach ($f in $reported) { Write-Host "  npm run verify:flash out/$f" }
+  foreach ($f in $reported) { Write-Host "  npm run verify:flash $rel/$f" }
 }

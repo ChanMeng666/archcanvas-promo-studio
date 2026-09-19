@@ -18,6 +18,7 @@
     "audio:sfx:check": "node tools/synth-sfx.mjs --check",
     "audio:beds": "node tools/plan-beds.mjs && pwsh -File ./tools/prepare-bed.ps1 && node tools/build-music.mjs",
     "audio:all": "npm run audio:sfx && npm run audio:beds",
+    "audio:use": "node tools/use-music.mjs",
     "verify": "npm run verify:assets && npm run verify:replica && npm run verify:timeline && npm run verify:copy && npm run verify:numbers && npm run verify:audio && npm run verify:honesty && npm run verify:framing && npm run verify:violet && npm run verify:opening",
     "verify:assets": "node capture/verify-assets.mjs",
     "verify:replica": "node scripts/verify-replica.mjs",

@@ -119,11 +119,12 @@ src/replica/         SYNCED, NOT EDITABLE — the product's own studio replica
 src/replica-data/    SYNCED types + STUDIO_DEMO + the generated seam (index.ts)
 src/data/            drawlist.json (the numbers gate's record), landing.json
                      (what the film DRAWS), showcase-plans.json (the montage,
-                     baked at sync time), music.json, sfx.json,
-                     replica-lock.json (the ledger)
+                     baked at sync time), music.json (every music version, and
+                     which is active), sfx.json, replica-lock.json (the ledger)
 public/brand/        the product's wordmark + icon, for the end card
 public/renders/      SYNCED renderings
-public/audio/        the four beds + fourteen synthesised cues
+public/audio/        beds/<version>/ — four beds per music take — + the
+                     fourteen synthesised cues
 capture/             the gates, and `stills.mjs` — the look pass
 scripts/             sync-replica.mjs + verify-replica.mjs
 ```
@@ -154,10 +155,23 @@ node capture/stills.mjs --sheet --comp <id>   # contact FRAMES for one cut
 npm run stills:sheet                          # tile them, once, from disk —
                                               #   BOTH aspects, grid aimed at 16:9
 node capture/stills.mjs --at 30-Land:7.4,9.1  # ad-hoc seconds, for a look-fix pass
+node tools/use-music.mjs                      # the music versions; * is active
+node tools/use-music.mjs A-confident-arrival  # switch back to a built version
 pwsh -File ./render.ps1 -ListOnly             # the plan + the orphan scan, renders nothing
-pwsh -File ./render.ps1                       # all eight, sequential
-npm run verify:flash out/<master>.mp4         # EVERY master, not one
+npx remotion bundle --out-dir out/bundle      # once, not eight times
+pwsh -File ./render.ps1 -Bundle out/bundle    # all eight, sequential
+npm run verify:flash out/masters/<version>/<master>.mp4   # EVERY master, not one
 ```
+
+**The masters are filed by MUSIC VERSION** — `out/masters/<version>/` — because
+the edit is snapped to the take: `timeline.ts` pulls every scene boundary onto
+the nearest downbeat of that cut's own bed, so a master is the picture **and**
+the take, and a new take moves the cut points. `src/data/music.json` holds one
+entry per take and names one `active`; `src/audio.ts` reads that field and
+everything else reads `src/audio.ts`. `render.ps1 -MusicVersion` is an
+**assertion against `active`, not a switch** — it stops the run rather than
+filing masters under the wrong music. **`docs/release.md`** is the procedure
+both ways.
 
 ## Traps already paid for
 
