@@ -106,7 +106,10 @@ export const KineticCard: React.FC<{
           width: layout.stage.w,
           height: layout.stage.h,
           justifyContent: "center",
-          alignItems: "flex-start",
+          // Centred in 9:16, ragged-left in 16:9 — and the ACCENT RULE has to
+          // follow, or it hangs off to the left of centred type and reads as a
+          // misalignment rather than as a mark. The portrait stills had it.
+          alignItems: centred ? "center" : "flex-start",
           opacity: out,
         }}
       >
