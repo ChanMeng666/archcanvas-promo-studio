@@ -203,10 +203,18 @@ for (const cut of layout.CUT_IDS) {
     fail(`cut "${cut}" derives no honesty-caption window at all`);
     continue;
   }
-  if (h.sec + 1e-9 < FLOOR) {
+  /*
+   * ⚠ `coveredSec`, not `sec`. The film's band and the product's own caption
+   * hand over on a beat boundary now — the drafting beat shows the product's,
+   * the money shot frames past it and the band takes over — so the band alone
+   * under-counts by exactly the handover. The 15 s cut reads 2.85 s of band and
+   * 3.23 s of sentence on screen. `verify:honesty` measures the same quantity
+   * frame by frame through the real camera, and the two must agree.
+   */
+  if (h.coveredSec + 1e-9 < FLOOR) {
     fail(
-      `cut "${cut}" keeps the honesty caption on screen for ${h.sec.toFixed(2)}s of film time, under the ${FLOOR}s floor ` +
-        `(the replica's own caption alone gives ${h.naturalSec.toFixed(2)}s; source "${h.source}")`,
+      `cut "${cut}" keeps the honesty caption on screen for ${h.coveredSec.toFixed(2)}s of film time, under the ${FLOOR}s floor ` +
+        `(the band gives ${h.sec.toFixed(2)}s, the product's own adds ${h.naturalSec.toFixed(2)}s; source "${h.source}")`,
     );
   }
   if (h.to > timeline.TIMELINES[cut].totalSeconds + 1e-9 || h.from < -1e-9) {

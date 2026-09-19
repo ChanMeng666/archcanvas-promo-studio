@@ -443,9 +443,17 @@ window, and pushes in gently.
    of a held interface is alive without anything moving in it.
 4. **The chapter says its name.** A chip in the product's own vocabulary (the
    replica's `CHAPTERS` labels) pops on the cut with a `pop` under it.
-5. **Colour arrives once and leaves.** One aubergine card on the money line, one
-   plum band across the end card on the `end-hit`. Everything else is ivory,
-   ink, and violet as a spot.
+5. **Colour is on screen throughout, and changes with the chapter.** The stage
+   behind the window carries the chapter's own colour — ivory, periwinkle,
+   buttercream, mint, aubergine — the split bands take it too, the cards
+   alternate paper / aubergine / plum, and the montage gives each of its four
+   plans a stage of its own. The window keeps the product's true ivory, because
+   it is a picture of the product.
+
+   ⚠ This line used to read *"colour arrives once and leaves"*, which was the
+   opposite of the brief and an accurate description of what the film did. It is
+   here as a correction rather than a rewrite: the first cut was twenty-eight
+   beige frames out of thirty and the motion language said so without noticing.
 
 **The entrance opacity has a floor, and the motion check is why.** Extracting
 every third frame of a five-second segment showed **one fully blank ivory frame
@@ -725,3 +733,54 @@ the trade the framing was asked for, and it is why the colour lands mostly on th
 cards, the split bands and the wider beats. The 60 s sheet is the one that shows
 the script whole: ivory, aubergine, buttercream, mint, aubergine, periwinkle,
 buttercream, plum, ivory.
+
+## D23. Per-BEAT expulsion, and the pace ceiling.
+
+**The caption expel cropped the drafting card in 9:16.** Expelling the product's
+own caption raises the scale until it clears the frame — 1.64x in portrait — and
+the drafting half of the draw chapter wants a scale of about 1. Applied to the
+whole `draw` SCENE it cropped the drafting card on both sides: the still read
+"…fting…", "…storey Townhouse", "…ng every route…". Unreadable, and obviously
+wrong.
+
+So only the half that is the money shot expels. `ResolvedBeat.expelsCaption` is
+derived in `timeline.ts` from the beat's own window against `DRAW_HANDOFF_SEC`,
+and both the camera and `honestyWindowFor` read that one value. The film's band
+then runs over exactly the beats that expel — edge to edge, no wider — so the
+product's caption carries the drafting beat and the band carries the money shot,
+and the two are never on screen together.
+
+**The handover is a HARD cut, not a fade.** A fade at the join costs a quarter
+second in which neither is fully opaque, and the floor is measured on a
+continuous run: the 15 s cut came out at 2.60 s that way with 3.23 s of sentence
+actually on screen. A hard swap of one identical sentence for another, on a cut
+where the whole frame changes anyway, is invisible.
+
+**The floor is measured on `coveredSec`, not on the band.** Both
+`verify:timeline` (from the derivation) and `verify:honesty` (frame by frame
+through the real camera) measure the continuous seconds the sentence is on screen
+from either source, and they agree: 3.23 / 4.22 / 4.96 / 8.71 s.
+
+**And nothing holds still.** `verify:opening` grew a pace check: no beat may hold
+longer than 2.5 s without the camera moving (scale changing by more than 3 %) or
+the product doing something (more than 0.4 s of screenplay playing). 46 beats
+checked. Parking the camera on the 30 s cut's edit beat reddens it.
+
+### Where the framing actually landed
+
+Measured through the real camera, start → end of beat, as a fraction of the
+frame. The 9:16 money shot is width-limited: the building is 7800 × 9200 mm, so
+90 % of a 1080-wide frame IS 60 % of its height, and pushing further would crop
+the plan.
+
+| beat | 16:9 | 9:16 |
+|---|---|---|
+| typing — composer card | 67 → 69 % W | 90 → 93 % W |
+| drafting card | 84 % W | 89 → 91 % W |
+| money shot — the building | 86 → 90 % H | 86 → 90 % W (60 % H, the geometric max) |
+| edit — kitchen + command bar | 91 → 94 % H | 91 → 94 % W |
+| receipt — pin + open card | 83 → 89 % W | 83 → 89 % W |
+| render — sheet + rendering | 89 → 94 % W, 95 → 98 % H | 95 → 98 % W |
+
+End card: the wordmark is 47 % of frame width in 16:9 and 71 % in 9:16, with
+`archcanvas.uk` at 13.2 % of the mark's width — the largest element after it.

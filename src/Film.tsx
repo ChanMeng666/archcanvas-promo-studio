@@ -71,7 +71,7 @@ export const Film: React.FC<{ cut: CutId }> = ({ cut }) => {
       ))}
 
       {honesty.source === "film" ? (
-        <HonestyCaption from={honesty.from} to={honesty.to} />
+        <HonestyCaption from={honesty.from} to={honesty.to} hardIn={honesty.hardIn} />
       ) : null}
 
       <FilmAudio cut={cut} />

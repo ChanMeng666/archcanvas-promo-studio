@@ -77,7 +77,7 @@ import {
 } from "./film-demo";
 import { DRAFTING_SPAN } from "./honesty";
 import type { Layout, StageRect } from "./layout-core";
-import { SCENES, type SceneId } from "./scenes";
+import type { SceneId } from "./scenes";
 import { clamp01, easeOutCubic, frameToSec, type ResolvedBeat } from "./timeline";
 
 /* ── the mount ────────────────────────────────────────────────────────────── */
@@ -612,7 +612,7 @@ export const shotFor = (
    * crop it. What the gate enforces instead is the thing that would actually be
    * wrong — a caption half in frame. Either it is whole or it is gone.
    */
-  const filmCaption = SCENES[beat.scene].filmCaption === true;
+  const filmCaption = beat.expelsCaption;
   const expel: StageRect[] = [];
   if (overlaps(span, CAPTION_SPAN)) {
     if (filmCaption) expel.push(captionRaw);

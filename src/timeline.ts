@@ -24,6 +24,7 @@
 
 import { CUT_IDS, CUT_SECONDS, FPS, type CutId } from "./layout-core";
 import { CUTS, HONESTY_MIN_SEC, HONESTY_OVERLAY_SEC, type Edit } from "./cuts";
+import { DRAW_HANDOFF_SEC } from "./honesty";
 import { gridFor } from "./data/music-grid";
 import { REPLICA_CAPTION, REPLICA_CAPTION_WINDOW } from "./honesty";
 import { CARD_SEC, MAX_STATIC_UI_SEC, SCENES, hasReplica, type SceneId } from "./scenes";
@@ -169,6 +170,20 @@ export interface ResolvedBeat {
   /** How much of the frame this beat's subject fills, 0..1. 1 is the wide shot. */
   fill: number;
   /**
+   * This beat frames past the product's own honesty caption, and the FILM draws
+   * the sentence over it instead.
+   *
+   * ⚠ Per BEAT, not per scene, and the 9:16 drafting card is why. Expelling the
+   * caption raises the scale until it clears the frame — 1.64x in portrait — and
+   * the drafting half of the draw chapter wants a scale of about 1. Applied to
+   * the whole scene it cropped the drafting card on both sides: "...fting...",
+   * "...storey Townhouse". So only the half that is the money shot expels; the
+   * half that is the drafting card keeps the product's caption whole, and
+   * `honestyWindowFor` runs the film's band over exactly the beats that expel,
+   * so the two are never on screen together.
+   */
+  expelsCaption: boolean;
+  /**
    * How fast the replica's clock runs during this beat. 1 is real time, >1 is
    * compressed. Null on a card.
    */
@@ -285,6 +300,8 @@ export const resolveCut = (cut: CutId, grid?: BeatGrid | null): ResolvedCut => {
       replicaTo: win?.to,
       push: edit.push ?? scene.camera?.to ?? 1,
       fill: edit.fill ?? scene.camera?.fill ?? 1,
+      expelsCaption:
+        scene.filmCaption === true && win !== null && win.from >= DRAW_HANDOFF_SEC - 1e-9,
       replicaRate: win && durationSec > 0 ? (win.to - win.from) / durationSec : null,
     };
   });
@@ -388,6 +405,30 @@ export interface HonestyWindow {
   source: "replica" | "film";
   /** What the replica's own caption alone would have given, in film seconds. */
   naturalSec: number;
+  /**
+   * The CONTINUOUS seconds the sentence is on screen from either source — the
+   * film's band plus any replica run that abuts it.
+   *
+   * ⚠ This, not `sec`, is what the floor is about. The band and the product's
+   * own caption now hand over on a beat boundary, so measuring the band alone
+   * under-counts by exactly the handover: the 15 s cut reads 2.85 s of band and
+   * 3.23 s of sentence. `verify:honesty` measures the same quantity frame by
+   * frame through the real camera and must agree with this.
+   */
+  coveredSec: number;
+  /**
+   * The band appears at FULL opacity rather than fading in.
+   *
+   * ⚠ True whenever the product's own caption was carrying the sentence up to
+   * this second, which is the normal case now: the drafting beat shows the
+   * product's caption, the money shot frames past it, and the film's band takes
+   * over on the cut between them. A fade there costs a quarter-second in which
+   * NEITHER is fully opaque, and the floor is measured on a continuous run — the
+   * 15 s cut came out at 2.60 s that way, under the floor, with 3.23 s of caption
+   * actually on screen. A hard swap of one identical sentence for another, on a
+   * cut where the whole frame changes anyway, is invisible.
+   */
+  hardIn: boolean;
 }
 
 /**
@@ -403,22 +444,14 @@ export const honestyWindowFor = (resolved: ResolvedCut): HonestyWindow => {
   /** Runs in which the replica's OWN caption is fully opaque and on screen. */
   const runs: { from: number; to: number; scene: SceneId }[] = [];
   /**
-   * Runs in which the caption beat is PLAYING, whether the product draws it or
-   * the film has taken it over. This is where the film's band belongs: the
-   * disclosure goes over the compression it is about, not somewhere convenient.
-   */
-  const playing: { from: number; to: number }[] = [];
-  /**
-   * The earliest film second at which the replica's own caption is visible at
-   * all — the beat's start, not the opaque core's.
+   * Film-time spans of the beats that frame PAST the product's caption.
    *
-   * The film's band hands over there. Using the core's start instead is a
-   * four-frame bug: the product's caption spends the first 10 % of its beat
-   * fading IN, so a band running to the core's start was still up while the pill
-   * was already at a quarter opacity. `verify:honesty` fails on one doubled
-   * frame, which is how that was found.
+   * This is exactly where the film's own band belongs: over the beats where the
+   * product is not saying it, and nowhere else. Placing it by the caption's
+   * playing span instead would put it on top of the beats that DO show it — the
+   * doubling `verify:honesty` fails on.
    */
-  let firstVisible = Infinity;
+  const expelled: { from: number; to: number }[] = [];
 
   for (const beat of resolved.beats) {
     if (beat.replicaFrom === undefined || beat.replicaTo === undefined) continue;
@@ -430,21 +463,17 @@ export const honestyWindowFor = (resolved: ResolvedCut): HonestyWindow => {
 
     const vLo = Math.max(beat.replicaFrom, REPLICA_CAPTION.beatAt);
     const vHi = Math.min(beat.replicaTo, REPLICA_CAPTION.beatAt + REPLICA_CAPTION.beatDur);
-    if (vHi > vLo) {
-      const from = mapped(vLo);
-      const to = mapped(vHi);
-      const last = playing[playing.length - 1];
-      if (last && Math.abs(last.to - from) < 1e-6) last.to = to;
-      else playing.push({ from, to });
-    }
 
-    /*
-     * A scene that declares `filmCaption` has framed the product's caption out
-     * of shot on purpose — the money shot is the case — so it contributes
-     * nothing to the replica's own run and does not move the handover.
-     */
-    if (SCENES[beat.scene].filmCaption) continue;
-    if (vHi > vLo) firstVisible = Math.min(firstVisible, mapped(vLo));
+    if (beat.expelsCaption) {
+      if (vHi > vLo) {
+        const from = mapped(vLo);
+        const to = mapped(vHi);
+        const last = expelled[expelled.length - 1];
+        if (last && Math.abs(last.to - from) < 1e-6) last.to = to;
+        else expelled.push({ from, to });
+      }
+      continue;
+    }
 
     const lo = Math.max(beat.replicaFrom, REPLICA_CAPTION_WINDOW.from);
     const hi = Math.min(beat.replicaTo, REPLICA_CAPTION_WINDOW.to);
@@ -452,7 +481,6 @@ export const honestyWindowFor = (resolved: ResolvedCut): HonestyWindow => {
 
     const from = mapped(lo);
     const to = mapped(hi);
-
     const last = runs[runs.length - 1];
     if (last && last.scene === beat.scene && Math.abs(last.to - from) < 1e-6) last.to = to;
     else runs.push({ from, to, scene: beat.scene });
@@ -464,46 +492,57 @@ export const honestyWindowFor = (resolved: ResolvedCut): HonestyWindow => {
   );
   const naturalSec = best ? best.to - best.from : 0;
 
-  if (best && naturalSec >= HONESTY_MIN_SEC) {
-    return { ...best, sec: naturalSec, source: "replica", naturalSec };
+  /*
+   * The product alone clears the floor: the film adds nothing. This is the state
+   * the 30, 60 and 120 cuts were in before the money shot needed to push past
+   * the caption, and it is still reachable — a cut whose draw chapter is not
+   * framed that close would land here.
+   */
+  if (best && naturalSec >= HONESTY_MIN_SEC && expelled.length === 0) {
+    return { ...best, sec: naturalSec, source: "replica", naturalSec, hardIn: false, coveredSec: naturalSec };
   }
 
-  /* ── the film draws it ─────────────────────────────────────────────────── */
-
-  const place = playing.reduce<{ from: number; to: number } | null>(
+  const band = expelled.reduce<{ from: number; to: number } | null>(
     (acc, r) => (acc === null || r.to - r.from > acc.to - acc.from ? r : acc),
     null,
   );
 
-  if (!place) {
-    // No beat of this cut plays the caption at all. The band goes over the first
-    // replica beat there is, and the shortfall is recorded rather than hidden.
-    const firstReplica = resolved.beats.find((b) => b.replicaFrom !== undefined);
-    const from = firstReplica ? firstReplica.startSec : 0;
-    const to = Math.min(from + HONESTY_OVERLAY_SEC, resolved.totalSeconds);
-    warn(
-      `cut "${resolved.cut}" never plays the honesty caption's own beat — the film overlays the whole ${HONESTY_OVERLAY_SEC}s itself.`,
-    );
-    return { from, to, sec: to - from, source: "film", naturalSec };
+  if (band) {
+    // Over the expelling beat, edge to edge. The product's own caption picks up
+    // on either side where a neighbouring beat still shows it, and
+    // `verify:honesty` measures the union of the two.
+    const before = runs.find((r) => Math.abs(r.to - band.from) < 0.05);
+    const after = runs.find((r) => Math.abs(r.from - band.to) < 0.05);
+    const covered =
+      (before ? before.to - before.from : 0) +
+      (band.to - band.from) +
+      (after ? after.to - after.from : 0);
+    return {
+      from: band.from,
+      to: band.to,
+      sec: band.to - band.from,
+      source: "film",
+      naturalSec,
+      hardIn: before !== undefined,
+      coveredSec: covered,
+    };
   }
 
-  /*
-   * Over the beats that PLAY the caption, for at least the overlay length — and
-   * ending where the product's own caption becomes visible, if any un-flagged
-   * beat still shows it, so the two are sequential rather than doubled.
-   */
-  let to = Math.min(
-    Number.isFinite(firstVisible) ? firstVisible : Infinity,
-    Math.max(place.to, place.from + HONESTY_OVERLAY_SEC),
-  );
-  if (!(to > 0)) to = Math.min(HONESTY_OVERLAY_SEC, resolved.totalSeconds);
-  let from = Math.min(place.from, to - HONESTY_OVERLAY_SEC);
-  if (from < 0) {
-    from = 0;
-    to = Math.min(Math.max(to, HONESTY_OVERLAY_SEC), resolved.totalSeconds);
+  if (best) {
+    // Short, and nothing expels: the film covers the shortfall AHEAD of the
+    // product's own caption, ending where it becomes visible.
+    const to = best.from;
+    const from = Math.max(0, to - HONESTY_OVERLAY_SEC);
+    return { from, to, sec: to - from, source: "film", naturalSec, hardIn: false, coveredSec: to - from + naturalSec };
   }
-  if (to > resolved.totalSeconds) to = resolved.totalSeconds;
-  return { from, to, sec: to - from, source: "film", naturalSec };
+
+  const firstReplica = resolved.beats.find((b) => b.replicaFrom !== undefined);
+  const from = firstReplica ? firstReplica.startSec : 0;
+  const to = Math.min(from + HONESTY_OVERLAY_SEC, resolved.totalSeconds);
+  warn(
+    `cut "${resolved.cut}" never plays the honesty caption's own beat — the film overlays the whole ${HONESTY_OVERLAY_SEC}s itself.`,
+  );
+  return { from, to, sec: to - from, source: "film", naturalSec, hardIn: false, coveredSec: to - from };
 };
 
 const honestyBuilt = {} as Record<CutId, HonestyWindow>;
@@ -514,9 +553,9 @@ export const HONESTY_WINDOWS: Readonly<Record<CutId, HonestyWindow>> = honestyBu
 
 for (const id of CUT_IDS) {
   const h = HONESTY_WINDOWS[id];
-  if (h.sec + 1e-9 < HONESTY_MIN_SEC) {
+  if (h.coveredSec + 1e-9 < HONESTY_MIN_SEC) {
     warn(
-      `cut "${id}" keeps the honesty caption on screen for ${h.sec.toFixed(2)}s, under the ${HONESTY_MIN_SEC}s floor.`,
+      `cut "${id}" keeps the honesty caption on screen for ${h.coveredSec.toFixed(2)}s, under the ${HONESTY_MIN_SEC}s floor.`,
     );
   }
 }
@@ -591,7 +630,8 @@ export const describe = (): string => {
     out.push(`  cut ${id}s  ${t.totalFrames} frames  (${t.totalSeconds.toFixed(2)}s @ ${FPS}fps)`);
     out.push(
       `    honesty caption ${h.from.toFixed(2)}–${h.to.toFixed(2)}s = ${h.sec.toFixed(2)}s ` +
-        `(${h.source}; the replica's own alone gives ${h.naturalSec.toFixed(2)}s, floor ${HONESTY_MIN_SEC}s)`,
+        `(${h.source}${h.hardIn ? ", hard in" : ""}; the product's own adds ${h.naturalSec.toFixed(2)}s, ` +
+        `${h.coveredSec.toFixed(2)}s continuous, floor ${HONESTY_MIN_SEC}s)`,
     );
     out.push(
       "    " +

@@ -25,6 +25,11 @@
  * modules the components call. If a component stops using them the gate goes
  * blind, which is why it also reports how many openings it actually looked at.
  *
+ * It has grown two neighbours since, both for the same reason — they are cheap,
+ * they are pure, and the thing they check is a founder requirement rather than a
+ * preference: **nothing holds still for more than 2.5 s**, and **every colour the
+ * film sets type on clears 4.5:1**.
+ *
  * Usage:  node capture/verify-opening.mjs [--json]
  */
 
@@ -135,6 +140,50 @@ for (const cut of CUT_IDS) {
   }
 }
 
+/* ── pace: nothing holds still ─────────────────────────────────────────────── */
+
+/**
+ * The longest a shot may hold without moving, in seconds.
+ *
+ * The founder's requirement for this film is 节奏要加快、观感要活泼明朗 — faster,
+ * livelier, brighter. A beat that sits at one scale showing one state for three
+ * seconds is the thing that reads as slow, whatever else is on screen, so the
+ * ceiling is checked rather than intended.
+ *
+ * A beat clears it by DOING something: the camera moves (the scale changes by
+ * more than 3 % across the beat), or the product does (the beat plays more than
+ * `MOVING_REPLICA_SEC` of the screenplay, which at these warps is always
+ * something appearing). A card is exempt below its own 2.2 s ceiling, which
+ * `verify:timeline` already enforces, and the end card is the resting frame.
+ */
+const STATIC_MAX_SEC = 2.5;
+const MOVING_REPLICA_SEC = 0.4;
+
+let paced = 0;
+for (const cut of CUT_IDS) {
+  for (const beat of TIMELINES[cut].beats) {
+    const scene = SCENES[beat.scene];
+    if (scene.kind === "endcard") continue;
+    paced += 1;
+    if (beat.durationSec <= STATIC_MAX_SEC + 1e-9) continue;
+
+    const moves = Math.abs(Math.log(beat.push || 1)) > 0.03;
+    const playing =
+      beat.replicaFrom !== undefined && beat.replicaTo !== undefined
+        ? Math.abs(beat.replicaTo - beat.replicaFrom)
+        : 0;
+    if (moves || playing > MOVING_REPLICA_SEC) continue;
+
+    fail(
+      "static",
+      `cut ${cut}s beat ${beat.index} "${beat.scene}"`,
+      `holds ${beat.durationSec.toFixed(2)}s over the ${STATIC_MAX_SEC}s ceiling with the camera parked ` +
+        `(push ${beat.push.toFixed(2)}) and ${playing.toFixed(2)}s of screenplay playing — push it, cut it, or let something arrive`,
+    );
+  }
+}
+if (paced === 0) fail("vacuous", "pace", "no beat was paced — this check looked at nothing");
+
 /* ── every colour pair the film sets type in ──────────────────────────────── */
 
 /** WCAG relative luminance of an `#rrggbb`. */
@@ -178,6 +227,8 @@ const summary = {
   montagePaneFloor: MONTAGE_PANE_ENTRY_FLOOR,
   cardRuleFloor: CARD_RULE_FLOOR,
   contrastPairs: pairs,
+  pacedBeats: paced,
+  staticMaxSec: STATIC_MAX_SEC,
   fps: FPS,
   failures,
 };
@@ -197,6 +248,7 @@ console.log(
   `    a card's first word is ${((0.25 + 0.75 * easeOutExpo(BY_FRAME / FPS / WORD_RISE_SEC)) * 100).toFixed(0)} % up at frame ${BY_FRAME}; ` +
     `${pairs} colour pair(s) checked for contrast`,
 );
+console.log(`    ${paced} beat(s) paced against the ${STATIC_MAX_SEC}s static ceiling`);
 
 if (!failures.length) {
   console.log("\n  ✓ no scene opens on a blank frame, the hook is up by frame 3, every colour pair clears\n");

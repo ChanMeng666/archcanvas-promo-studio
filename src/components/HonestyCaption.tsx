@@ -51,7 +51,9 @@ export const HonestyCaption: React.FC<{
   /** Film seconds, absolute in the cut. From `honestyWindowFor`. */
   from: number;
   to: number;
-}> = ({ from, to }) => {
+  /** Appear at full opacity — the product's caption was carrying it until now. */
+  hardIn?: boolean;
+}> = ({ from, to, hardIn = false }) => {
   const frame = useCurrentFrame();
   const layout = useLayout();
   const sec = frame / FPS;
@@ -66,8 +68,8 @@ export const HonestyCaption: React.FC<{
   // measured on. The fade in is short for the same reason: the floor is measured
   // on the opaque core, so a long fade would be the film marking its own
   // homework.
-  const fade = Math.min(MOTION.enterSec, (to - from) / 6);
-  const opacity = clamp01(ramp(sec, from, from + fade, 0, 1));
+  const fade = hardIn ? 0 : Math.min(MOTION.enterSec, (to - from) / 6);
+  const opacity = fade <= 0 ? 1 : clamp01(ramp(sec, from, from + fade, 0, 1));
 
   const lines = linesFor(HONESTY.copy, layout.aspect);
 

@@ -113,11 +113,11 @@ for (const d of DELIVERABLES) {
   if (honestyWindow.source === "film") {
     // The band fades in over `MOTION.enterSec` (capped at a sixth of the window)
     // and does NOT fade out — `HonestyCaption`'s own arithmetic.
-    const fade = Math.min(0.24, (honestyWindow.to - honestyWindow.from) / 6);
+    const fade = honestyWindow.hardIn ? 0 : Math.min(0.24, (honestyWindow.to - honestyWindow.from) / 6);
     for (let f = 0; f < resolved.totalFrames; f += 1) {
       const sec = f / FPS;
       if (sec < honestyWindow.from || sec > honestyWindow.to) continue;
-      filmInk[f] = Math.min(1, Math.max(0, (sec - honestyWindow.from) / Math.max(1e-6, fade)));
+      filmInk[f] = fade <= 0 ? 1 : Math.min(1, Math.max(0, (sec - honestyWindow.from) / fade));
     }
   }
 
