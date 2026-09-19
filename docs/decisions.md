@@ -766,6 +766,22 @@ longer than 2.5 s without the camera moving (scale changing by more than 3 %) or
 the product doing something (more than 0.4 s of screenplay playing). 46 beats
 checked. Parking the camera on the 30 s cut's edit beat reddens it.
 
+### D23a. The colour wipes off on the cut
+
+The stage changes colour on the chapter boundary. Cut straight, that is one
+colour followed by another — correct, and inert. `ColourWipe` slides the colour
+the cut is LEAVING off the frame over eight frames, alternating direction by beat
+index so a run of chapters does not read as one gesture repeated.
+
+It sits ABOVE the new ground and BELOW the window, which is the whole trick: the
+product is on screen from frame 0 of the beat and what moves is the colour behind
+it. A wipe over the whole frame would hide the studio for eight frames on every
+cut — the opposite of fast. It is skipped when the two colours match, because a
+wipe of ivory over ivory is eight frames of nothing.
+
+`groundOf` is the one table both the router and the slot read: two copies of
+"what colour is that scene" is how a wipe ends up wiping the wrong colour off.
+
 ### Where the framing actually landed
 
 Measured through the real camera, start → end of beat, as a fraction of the
