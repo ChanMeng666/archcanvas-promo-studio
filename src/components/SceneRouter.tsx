@@ -92,6 +92,7 @@ const Split: React.FC<{ beat: ResolvedBeat; dur: number }> = ({ beat, dur }) => 
   const layout = useLayout();
   const scene = SCENES[beat.scene];
   const { replica, line } = splitStage(layout);
+  const clipBottom = line.y - layout.u(10);
 
   return (
     <AbsoluteFill style={{ backgroundColor: APP.page }}>
@@ -104,8 +105,8 @@ const Split: React.FC<{ beat: ResolvedBeat; dur: number }> = ({ beat, dur }) => 
         everything we couldn't get right." lying across the product's own
         command bar. The clip is the boundary the split promises.
       */}
-      <AbsoluteFill style={{ height: line.y - layout.u(10), overflow: "hidden" }}>
-        <ReplicaSlot beat={beat} stage={replica} />
+      <AbsoluteFill style={{ height: clipBottom, overflow: "hidden" }}>
+        <ReplicaSlot beat={beat} stage={replica} clipBottom={clipBottom} />
       </AbsoluteFill>
       {scene.chapter ? <ChapterChip label={CHAPTER_LABELS[scene.chapter]} /> : null}
       {scene.copy && lineIsOn(beat) ? <SplitLine copy={scene.copy.copy} dur={dur} /> : null}

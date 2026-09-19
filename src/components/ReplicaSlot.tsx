@@ -44,13 +44,19 @@ export const ReplicaSlot: React.FC<{
   beat: ResolvedBeat;
   /** Where to mount, if not the whole picture box. A `split` scene passes its top. */
   stage?: StageRect;
-}> = ({ beat, stage }) => {
+  /**
+   * Where the caller clips the picture, in film pixels. A `split` scene passes
+   * the top of its type band, and `camera.ts` keeps the protected rectangles
+   * above it rather than merely inside the frame.
+   */
+  clipBottom?: number;
+}> = ({ beat, stage, clipBottom }) => {
   const frame = useCurrentFrame();
   const layout = useLayout();
   const box = stage ?? layout.picture;
   const windowed = layout.aspect === "landscape";
 
-  const shot = shotFor(beat, frame, layout, box, { browserFrame: windowed });
+  const shot = shotFor(beat, frame, layout, box, { browserFrame: windowed, clipBottom });
   const { mount, push } = shot;
 
   return (

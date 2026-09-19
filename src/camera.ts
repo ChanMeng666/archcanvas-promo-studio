@@ -143,7 +143,18 @@ export interface FrameInput {
   focus: { x: number; y: number };
   /** Rectangles that must stay entirely inside the frame, in film pixels. */
   protect?: readonly StageRect[];
-  /** How far inside the frame edge a protected rectangle must stay. */
+  /**
+   * The box a protected rectangle must stay inside, if not the whole frame.
+   *
+   * ⚠ A `split` scene CLIPS the picture at the top of its type band, and a rect
+   * that is comfortably inside the frame can be entirely below that clip. The
+   * 9:16 export beat is the case: the menu is a full-width bottom sheet, the
+   * push slid it under the clip, and the master showed "Export the DXF." over a
+   * menu whose DXF row had been cut off. Coverage still uses the whole frame —
+   * it is the PROTECTION that is about what a viewer can see.
+   */
+  protectBounds?: StageRect;
+  /** How far inside the protection bounds a protected rectangle must stay. */
   margin?: number;
 }
 
@@ -191,8 +202,10 @@ export const framePush = ({
   scale,
   focus,
   protect = [],
+  protectBounds,
   margin = 8,
 }: FrameInput): FramePush => {
+  const bounds = protectBounds ?? { x: 0, y: 0, w: frameW, h: frameH };
   let s = Number.isFinite(scale) && scale > 1 ? scale : 1;
   let scaleClamped = false;
 
@@ -200,14 +213,14 @@ export const framePush = ({
   // translate, so the scale gives way before the obligation does.
   for (const r of protect) {
     if (r.w > 0) {
-      const cap = (frameW - 2 * margin) / r.w;
+      const cap = (bounds.w - 2 * margin) / r.w;
       if (cap < s) {
         s = Math.max(1, cap);
         scaleClamped = true;
       }
     }
     if (r.h > 0) {
-      const cap = (frameH - 2 * margin) / r.h;
+      const cap = (bounds.h - 2 * margin) / r.h;
       if (cap < s) {
         s = Math.max(1, cap);
         scaleClamped = true;
@@ -233,10 +246,10 @@ export const framePush = ({
   let loY = -(s - 1) * frameH;
   let hiY = 0;
   for (const r of protect) {
-    loX = Math.max(loX, margin - r.x * s);
-    hiX = Math.min(hiX, frameW - margin - (r.x + r.w) * s);
-    loY = Math.max(loY, margin - r.y * s);
-    hiY = Math.min(hiY, frameH - margin - (r.y + r.h) * s);
+    loX = Math.max(loX, bounds.x + margin - r.x * s);
+    hiX = Math.min(hiX, bounds.x + bounds.w - margin - (r.x + r.w) * s);
+    loY = Math.max(loY, bounds.y + margin - r.y * s);
+    hiY = Math.min(hiY, bounds.y + bounds.h - margin - (r.y + r.h) * s);
   }
 
   const wantX = anchorX - fx * s;
@@ -392,7 +405,7 @@ export const shotFor = (
   localFrame: number,
   layout: Layout,
   box: StageRect,
-  opts: { browserFrame: boolean },
+  opts: { browserFrame: boolean; clipBottom?: number },
 ): Shot => {
   const dur = Math.max(1, beat.durationInFrames);
   const localSec = frameToSec(localFrame);
@@ -420,6 +433,13 @@ export const shotFor = (
   const protect: StageRect[] = [];
   if (overlaps(span, CAPTION_SPAN)) protect.push(pad(captionRaw, layout.u(6)));
   if (overlaps(span, RENDERING_SPAN)) protect.push(pad(renderingRaw, layout.u(6)));
+  /*
+   * The export menu is the subject of its own beat, and in 9:16 it is a
+   * full-width bottom sheet. Unprotected, the push slid it under the split
+   * scene's clip and the master showed "Export the DXF." over a menu whose DXF
+   * row had been cut off — the line naming the thing the frame had cropped.
+   */
+  if (beat.scene === "export") protect.push(pad(designRect(mount, exportMenuBox(ctx)), layout.u(8)));
 
   const focusRect = focusRectFor(beat.scene, ctx, span);
   const focus = focusRect
@@ -432,6 +452,14 @@ export const shotFor = (
     scale: beat.frame * pushAt(beat.push, p) * entryScale(localSec),
     focus,
     protect,
+    // A split scene CLIPS the picture at the top of its type band, and a
+    // rectangle comfortably inside the frame can be entirely below that clip.
+    // The protection is about what a viewer can see, so it is bounded by the
+    // clip; coverage still uses the whole frame.
+    protectBounds:
+      opts.clipBottom === undefined
+        ? undefined
+        : { x: 0, y: 0, w: layout.width, h: Math.min(layout.height, opts.clipBottom) },
     // Not a hairline. A protected rectangle that ends two pixels from the frame
     // edge is technically uncropped and looks like a mistake, so the margin is
     // a visible one and the framing gives way to it.

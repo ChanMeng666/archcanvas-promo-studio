@@ -614,3 +614,26 @@ with it. `capture/tile-contact.mjs` (`npm run stills:sheet`) reads whatever is o
 disk, so a batch that dies part-way still produces a sheet and a re-run only has
 to fill the gap. A step that takes seconds and depends only on files should not
 be downstream of one that takes minutes and can fail.
+
+## D21. The protection is bounded by the CLIP, not by the frame.
+
+The 9:16 export beat showed "Export the DXF." over a menu whose DXF row had been
+cut off — the film's line naming the one thing the frame had cropped.
+
+The export menu is the subject of that beat, and in portrait it is the product's
+full-width bottom SHEET. Two things were wrong and both are now fixed in
+`camera.ts`:
+
+- **It was not protected at all.** `framePush` knew about the honesty caption and
+  the "AI-generated" pill; the menu is the third thing a shot may not crop, and
+  it is protected on its own beat.
+- **Protection was measured against the FRAME.** A `split` scene clips the
+  picture at the top of its type band, so a rectangle comfortably inside the
+  frame can be entirely below that clip. `protectBounds` is that clip; coverage
+  still uses the whole frame, because coverage is about the page behind the
+  picture and protection is about what a viewer can see.
+
+The 9:16 export shot is now clamped twice over — the scale down to 1.16 by the
+menu's full-bleed width, and the translate to −230 px by its height against the
+clip — and the whole menu is on screen. The 16:9 shot is unclamped at 1.38,
+because there the menu is a small anchored popover.
