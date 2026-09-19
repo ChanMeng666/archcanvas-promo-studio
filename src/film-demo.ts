@@ -203,6 +203,10 @@ export const RENDERING_SPAN = {
 const openPinBeat = SCREENPLAY.beats.find((b) => b.action.k === "openPin");
 export const OPEN_PIN_SEC: number = openPinBeat ? openPinBeat.at + openPinBeat.dur * 0.5 : Infinity;
 
+/** Which finding the review chapter opens. The screenplay's, not a guess. */
+export const OPEN_PIN_INDEX: number =
+  openPinBeat && openPinBeat.action.k === "openPin" ? openPinBeat.action.index : 0;
+
 /** Do two closed intervals meet? */
 export const overlaps = (a: { from: number; to: number }, b: { from: number; to: number }): boolean =>
   a.from <= b.to && b.from <= a.to;

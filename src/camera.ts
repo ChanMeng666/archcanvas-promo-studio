@@ -65,7 +65,16 @@ import {
 import type { PlanPage } from "./replica/planTypes";
 import { pickPage } from "./replica/resolvePages";
 import type { ReplicaState } from "./replica/types";
-import { CAPTION_SPAN, DEMO, OPEN_PIN_SEC, PAGES, RENDERING_SPAN, overlaps, stateAt } from "./film-demo";
+import {
+  CAPTION_SPAN,
+  DEMO,
+  OPEN_PIN_INDEX,
+  OPEN_PIN_SEC,
+  PAGES,
+  RENDERING_SPAN,
+  overlaps,
+  stateAt,
+} from "./film-demo";
 import { DRAFTING_SPAN } from "./honesty";
 import type { Layout, StageRect } from "./layout-core";
 import { SCENES, type SceneId } from "./scenes";
@@ -387,7 +396,19 @@ export const focusRectFor = (
     }
 
     case "receipt": {
-      const anchors = pinAnchors(ctx);
+      /*
+       * ⚠ Framed against the findings the beat WILL have, not the ones the
+       * current frame happens to hold.
+       *
+       * `pinAnchors` reads them off the state, and the state has none until the
+       * pins start dropping a second into the beat — so the shot opened wide on
+       * the sheet at 1.9x and snapped to 4.5x the instant they appeared. A
+       * framing that changes because its subject arrived is the same lurch the
+       * per-beat protection rule exists to stop; the beat is ABOUT the findings
+       * from its first frame.
+       */
+      const settled = settledReview(ctx);
+      const anchors = pinAnchors(settled);
       const building0 = buildingBox(ctx) ?? sheetOnScreen(ctx);
       /*
        * BEFORE a pin is opened there is no card to read, and the subject is the
@@ -403,8 +424,7 @@ export const focusRectFor = (
           building0,
         );
       }
-      const open = state.review.openPin;
-      const a = (open !== null ? anchors[open] : undefined) ?? anchors[1] ?? anchors[0];
+      const a = anchors[OPEN_PIN_INDEX] ?? anchors[0];
       if (!a) return sheetOnScreen(ctx);
       /*
        * The card that has to be READ, the pin it belongs to, and enough of the
@@ -425,7 +445,7 @@ export const focusRectFor = (
         w: building.w * 0.52,
         h: building.h * 0.52,
       };
-      const card = findingCardBox(ctx, a);
+      const card = findingCardBox(settled, a);
       return card ? unionR(unionR(pinBox, card), near) : unionR(pinBox, building);
     }
 
@@ -487,6 +507,26 @@ export const buildingBox = (ctx: TargetContext): Rect | null => {
   const h = br.y - tl.y;
   return { x: tl.x - w * 0.09, y: tl.y - h * 0.09, w: w * 1.18, h: h * 1.18 };
 };
+
+/**
+ * The same context with the review chapter's findings already in place.
+ *
+ * The receipt beat's framing must not depend on whether the pins have landed
+ * yet — see the branch that uses it. `DEMO.findings` is what the beat drops, so
+ * this is the state the beat is heading for rather than an invention.
+ */
+const settledReview = (ctx: TargetContext): TargetContext => ({
+  ...ctx,
+  state: {
+    ...ctx.state,
+    review: {
+      ...ctx.state.review,
+      findings: DEMO.findings,
+      badgeCount: DEMO.findings.length,
+      openPin: OPEN_PIN_INDEX,
+    },
+  },
+});
 
 /** How much of `a` lies inside `b`, 0..1. */
 const overlapFraction = (a: { from: number; to: number }, b: { from: number; to: number }): number => {
