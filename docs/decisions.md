@@ -933,3 +933,42 @@ a geometric claim about one rectangle — it is "does anything sit on anything" 
 and a gate that tried would either re-implement the replica's layout or check
 nothing. The still pass is the instrument, which is why it is part of the gate
 and not a nicety.
+
+## D28. The drafting beat: the product says it itself, and the spec's card is stale.
+
+The art-direction review reported the honesty pill sitting on the drafting
+card's text lines. It is the **film's own band**, not the product's — which
+matters, because the band is drawn above the camera and therefore cannot be
+cropped, only made to cover something. `verify:honesty` proves the sentence is
+visible; nothing proved it was not lying across the interface it captions.
+
+Two causes, and the second one is a finding for the product repo.
+
+**1. `spec.draftCard` is 300 units tall and the rendered card is about 400.** The
+card grew a row of room chips and a second status line and the layout spec's
+rectangle did not follow, so the camera framed a rectangle three-quarters the
+size of the thing and pushed to 2.37×. `camera.ts` § `draftCardBox` pads it by
+the measured shortfall, explicitly as a **film-side workaround for a stale
+number in a one-way copy we may not edit** — delete it when the product's spec
+is corrected. **Reported upstream.**
+
+**2. On those beats the film should not be drawing the band at all.** The card
+and the product's caption are both at the bottom of the design box: a close-up on
+the card cuts the caption in half, and handing the sentence to the film's band
+then lands the band on the card. The camera frames the **union of the card and
+the caption**, and `timeline.ts` § `draftShare` turns the expulsion off for any
+beat that spends more than half its window on the card. One shot, both things
+whole, one copy of the sentence.
+
+Two things were tried on the way and are recorded because they look right:
+
+- **Ending the camera's frame at the film band's top**, the way a split scene
+  ends at its clip. It works and it costs the money shot 30 % of its size in
+  every cut — a small plan in an empty frame, the exact defect this round exists
+  to fix. The band is a centred pill, not a full-width slab. `camera.ts` §
+  `visibleBottom` records it.
+- **Expelling against `bounds` rather than the frame.** Protection asks "can a
+  viewer see all of it" and is bounded by the band; expulsion asks "is it gone",
+  and a caption below the band but inside the frame is not gone — it is a second
+  copy with five pixels showing. `verify:honesty` caught it as four `half`
+  failures, which is the gate doing precisely its job.

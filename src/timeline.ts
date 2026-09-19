@@ -24,7 +24,7 @@
 
 import { CUT_IDS, CUT_SECONDS, FPS, type Aspect, type CutId } from "./layout-core";
 import { CUTS, HONESTY_MIN_SEC, HONESTY_OVERLAY_SEC, type Edit } from "./cuts";
-import { DRAW_HANDOFF_SEC } from "./honesty";
+import { DRAFTING_SPAN, DRAW_HANDOFF_SEC } from "./honesty";
 import { gridFor } from "./data/music-grid";
 import { REPLICA_CAPTION, REPLICA_CAPTION_WINDOW } from "./honesty";
 import { CARD_SEC, MAX_STATIC_UI_SEC, SCENES, hasReplica, type SceneId } from "./scenes";
@@ -247,6 +247,14 @@ const CAPTION_SAFE_FILL: Record<Aspect, number> = {
   portrait: 1.01,
 };
 
+/** How much of a beat's replica window is spent on the drafting card. */
+const draftShare = (win: { from: number; to: number }): number => {
+  const lo = Math.max(win.from, DRAFTING_SPAN.from);
+  const hi = Math.min(win.to, DRAFTING_SPAN.to);
+  const len = win.to - win.from;
+  return len > 0 ? Math.max(0, hi - lo) / len : 0;
+};
+
 const expels = (
   id: SceneId,
   win: { from: number; to: number } | null,
@@ -254,6 +262,18 @@ const expels = (
   aspect: Aspect,
 ): boolean => {
   if (SCENES[id].filmCaption !== true || win === null) return false;
+  /*
+   * ⚠ NOT on the drafting beats, whatever the fill says.
+   *
+   * The drafting card and the product's caption are both at the bottom of the
+   * design box, so a beat that frames the card closely either cuts the caption
+   * in half or — once the film takes the sentence over — lands its own band
+   * across the card's last two lines. Both were on the contact sheet. The
+   * camera frames the card and the caption together instead (`camera.ts` §
+   * draftCardBox), which means the product says it itself and the film must not
+   * also.
+   */
+  if (draftShare(win) > 0.5) return false;
   if (win.from >= DRAW_HANDOFF_SEC - 1e-9) return true;
   return fill > CAPTION_SAFE_FILL[aspect] + 1e-9;
 };

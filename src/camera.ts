@@ -268,10 +268,17 @@ export const framePush = ({
    * scale, and solving it here rather than hoping the authored `fill` is big
    * enough is what makes the rule hold in all eight compositions instead of the
    * two it was tuned in.
+   *
+   * ⚠ Against the FRAME, not against `bounds`. Protection asks "can a viewer see
+   * all of it", so it is bounded by the band or the clip; expulsion asks "is it
+   * gone", and a rectangle below the band but inside the frame is not gone — it
+   * is a second copy of the sentence, five pixels of it showing. Measuring
+   * expulsion against `bounds` produced exactly that, and `verify:honesty`
+   * caught it as four "half" failures.
    */
   for (const r of expel) {
     if (!(r.y > 0)) continue;
-    const need = (bounds.y + bounds.h + margin) / r.y;
+    const need = (frameH + margin) / r.y;
     if (need > s) {
       s = need;
       scaleClamped = true;
@@ -306,7 +313,7 @@ export const framePush = ({
     hiY = Math.min(hiY, bounds.y + bounds.h - margin - (r.y + r.h) * s);
   }
   for (const r of expel) {
-    loY = Math.max(loY, bounds.y + bounds.h + margin - r.y * s);
+    loY = Math.max(loY, frameH + margin - r.y * s);
   }
 
   const wantX = anchorX - fx * s;
@@ -355,6 +362,33 @@ export const insideFrame = (r: StageRect, frameW: number, frameH: number, margin
  * when a layout or a storey count changes. `null` means "the whole picture",
  * which is what the fallback centre already is.
  */
+/**
+ * The drafting card, as the card is actually DRAWN.
+ *
+ * ⚠ `spec.draftCard` is 300 units tall and the rendered card is about 400: the
+ * card grew a row of room chips and a second status line, and the layout spec's
+ * rectangle did not follow. Framed on the spec's rect the beat pushed to 2.37x
+ * and the card's last line ran off under the film's honesty band — visible at
+ * 12 s in the 60 s cut, which is how it was found.
+ *
+ * The pad is measured off that frame, not chosen. It is a FILM-SIDE workaround
+ * for a stale number in a one-way copy we may not edit (`src/replica/**`), and
+ * it should be deleted the moment the product's own spec is corrected — which
+ * has been reported upstream. `docs/decisions.md` D28.
+ *
+ * The card is framed in UNION with the product's own caption, because on this
+ * beat the product says the sentence itself: a close-up of the card alone put
+ * the caption half off the bottom edge, and the film's band — which is what
+ * covers for that — then sat across the card's last two lines. One shot with
+ * both in it is the only framing that owes nothing.
+ */
+const DRAFT_CARD_SPEC_SHORTFALL = 100;
+
+const draftCardBox = (spec: LayoutSpec): Rect => ({
+  ...spec.draftCard,
+  h: spec.draftCard.h + DRAFT_CARD_SPEC_SHORTFALL,
+});
+
 export const focusRectFor = (
   scene: SceneId,
   ctx: TargetContext,
@@ -377,7 +411,7 @@ export const focusRectFor = (
       // strokes by half a second — read per frame, the framing would have
       // snapped in the middle of the money shot's opening.
       return span && overlapFraction(span, DRAFTING_SPAN) > 0.5
-        ? spec.draftCard
+        ? unionR(draftCardBox(spec), spec.caption)
         : buildingBox(ctx) ?? sheetOnScreen(ctx);
 
     case "edit": {
@@ -573,6 +607,27 @@ export interface Shot {
  * from one, clamped to zero and pinned the product's clock to the start of every
  * beat — the push ran, the cards animated, and the interface stood still.
  */
+/**
+ * The bottom edge of the frame a viewer can actually SEE the replica in.
+ *
+ * A split scene's type band ends it early: below the clip the replica is covered
+ * by opaque film furniture, so framing it there is framing it nowhere. `fill`,
+ * the aim and the protected rectangles all measure against this. Only COVERAGE
+ * still uses the whole frame — the page behind the picture must never show,
+ * including under a band.
+ *
+ * ⚠ The film's OWN honesty band is deliberately NOT counted here, and it was
+ * tried. The band is a centred pill, not a full-width slab, and ending the frame
+ * at its top cost the money shot 30 % of its size in every cut — a small plan in
+ * an empty frame, which is the defect the art-direction round exists to fix. The
+ * one place the band genuinely covered something was the drafting card's last
+ * two lines, and that is fixed where it belongs: those beats keep the product's
+ * own caption and the film does not draw a band at all (`timeline.ts` §
+ * draftShare).
+ */
+export const visibleBottom = (layout: Layout, clipBottom?: number): number =>
+  clipBottom === undefined ? layout.height : Math.min(layout.height, clipBottom);
+
 export const shotFor = (
   beat: ResolvedBeat,
   localFrame: number,
@@ -641,7 +696,7 @@ export const shotFor = (
    * the visible half — a plan cropped through its own room labels in the beat
    * whose job is to show a room changing.
    */
-  const viewH = opts.clipBottom === undefined ? layout.height : Math.min(layout.height, opts.clipBottom);
+  const viewH = visibleBottom(layout, opts.clipBottom);
   const stand = fillScale(focusFilm, layout.width, viewH, beat.fill);
 
   const push = framePush({
@@ -655,10 +710,7 @@ export const shotFor = (
     // rectangle comfortably inside the frame can be entirely below that clip.
     // The protection is about what a viewer can see, so it is bounded by the
     // clip; coverage still uses the whole frame.
-    protectBounds:
-      opts.clipBottom === undefined
-        ? undefined
-        : { x: 0, y: 0, w: layout.width, h: Math.min(layout.height, opts.clipBottom) },
+    protectBounds: viewH >= layout.height ? undefined : { x: 0, y: 0, w: layout.width, h: viewH },
     // Not a hairline. A protected rectangle that ends two pixels from the frame
     // edge is technically uncropped and looks like a mistake, so the margin is
     // a visible one and the framing gives way to it.
