@@ -1,14 +1,16 @@
 import React from "react";
 import { AbsoluteFill } from "remotion";
 
+import { COPY_FLAGS } from "../copy";
+import { CHAPTER_LABELS } from "../film-demo";
 import { splitStage, useLayout } from "../layout";
 import { SCENES } from "../scenes";
 import type { ResolvedBeat } from "../timeline";
 import { APP } from "../tokens";
-import { Camera } from "./Camera";
 import { EndCard } from "./EndCard";
-import { KineticCard, SplitLine } from "./KineticCard";
+import { ChapterChip, KineticCard, SplitLine } from "./KineticCard";
 import { ReplicaSlot } from "./ReplicaSlot";
+import { SecondBrief } from "./SecondBrief";
 
 /**
  * One beat in, one picture out.
@@ -24,8 +26,15 @@ import { ReplicaSlot } from "./ReplicaSlot";
  * sequence's, which is how a 0.28 s entrance ends up easing over two minutes
  * and looking like nothing is happening.
  *
- * **The camera wraps the replica, never the type.** A push on a card would be a
- * second idea fighting the cut; a push on the interface is the chapter's point.
+ * **The camera is inside `ReplicaSlot`, not around it.** The push is computed by
+ * `camera.ts` together with the mount and the protected rectangles, because the
+ * clamp that keeps the honesty caption on screen needs all three at once. A
+ * wrapper that only knew a scale could not do it, and a wrapper that did it
+ * separately would be a second copy of the maths for the gate to disagree with.
+ *
+ * **A card scene never carries a chapter chip.** The chip says which of the
+ * product's seven acts is on screen; on a card there is no product on screen,
+ * and a chip over the film's own voice would be labelling the wrong thing.
  */
 export const SceneRouter: React.FC<{ beat: ResolvedBeat }> = ({ beat }) => {
   const scene = SCENES[beat.scene];
@@ -34,13 +43,13 @@ export const SceneRouter: React.FC<{ beat: ResolvedBeat }> = ({ beat }) => {
   switch (scene.kind) {
     case "card":
       return scene.copy ? (
-        <KineticCard copy={scene.copy.copy} dur={dur} />
+        <KineticCard copy={scene.copy.copy} dur={dur} tone={scene.tone ?? "paper"} />
       ) : (
         <AbsoluteFill style={{ backgroundColor: APP.page }} />
       );
 
     case "endcard":
-      return <EndCard />;
+      return <EndCard dur={dur} />;
 
     case "split":
       return <Split beat={beat} dur={dur} />;
@@ -48,32 +57,58 @@ export const SceneRouter: React.FC<{ beat: ResolvedBeat }> = ({ beat }) => {
     case "replica":
     default:
       return (
-        <Camera push={beat.push} dur={dur}>
-          <ReplicaSlot beat={beat} />
-        </Camera>
+        <AbsoluteFill>
+          {beat.scene === "second-brief" ? <SecondBrief beat={beat} /> : <ReplicaSlot beat={beat} />}
+          {scene.chapter && beat.scene !== "second-brief" ? (
+            <ChapterChip label={CHAPTER_LABELS[scene.chapter]} />
+          ) : null}
+        </AbsoluteFill>
       );
   }
 };
 
 /**
- * Picture above, line below, **both inside the safe area**.
+ * Whether this beat's split line is on screen.
  *
- * The camera pushes on the picture only. A push that also moved the type would
- * make the line drift against a frame edge it is supposed to be parallel to,
- * and on 9:16 it would walk it into the bottom 390 px that Reels, TikTok and
- * Shorts cover with their own interface.
+ * One scene, one flag: `tweak` is the only beat whose line the founder has not
+ * signed off, and `COPY_FLAGS.tweakLine` turns it off without touching a second
+ * of the edit. The chapter chip still names the act, which is what makes the
+ * fallback a real fallback rather than a hole.
+ */
+const lineIsOn = (beat: ResolvedBeat): boolean =>
+  beat.scene !== "tweak" || COPY_FLAGS.tweakLine;
+
+/**
+ * Picture above, line below, **each in the box its own rule is about**.
+ *
+ * The picture half comes out of `layout.picture`, which clears the platform's
+ * furniture and nothing else; the line half comes out of `layout.stage`, which
+ * is the text-safe area. Splitting one box for both is what put a two-line
+ * receipt sentence 72 px past the bottom of a 16:9 frame in the scaffold's first
+ * still pass — and on 9:16 it would have "fitted" into the 390 px Reels and
+ * TikTok cover with their own interface.
  */
 const Split: React.FC<{ beat: ResolvedBeat; dur: number }> = ({ beat, dur }) => {
   const layout = useLayout();
   const scene = SCENES[beat.scene];
-  const { replica } = splitStage(layout);
+  const { replica, line } = splitStage(layout);
 
   return (
-    <AbsoluteFill style={{ backgroundColor: APP.canvas }}>
-      <Camera push={beat.push} dur={dur}>
+    <AbsoluteFill style={{ backgroundColor: APP.page }}>
+      {/*
+        ⚠ CLIPPED, and it is not decoration.
+
+        `ReplicaSlot` mounts inside `replica` but the camera scales the whole
+        layer, so a 1.34x push spills the picture straight through the band the
+        line sits in. The first still pass had "…and a written list of
+        everything we couldn't get right." lying across the product's own
+        command bar. The clip is the boundary the split promises.
+      */}
+      <AbsoluteFill style={{ height: line.y - layout.u(10), overflow: "hidden" }}>
         <ReplicaSlot beat={beat} stage={replica} />
-      </Camera>
-      {scene.copy ? <SplitLine copy={scene.copy.copy} dur={dur} /> : null}
+      </AbsoluteFill>
+      {scene.chapter ? <ChapterChip label={CHAPTER_LABELS[scene.chapter]} /> : null}
+      {scene.copy && lineIsOn(beat) ? <SplitLine copy={scene.copy.copy} dur={dur} /> : null}
     </AbsoluteFill>
   );
 };

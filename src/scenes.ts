@@ -87,6 +87,25 @@ export type SceneKind = "replica" | "split" | "card" | "endcard";
 export interface PushSpec {
   /** End/start scale over the beat. */
   to: number;
+  /**
+   * The scale the shot SITS at before the push, about what the scene is for.
+   *
+   * ⚠ This did not exist until the replica was actually on screen, and its
+   * absence was the first still pass's biggest finding. The replica's landscape
+   * layout gives the paper about a THIRD of its 1600-unit design box — correctly,
+   * because the product leaves canvas around the sheet for the finding cards and
+   * the floating panels. Mounted to fit a 1920 frame and pushed by the 1.03–1.12
+   * this file already declared, the drawing came out 636 px tall in a 1080 px
+   * frame: an interface demo where the money shot should be.
+   *
+   * So a scene now says where the camera STANDS as well as how it moves.
+   * `frame` is the standing scale, `to` is the push over the beat, and the two
+   * multiply. The values below were read off stills, one shot at a time, and
+   * every one of them is clamped by `framePush` against the honesty caption —
+   * so a framing that would crop the film's one obligation is reduced rather
+   * than shipped.
+   */
+  frame?: number;
 }
 
 export interface Scene {
@@ -110,6 +129,18 @@ export interface Scene {
   defaultReplica?: { from: number; to: number };
   /** The push this scene wants when a cut does not say otherwise. */
   camera?: PushSpec;
+  /**
+   * A card's ground. `paper` is ink on ivory; `deep` is full-bleed aubergine
+   * with ivory type.
+   *
+   * ⚠ There is no violet option, and that is a decision rather than an
+   * oversight. The founder's standing objection to large flat violet is on the
+   * record, and a promo is not the place to relitigate it — so the one card that
+   * changes the film's colour takes the marketing band palette's AUBERGINE
+   * (`#3C315B`, white on it at 9.6:1, already a shipped surface), and violet
+   * stays what `tokens.ts` says it is: a spot. `docs/decisions.md` D11.
+   */
+  tone?: "paper" | "deep";
   /**
    * Something this scene needs that does not exist yet. A scene with a `needs`
    * renders, but `verify:timeline` prints it on every run so a cut cannot
@@ -140,7 +171,29 @@ export const SCENES: Readonly<Record<SceneId, Scene>> = {
     intent: "Someone types what they want. The composer, the typology, the launch control.",
     chapter: "brief",
     defaultReplica: { from: 0, to: 5.5 },
-    camera: { to: 1.05 },
+    /*
+     * THE WIDE SHOT, and it is the one scene that wants to be.
+     *
+     * The first still pass framed the composer card at 1.22x and got a line of
+     * type floating in an empty ivory field: the product's own card is ivory on
+     * ivory with a 1.3:1 hairline (deliberately — its borders are dividers, not
+     * controls), and at that magnification the hairline is gone and the card
+     * with it. There is nothing to fix upstream; a card that reads as a card at
+     * 1100 px in a browser does not need to read as one at 2300 px in a film.
+     *
+     * So the brief beat shows the APPLICATION instead — window chrome, top bar,
+     * the card on the canvas, the violet launch control — inside the film's own
+     * rounded, shadowed window, and pushes in gently. The frame has structure
+     * even where the product's own surface is deliberately flat. 1.09 is also
+     * the most a 1600 x 1000 design box can take in a 16:9 frame before the
+     * window's own edges leave it — so the push runs THROUGH that point and ends
+     * inside the card. The contact sheet is why: at 1.09 the brief beat was three
+     * consecutive seconds of a pale, near-identical window, the flattest stretch
+     * in the 30 s cut. A push that starts on the whole application and finishes
+     * on the sentence someone is typing is the same information with a move
+     * under it.
+     */
+    camera: { to: 1.16, frame: 1 },
   },
 
   draw: {
@@ -150,7 +203,10 @@ export const SCENES: Readonly<Record<SceneId, Scene>> = {
       "The drafting sheet works, then the drawing comes in by layer. THE MONEY SHOT, and the honesty caption's home.",
     chapter: "draw",
     defaultReplica: { from: 5.5, to: 13 },
-    camera: { to: 1.08 },
+    // THE MONEY SHOT. 1.35 puts the paper at ~80 % of the frame height, which is
+    // as close as the honesty caption's clamp allows on this beat — and the
+    // caption is on screen for most of it, so that is the real ceiling.
+    camera: { to: 1.08, frame: 1.35 },
   },
 
   "claim-what": {
@@ -167,7 +223,9 @@ export const SCENES: Readonly<Record<SceneId, Scene>> = {
     copy: SAY_THE_CHANGE,
     chapter: "edit",
     defaultReplica: { from: 13, to: 19 },
-    camera: { to: 1.06 },
+    // Closest framing in the film: the kitchen takes the building's full width
+    // and the hall gives up the strip, and from the fit a viewer cannot see it.
+    camera: { to: 1.06, frame: 1.5 },
   },
 
   tweak: {
@@ -177,7 +235,9 @@ export const SCENES: Readonly<Record<SceneId, Scene>> = {
     copy: TWEAK_A_NUMBER,
     chapter: "tweak",
     defaultReplica: { from: 19, to: 23.5 },
-    camera: { to: 1.05 },
+    // The slider and the wall it moves have to be in one frame or the beat says
+    // nothing, so this is the widest of the close framings.
+    camera: { to: 1.05, frame: 1.28 },
   },
 
   receipt: {
@@ -188,7 +248,9 @@ export const SCENES: Readonly<Record<SceneId, Scene>> = {
     copy: RECEIPT,
     chapter: "review",
     defaultReplica: { from: 23.5, to: 28 },
-    camera: { to: 1.1 },
+    // The open card and its pin, with enough drawing behind them to see what the
+    // finding is about.
+    camera: { to: 1.1, frame: 1.34 },
   },
 
   storey: {
@@ -199,7 +261,8 @@ export const SCENES: Readonly<Record<SceneId, Scene>> = {
     copy: FACTS,
     chapter: "render",
     defaultReplica: { from: 28, to: 29.8 },
-    camera: { to: 1.04 },
+    // Both storey chips and the paper that changes under them.
+    camera: { to: 1.04, frame: 1.3 },
   },
 
   render: {
@@ -209,7 +272,9 @@ export const SCENES: Readonly<Record<SceneId, Scene>> = {
       "The rendering fades in, carrying the product's own always-visible AI-generated pill. A presentation aid, never the pitch — so the film says nothing over it.",
     chapter: "render",
     defaultReplica: { from: 29.8, to: 31.5 },
-    camera: { to: 1.05 },
+    // The rendering card carries the always-visible "AI-generated" pill, which
+    // `framePush` protects: this scale is the one the clamp allows.
+    camera: { to: 1.05, frame: 1.26 },
   },
 
   export: {
@@ -219,7 +284,8 @@ export const SCENES: Readonly<Record<SceneId, Scene>> = {
     copy: EXPORT_LINE,
     chapter: "export",
     defaultReplica: { from: 31.5, to: 35 },
-    camera: { to: 1.06 },
+    // The open menu and the sheet it belongs to.
+    camera: { to: 1.06, frame: 1.3 },
   },
 
   price: {
@@ -227,17 +293,27 @@ export const SCENES: Readonly<Record<SceneId, Scene>> = {
     kind: "card",
     intent: "The pay-per-result frame. No bare figure ever appears on screen.",
     copy: PRICE,
+    // The film's one full-bleed colour frame, and it lands on the money line.
+    tone: "deep",
   },
 
+  /**
+   * ⚠ This scene's `replicaFrom`/`replicaTo` are PLAN INDICES, not screenplay
+   * seconds — `{ from: 0, to: 2 }` means "the first two montage plans".
+   *
+   * It reuses the window machinery rather than growing a second field because
+   * every gate already understands a replica beat's window: `verify:timeline`
+   * still requires one, still refuses a backwards one, and still refuses a card
+   * that declares one. `SecondBrief` is the one component that reads it as an
+   * index, and it says so where it does.
+   */
   "second-brief": {
     id: "second-brief",
     kind: "replica",
     intent:
-      "120 s only. The same seven chapters against a different brief — the one claim a long cut can make that a short one cannot.",
-    chapter: "brief",
-    defaultReplica: { from: 0, to: 5.5 },
-    camera: { to: 1.04 },
-    needs: "family-house screenplay — a second DemoInputs and its baked draw list (WP-9 decides)",
+      "120 s only. Four more of the product's published plans, each under the brief it was really given — the one claim a long cut can make that a short one cannot.",
+    defaultReplica: { from: 0, to: 4 },
+    camera: { to: 1 },
   },
 
   endcard: {

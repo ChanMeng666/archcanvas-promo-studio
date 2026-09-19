@@ -42,6 +42,18 @@ import { fileURLToPath } from "node:url";
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const SRC = path.join(ROOT, "src");
 const DRAWLIST = path.join(SRC, "data", "drawlist.json");
+/**
+ * The RECORD is both baked payloads, not just the as-issued one.
+ *
+ * `drawlist.json` is the as-issued sheet and `landing.json` is what the film
+ * actually draws (`docs/decisions.md` D9). They come out of the same bake, so in
+ * practice a number in one is a number in the other — but "in practice" is what
+ * a gate exists to stop relying on, and the second file is three lines.
+ */
+const EXTRA_RECORDS = [
+  path.join(SRC, "data", "landing.json"),
+  path.join(SRC, "data", "showcase-plans.json"),
+];
 const AS_JSON = process.argv.includes("--json");
 
 const slash = (p) => p.split(path.sep).join("/");
@@ -67,7 +79,9 @@ if (!fs.existsSync(DRAWLIST)) {
   process.exit(1);
 }
 
-const drawlistText = fs.readFileSync(DRAWLIST, "utf8");
+const drawlistText =
+  fs.readFileSync(DRAWLIST, "utf8") +
+  EXTRA_RECORDS.filter((p) => fs.existsSync(p)).map((p) => fs.readFileSync(p, "utf8")).join("");
 if (drawlistText.trim().length < 2) {
   console.error("\nverify-numbers: src/data/drawlist.json is empty — it records nothing.\n");
   process.exit(1);
@@ -163,7 +177,10 @@ if (AS_JSON) {
 
 console.log(`\n  verify-numbers`);
 console.log(`    ${files.length} component file(s) scanned (src/replica/** excluded — it IS the record)`);
-console.log(`    ${found.length} area/dimension numeral(s) reconciled against src/data/drawlist.json (${drawlistText.length} bytes)`);
+console.log(
+  `    ${found.length} area/dimension numeral(s) reconciled against the baked record — ` +
+    `drawlist.json + landing.json + showcase-plans.json (${drawlistText.length} bytes)`,
+);
 console.log(`    not implemented here: review-pin text, which is checked upstream at the bake`);
 
 if (!violations.length) {

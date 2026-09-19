@@ -60,22 +60,34 @@ npm run verify:flash out/<master>.mp4
 
 ## Repository status
 
-**Scaffold.** The machinery is here — the sync, the gates, the layout, the derived
-timeline, eight registered compositions — and the film is not. `src/Film.tsx` draws a
-labelled placeholder so the compositions are inspectable today.
+**Cut, not rendered.** The product's own studio is synced and mounted, the camera
+frames it through the replica's own layout map, the sound is derived from what the
+picture is doing frame by frame, and all eight compositions play end to end. No master
+has been rendered: that is WP-11, and it happens after a person has looked at the
+stills.
 
-Until the replica has been synced at least once, `npm run verify:replica` and
-`npm run verify:numbers` **fail on purpose**: a gate that passes with nothing to check is
-how a repo ends up believing it holds a film when it holds a scaffold.
+The replica is synced from the product repo and committed — `npm run verify:replica`
+re-hashes every file against `src/data/replica-lock.json`. With nothing synced, that
+gate and `verify:numbers` **fail on purpose**: a gate that passes with nothing to check
+is how a repo ends up believing it holds a film when it holds a scaffold.
+
+```bash
+npm run stills                                # six beats, one composition at a time
+node capture/stills.mjs --sheet               # a contact sheet per landscape cut
+```
 
 | | Owner | State |
 | --- | --- | --- |
 | scaffold, sync, gates, layout, timeline | WP-6 | done |
-| scenes, cuts, the eight compositions | WP-7 | to do |
-| audio — licence check, bed, SFX, beat grid | WP-8 | to do |
-| scene components, kinetic cards, end card | WP-9 | to do |
+| scenes, cuts, the eight compositions | WP-7 | done |
+| audio — licence check, bed, SFX, beat grid | WP-8 | done |
+| the replica mounted, camera, scenes, sound, end card | WP-9 | done |
 | stills review | WP-10 | to do |
 | the eight masters | WP-11 | to do |
+
+**One line is still open.** `Tweak a number.` rides over the tweak beat in the 60 s and
+120 s cuts and nobody has cleared it. `COPY_FLAGS.tweakLine` in `src/copy.ts` turns it
+off without changing a second of any edit — see `docs/copy-clearance.md`.
 
 ## Documentation
 

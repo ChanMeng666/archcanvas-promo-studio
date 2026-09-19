@@ -1,10 +1,11 @@
 import React from "react";
-import { AbsoluteFill, Img, staticFile, useCurrentFrame } from "remotion";
+import { AbsoluteFill, Img, useCurrentFrame } from "remotion";
 
+import { WORDMARK } from "../assets";
 import { END_DESCRIPTOR, END_DOMAIN, linesFor } from "../copy";
 import { FONT } from "../fonts";
 import { useLayout } from "../layout";
-import { FPS, clamp01, easeOutCubic } from "../timeline";
+import { FPS, clamp01, easeOutCubic, easeOutExpo } from "../timeline";
 import { APP, MOTION, SPOT, TRACKING, TYPE, WEIGHT } from "../tokens";
 
 /**
@@ -28,19 +29,34 @@ import { APP, MOTION, SPOT, TRACKING, TYPE, WEIGHT } from "../tokens";
  * fails *softly* on a missing `staticFile()` — a blank region, not an error —
  * so the eight-master render could otherwise complete with a hole where the
  * logo goes. That is the entire reason `verify:assets` runs first.
+ *
+ * ── The wipe ───────────────────────────────────────────────────────────────
+ *
+ * A plum band crosses the frame once, on the `end-hit`, and the card is revealed
+ * behind it. One gesture, a third of a second, and it is the only place in the
+ * film where the brand violet is a FIELD rather than a spot — because it is a
+ * field for nine frames and then it is gone, which is a transition and not a
+ * page of flat violet. Everything after it is ivory.
  */
-export const EndCard: React.FC = () => {
+export const EndCard: React.FC<{ dur: number }> = ({ dur }) => {
   const frame = useCurrentFrame();
   const layout = useLayout();
   const sec = frame / FPS;
 
-  const mark = easeOutCubic(clamp01(sec / (MOTION.cutSec * 1.4)));
-  const line = easeOutCubic(clamp01((sec - MOTION.cutSec * 0.6) / MOTION.cutSec));
-  const tail = easeOutCubic(clamp01((sec - MOTION.cutSec * 1.1) / MOTION.cutSec));
+  const wipe = easeOutExpo(clamp01(sec / MOTION.wipeSec));
+  const after = clamp01((sec - MOTION.wipeSec * 0.55) / MOTION.cutSec);
+
+  const mark = easeOutCubic(clamp01(after));
+  const line = easeOutCubic(clamp01((sec - MOTION.wipeSec * 0.55 - MOTION.cutSec * 0.5) / MOTION.cutSec));
+  const tail = easeOutCubic(clamp01((sec - MOTION.wipeSec * 0.55 - MOTION.cutSec) / MOTION.cutSec));
 
   // The mark holds its size; only the rule under it draws itself out, so the
-  // frame the viewer photographs is stable from a third of a second in.
+  // frame the viewer photographs is stable from half a second in.
   const markWidth = layout.aspect === "landscape" ? layout.u(760) : layout.u(620);
+
+  // The last third of a second belongs to the picture, not to the animation —
+  // an end card still moving when the file ends reads as a truncated render.
+  const settle = clamp01((dur / FPS - sec) / 0.2);
 
   return (
     <AbsoluteFill style={{ backgroundColor: APP.page }}>
@@ -53,16 +69,17 @@ export const EndCard: React.FC = () => {
           justifyContent: "center",
           alignItems: "center",
           gap: layout.u(36),
+          opacity: Math.min(1, settle + 0.0),
         }}
       >
         <Img
-          src={staticFile("brand/archcanvas-wordmark.svg")}
+          src={WORDMARK}
           alt="ArchCanvas"
           style={{
             width: markWidth,
             height: "auto",
             opacity: mark,
-            transform: `translateY(${(1 - mark) * layout.u(18)}px)`,
+            transform: `translateY(${((1 - mark) * layout.u(14)).toFixed(1)}px)`,
           }}
         />
 
@@ -70,6 +87,7 @@ export const EndCard: React.FC = () => {
           style={{
             width: markWidth * 0.34 * line,
             height: layout.u(5),
+            borderRadius: layout.u(3),
             backgroundColor: SPOT.action,
           }}
         />
@@ -103,6 +121,16 @@ export const EndCard: React.FC = () => {
           {linesFor(END_DESCRIPTOR.copy, layout.aspect)[0]}
         </div>
       </AbsoluteFill>
+
+      {/* The band, crossing once. Above the card, so the card is revealed. */}
+      {wipe < 1 ? (
+        <AbsoluteFill
+          style={{
+            backgroundColor: SPOT.plum,
+            transform: `translateX(${(wipe * layout.width).toFixed(1)}px)`,
+          }}
+        />
+      ) : null}
     </AbsoluteFill>
   );
 };

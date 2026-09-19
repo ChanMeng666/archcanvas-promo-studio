@@ -237,3 +237,254 @@ does not help, the problem is not memory.**
 
 `verify:replica` greps the synced replica for `will-change` for exactly that reason,
 even though the replica is upstream's code — because the render that dies is ours.
+
+---
+
+# WP-9 — the film, made
+
+## D7. The replica is mounted once, and everything else asks `camera.ts`.
+
+`<ReplicaSlot>` is three `div`s. Where the replica sits, what second of the
+screenplay it shows, how far the camera is in and what it is aimed at all come
+out of `shotFor()` in **`src/camera.ts`**, which is React-free and Remotion-free
+on purpose: `capture/verify-honesty.mjs` bundles it and asks, at real sampled
+frames, where the honesty caption's box actually lands on screen.
+
+That is the difference between a gate that checks the film and a gate that
+checks a re-derivation of the film. `verify:timeline` already proved the caption
+was **scheduled** for three seconds in every master; once the camera could frame
+at 1.5x on a point of its choosing, scheduled and visible stopped being the same
+claim.
+
+**Mutation evidence.** Disabling the protected-rectangle clamp (`if (false &&
+overlaps(...))`) turns `verify:honesty` red immediately with `[cropped]` on six
+masters, `[pill]` on two and `[floor]` on one — the caption slides out of frame
+and, on the 30 s cut, out of frame long enough to break the three-second floor
+as well. Raising `HONESTY_MIN_SEC` to 8 reddens all eight with `[floor]`, which
+proves the seconds are measured rather than asserted. Re-wording the film's copy
+of the sentence reddens `[drift]`.
+
+## D8. `translate + scale`, not `scale` about the focus.
+
+The first camera scaled about a `transform-origin` at whatever the beat was
+about. It is tidier arithmetic, it guarantees coverage for free, and it is
+wrong: **scaling about a point leaves that point exactly where it already was**,
+so the camera magnified and never aimed. One still showed it — the edit beat
+pushed to 1.5x on the kitchen and left the kitchen in the right-hand third with
+half the frame empty, because the kitchen had been in the right-hand third at
+1.0 too.
+
+The transform is now `translate(tx, ty) scale(s)`, and the three things the
+frame owes are three constraints on the same pair of numbers: coverage (never
+expose the page behind the picture), protection (the honesty caption, and the
+"AI-generated" pill whenever a rendering is on screen), and aim. **The aim is
+what gives way**; the scale gives way before either. `RECENTRE = 0.8` rather
+than 1: a subject nailed to the exact centre of every shot reads as a slideshow
+of centred screenshots.
+
+**The protection is decided per BEAT, not per frame.** The caption's box is 92 %
+of the portrait design box's width, so protecting it caps the push at about 1.06
+— correctly. Applied per frame, that cap appeared the moment the caption did and
+vanished the moment it faded, so the 9:16 draw beat sat wide for four seconds
+and then lurched 35 % closer in the last half-second.
+
+## D9. The film draws the LANDING payload, not the as-issued sheet.
+
+Both are synced. The choice was made by looking.
+
+`drawlist.json` is the as-issued sheet: A3 paper, title block, schedule, legend —
+the "real product" artifact, and the more impressive object in principle. Its
+`viewBox` is 21000 x 14850 mm and the townhouse is 7800 x 9200, so **the building
+occupies about a third of the page's width**. Mounted in the replica's own sheet
+box — which is itself about a third of the 1600-unit design box, because the
+product leaves canvas around the paper for the finding cards and the floating
+panels — a room label came out around four pixels tall at 1920. That is not a
+legibility problem to be tuned; it is the wrong artifact for a frame.
+
+`landing.json` is the same compiled geometry with the sheet taken off and **the
+dimension chains kept** — "a real, dimensioned floor plan" is the claim, and a
+demo with the chains removed would be a different one. It is also what the
+replica's sheet fit, `CAMERA_ENVELOPE` and pin anchors were tuned against
+upstream, so every camera number in the synced screenplay means what it says.
+
+The as-issued payload stays synced because it is `verify:numbers`'s **record**:
+a number on screen has to be a number some drawing in this repo produced.
+
+## D10. The second brief is four other plans, not the same one re-framed.
+
+The 120 s cut is the only one that can answer "is this one canned demo?", and
+the only honest way to answer it is to draw a different building. So the
+`second-brief` scene is a montage of four of the product's own **published**
+showcase plans — a family house, a courtyard flat, a neighbourhood clinic, a
+bedsit — each drawing itself out under the brief it was actually given.
+
+- They are baked at sync time by the **product's own page parser**
+  (`parsePageSvg`, imported out of the source checkout's
+  `scripts/generate-studio-demo.mjs`), not by a second SVG reader written here.
+  That parser throws on any construct it does not recognise, so a compiler that
+  starts grouping under a transform stops the sync instead of quietly baking a
+  plan that draws in the wrong place.
+- They are drawn by the product's own `PlanSvg`, with the replica's own state
+  taken from a point inside its own `drawPlan` beat — so the layer order and the
+  band overlaps are not restated, and two drawings in one film cannot draw
+  differently.
+- **The only words are each plan's own brief and its own title.** "Different
+  brief. Same flow." is not cleared copy, and the four briefs make the point
+  without anyone having to say it.
+- **Inline SVG, never `<Img>`.** More than about twenty `<Img>` elements in one
+  object never finish rendering in Remotion.
+
+The scene's `replicaFrom`/`replicaTo` are **plan indices**, not screenplay
+seconds. It reuses the window machinery rather than growing a second field,
+because every gate already understands a replica beat's window.
+
+## D11. Colour rhythm without relitigating the violet.
+
+The brief asked for "occasional full-bleed colour cards (plum with ivory type)".
+`tokens.ts` says the opposite in as many words — *violet is a SPOT colour, never
+a field and never a fill behind a paragraph; the founder's standing objection to
+large flat violet is on the record and this film does not relitigate it* — and
+that rule is founder-sourced and the stronger authority.
+
+So the film gets its colour rhythm from **aubergine** (`#3C315B`, the marketing
+band palette's own, already a shipped surface, ivory type on it at 9.6:1). One
+card takes it: `price`, which is the film's money line. Violet stays a spot —
+the accent rule on a card, the caret, the pin heads, the chapter chip's dot —
+with exactly one exception, the end card's plum band, which is a **field for
+nine frames and then gone**, i.e. a transition and not a page of flat violet.
+
+**This is a deviation from the work package and it is flagged as one.** If the
+founder wants the plum card after all, `scenes.ts` grows a third `tone` and one
+card changes; nothing else does.
+
+## D12. The cue sheet is derived from the picture, frame by frame.
+
+A key click because a character appeared; a tick because the slider stepped onto
+another baked variant; a pin drop because that pin landed. `src/cues.ts` walks
+each cut frame by frame, asks `at(screenplay, t)` what the product looks like,
+and emits a cue wherever something changed.
+
+Not taste — arithmetic. The same 35 seconds of screenplay run at **2.50x in the
+15 s cut and 0.46x in the 120 s one**, so a hand-placed timestamp that fitted one
+cut would be wrong in the other three by construction.
+
+Two judgements sit on top of the derivation and both are named constants:
+`MAX_KEYS_PER_SEC = 14` (at the 15 s warp the brief types at about forty
+characters a second, and forty transients a second is a buzz, not typing) and
+`MAX_SIMULTANEOUS = 4`.
+
+**The bug the density check found.** The change detectors were seeded from zero
+at the start of every beat, so the 30 s cut's render beat — which opens with all
+three review pins already down — read three pins landing and dropped three pin
+cues on top of the cut. Six pin drops in a film with three pins. They are now
+seeded from the state at the beat's own first frame.
+
+**Mutation evidence.** Setting the thinning gap to 0 reddens `verify:audio` with
+`[too-fast]` on all four cuts; renaming a cue's file in `sfx.json` reddens it
+with `[missing]`.
+
+## D13. One clock, and the beat grid is inside it.
+
+The scaffold resolved the cut **twice**: `Film.tsx` called `resolveCut(cut,
+BEAT_GRID)` while `TIMELINES` — which `beatAtFrame`, the honesty windows and now
+the cue sheets all read — was resolved with no grid. That is two clocks, and the
+state it produces is a picture that cuts on the bar and a sound sheet derived
+from boundaries a frame or two from where the picture actually cut.
+
+`timeline.ts` now imports the grid through `src/data/music-grid.ts` and everything
+reads `TIMELINES`. The grid is still derived from the delivered mp3 and never
+hand-written. Snapping moves few boundaries — the beds run about 2.36 s to the
+bar and the tolerance is 150 ms — and `verify:timeline` prints how many moved.
+
+## D14. The picture's margins are not the type's.
+
+`SAFE` is a rule about where a reader can read a **sentence**: on 9:16 the top
+250 px and the bottom 390 px belong to Reels, TikTok and Shorts. A *picture*
+behind the top of a share sheet is a picture with its corner covered, and
+mounting the replica inside the type-safe area cost it real size — which on this
+film is the difference between a room label a viewer can read and one they
+cannot.
+
+`layout.picture` is the looser box the replica mounts into: **7.9 % larger than
+the type-safe stage at 1920x1080, and 16 % larger at 1080x1920**. A `split`
+scene's picture half comes out of `picture` and its line half out of `stage`, so
+each gets the box its own rule is about — and the picture half is **clipped**,
+because the camera scales the whole layer and a 1.34x push spilled the drawing
+straight through the band the line sits in.
+
+## D15. A framing scale, because a push alone could not carry the money shot.
+
+`scenes.ts` declared `camera: { to: 1.03 ... 1.12 }` — the camera's MOVE over a
+beat — and nothing about where the camera STANDS. Mounted to fit and pushed by
+those numbers, the drawing came out 636 px tall in a 1080 px frame.
+
+`camera.frame` is the standing scale and `camera.to` is still the push; they
+multiply. Every value was read off a still, one shot at a time, and every one is
+clamped by `framePush` against the protected rectangles.
+
+The one scene that wanted to go the other way is `brief`. Framed at 1.22x on the
+composer card it produced a line of type floating in an empty ivory field: the
+product's own card is ivory on ivory with a 1.3:1 hairline — deliberately, its
+borders are dividers rather than controls — and at that magnification the
+hairline is gone and the card with it. There is nothing to fix upstream. The
+beat shows the **application** instead, inside the film's own rounded, shadowed
+window, and pushes in gently.
+
+## D16. The motion language, in five lines.
+
+1. **Cards reveal, they do not fade.** Each line rises out of its own clipped
+   band on `Easing.out(exp)` over 0.28 s, staggered a third of that, under a
+   plum rule that wipes in from its own edge.
+2. **Every shot arrives.** A replica beat enters on a 1.045 -> 1.0 scale-through
+   over 8 frames, folded into the push so the same clamp governs both — a
+   translate would have slid the honesty caption off the edge for four frames.
+3. **The ground is never still.** The product's own dot lattice drifts about two
+   pitches a minute, behind the picture and behind every card, so a held frame
+   of a held interface is alive without anything moving in it.
+4. **The chapter says its name.** A chip in the product's own vocabulary (the
+   replica's `CHAPTERS` labels) pops on the cut with a `pop` under it.
+5. **Colour arrives once and leaves.** One aubergine card on the money line, one
+   plum band across the end card on the `end-hit`. Everything else is ivory,
+   ink, and violet as a spot.
+
+**The entrance opacity has a floor, and the motion check is why.** Extracting
+every third frame of a five-second segment showed **one fully blank ivory frame
+at every cut** — the first frame of each beat, at opacity 0. On a strip that
+reads as a stutter; in motion it is a blink between two shots that are meant to
+cut hard. `ENTRY_OPACITY_FLOOR = 0.72`: a one-frame dip to 0.72 is an arrival, a
+one-frame dip to 0 is a dropped frame. The montage's pane entrance had the same
+shape and the same fix.
+
+## D17. What the three look-fix passes actually changed.
+
+Kept as a record because every one of these was invisible to a green gate.
+
+**Pass 1, the first six stills.** The drawing was 636 px tall in a 1080 px frame
+(→ D15, `camera.frame`). The camera magnified without aiming (→ D8). The film's
+lattice and the replica's met at the window edge as two dot grids of different
+sizes, so the ground moved inside the push. The brief beat was a line of type in
+an empty ivory field, so it became the whole application (→ D15).
+
+**Pass 2, 30 s in both aspects and 120 s landscape.** A 1.34x push spilled the
+picture through the band the split line sits in — "…and a written list of
+everything we couldn't get right." lay across the product's own command bar; the
+picture half is now clipped (→ D14). The montage was a head of three lines over
+a near-square plan fitted to what was left, 837 px wide in a 1920 px frame; it
+became two columns (→ D10). The portrait push lurched 35 % in the last
+half-second of the draw beat (→ D8, per-beat protection).
+
+**Pass 3, the contact sheets.** The brief beat was three consecutive pale,
+near-identical seconds — the flattest stretch in the 30 s cut — so its push went
+from 1.09 to 1.16 and now ends inside the card. The chapter chip read as a label
+ON the plan in 9:16, where the replica goes edge to edge; it got a shadow. And
+the 60 s and 120 s sheets tiled as a single frame on a black field, because
+ffmpeg's `image2` demuxer stops at the first gap in a `%03d` sequence and the
+long cuts sample every 2 and 4 seconds — the frames are now named by contiguous
+index with the second as a suffix.
+
+**And one trap paid for on the way.** A full sweep of forty-eight stills through
+ONE browser session dies part-way with `net::ERR_INSUFFICIENT_RESOURCES` on a
+`fonts.gstatic.com` fetch, surfacing as a bare `[NetworkError: A network error
+occurred.]` that takes the run down with it. `@remotion/google-fonts` fetches the
+two faces on every page. The sweep is run per composition instead — same shape as
+the memory trap, where the failure names one thing and the cause is the count.

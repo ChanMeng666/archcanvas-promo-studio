@@ -77,6 +77,16 @@ export const APP = {
 /** The dot lattice pitch, in product CSS pixels. Straight off the canvas. */
 export const CANVAS_DOT_PITCH = 32;
 
+/**
+ * How far the lattice behind the replica drifts, in film pixels per frame.
+ *
+ * About two pitches over a sixty-second cut. Slow enough that it reads as depth
+ * rather than as movement, fast enough that a held frame of a held interface is
+ * never quite still — which is the difference between "paused" and "alive" on a
+ * beat where nothing in the product is happening.
+ */
+export const CANVAS_DRIFT_PX = 0.22;
+
 /* ── brand accents ────────────────────────────────────────────────────────── */
 
 /**
@@ -220,4 +230,12 @@ export const MOTION = {
   tweakSec: 0.12,
   /** A card or a pill arriving. */
   enterSec: 0.24,
+  /**
+   * The end card's plum band crossing the frame. Nine frames at 30 fps.
+   *
+   * The `end-hit` lands at 55 % of it — on the band's leading edge reaching the
+   * middle, not on its trailing edge leaving, because the gesture a viewer hears
+   * is the one they are looking at.
+   */
+  wipeSec: 0.3,
 } as const;

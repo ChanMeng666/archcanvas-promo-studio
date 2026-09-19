@@ -61,6 +61,15 @@ export type Edit = {
   replicaTo?: number;
   /** Camera push over the beat, as an end/start scale multiplier. */
   push?: number;
+  /**
+   * The standing scale this beat frames at, before the push. Omitted, the
+   * scene's own `camera.frame` applies; `1` is the wide shot.
+   *
+   * A beat names this only to differ from its scene — the 120 s cut's second
+   * half of the edit chapter sits closer than its first, because by then the
+   * viewer knows where to look.
+   */
+  frame?: number;
   /** Why this beat is cut the way it is, when it is not obvious. */
   why?: string;
 };
@@ -238,8 +247,11 @@ const CUT_120: readonly Edit[] = [
   { scene: "storey", sec: 8.0, replicaFrom: 28, replicaTo: 29.8, push: 1.05 },
   { scene: "render", sec: 8.0, replicaFrom: 29.8, replicaTo: 31.5, push: 1.05 },
   { scene: "export", sec: 8.0, replicaFrom: 31.5, replicaTo: 35, push: 1.08 },
-  { scene: "second-brief", sec: 7.0, replicaFrom: 0, replicaTo: 5.5, push: 1.04, why: "Same composer, different words." },
-  { scene: "second-brief", sec: 9.0, replicaFrom: 5.5, replicaTo: 13, push: 1.08, why: "Same seven chapters, a different plan drawing itself." },
+  // ⚠ These two windows are PLAN INDICES into the montage, not screenplay
+  // seconds — see `scenes.ts` § second-brief. Two plans in seven seconds, then
+  // two in nine.
+  { scene: "second-brief", sec: 7.0, replicaFrom: 0, replicaTo: 2, push: 1, why: "A family house and a courtyard flat, each under its own brief." },
+  { scene: "second-brief", sec: 9.0, replicaFrom: 2, replicaTo: 4, push: 1, why: "A clinic and a bedsit — a different programme and a different size." },
   { scene: "claim-what", sec: 2.2 },
   { scene: "price", sec: 2.2 },
   { scene: "endcard", sec: 4.2 },
@@ -256,34 +268,12 @@ export const CUTS: Readonly<Record<CutId, readonly Edit[]>> = {
 /* ── the honesty caption's own numbers ────────────────────────────────────── */
 
 /**
- * The replica's own caption beat, in SCREENPLAY seconds, reduced to the window
- * where it is actually readable.
- *
- * The beat is `at: 8.0, dur: 4.5` in the replica's screenplay, and `at.ts`
- * envelopes it — fading in over the first 10% and out over the last 14%. So the
- * sentence is fully opaque from 8.0 + 0.45 to 12.5 − 0.63, and that core is
- * what the three-second floor is measured against. Measuring the envelope's
- * tails as "on screen" would be the film marking its own homework.
- *
- * ⚠ These four numbers are COPIES of the replica's beat table, which is not
- * synced yet. **WP-9: re-derive them from the synced `screenplay.ts` and delete
- * the literals.** `verify:timeline` prints them on every run so the copy cannot
- * go stale unseen.
+ * ⚠ These were four literals copied out of a screenplay that had not been synced
+ * yet. They are now DERIVED from the synced one — `honesty.ts` finds the caption
+ * beat by its action kind and reads the envelope `at.ts` actually applies. Move
+ * the beat upstream and every cut's floor moves with it.
  */
-export const REPLICA_CAPTION = {
-  beatAt: 8.0,
-  beatDur: 4.5,
-  fadeInFraction: 0.1,
-  fadeOutFraction: 0.14,
-} as const;
-
-/** The readable window, derived. */
-export const REPLICA_CAPTION_WINDOW = {
-  from: REPLICA_CAPTION.beatAt + REPLICA_CAPTION.beatDur * REPLICA_CAPTION.fadeInFraction,
-  to:
-    REPLICA_CAPTION.beatAt +
-    REPLICA_CAPTION.beatDur * (1 - REPLICA_CAPTION.fadeOutFraction),
-} as const;
+export { REPLICA_CAPTION, REPLICA_CAPTION_WINDOW } from "./honesty";
 
 /**
  * The floor, in FILM seconds, in every one of the eight masters.

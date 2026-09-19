@@ -23,13 +23,9 @@
  */
 
 import { CUT_IDS, CUT_SECONDS, FPS, type CutId } from "./layout-core";
-import {
-  CUTS,
-  HONESTY_MIN_SEC,
-  HONESTY_OVERLAY_SEC,
-  REPLICA_CAPTION_WINDOW,
-  type Edit,
-} from "./cuts";
+import { CUTS, HONESTY_MIN_SEC, HONESTY_OVERLAY_SEC, type Edit } from "./cuts";
+import { gridFor } from "./data/music-grid";
+import { REPLICA_CAPTION_WINDOW } from "./honesty";
 import { CARD_SEC, MAX_STATIC_UI_SEC, SCENES, hasReplica, type SceneId } from "./scenes";
 
 export { FPS };
@@ -79,6 +75,19 @@ export const ramp = (v: number, a: number, b: number, from: number, to: number):
 
 /** Identical to Remotion's `Easing.out(Easing.cubic)`, inlined to stay React-free. */
 export const easeOutCubic = (t: number): number => 1 - Math.pow(1 - clamp01(t), 3);
+
+/**
+ * Identical to Remotion's `Easing.out(Easing.exp)`.
+ *
+ * Steeper off the mark than `outCubic` and almost arrived at a third of the way
+ * through. It is what a line reveal wants — the eye reads "it moved" and then
+ * reads the word — where a push-in wants the gentler cubic, because a camera
+ * that snaps is a camera a viewer notices.
+ */
+export const easeOutExpo = (t: number): number => {
+  const x = clamp01(t);
+  return x >= 1 ? 1 : 1 - Math.pow(2, -10 * x);
+};
 
 /** Identical to Remotion's `Easing.inOut(Easing.cubic)`. */
 export const easeInOutCubic = (t: number): number => {
@@ -157,6 +166,8 @@ export interface ResolvedBeat {
   replicaTo?: number;
   /** Camera push over the beat, end/start scale. 1 holds. */
   push: number;
+  /** The standing scale the shot frames at, before the push. 1 is the wide shot. */
+  frame: number;
   /**
    * How fast the replica's clock runs during this beat. 1 is real time, >1 is
    * compressed. Null on a card.
@@ -273,6 +284,7 @@ export const resolveCut = (cut: CutId, grid?: BeatGrid | null): ResolvedCut => {
       replicaFrom: win?.from,
       replicaTo: win?.to,
       push: edit.push ?? scene.camera?.to ?? 1,
+      frame: edit.frame ?? scene.camera?.frame ?? 1,
       replicaRate: win && durationSec > 0 ? (win.to - win.from) / durationSec : null,
     };
   });
@@ -286,9 +298,17 @@ export const resolveCut = (cut: CutId, grid?: BeatGrid | null): ResolvedCut => {
 };
 
 const built = {} as Record<CutId, ResolvedCut>;
-for (const id of CUT_IDS) built[id] = resolveCut(id, null);
+for (const id of CUT_IDS) built[id] = resolveCut(id, gridFor(id));
 
-/** The four derived edits, keyed by cut, with no beat grid applied. */
+/**
+ * The four derived edits, keyed by cut, WITH the music's bar grid applied.
+ *
+ * ⚠ One clock. The scaffold snapped in `Film.tsx` and left this un-snapped,
+ * which would have left the cue sheet — derived from these beats — describing
+ * boundaries a frame or two from where the picture actually cut. Everything now
+ * reads this: the compositions' lengths, `beatAtFrame`, the cue sheets, the
+ * honesty windows and every gate.
+ */
 export const TIMELINES: Readonly<Record<CutId, ResolvedCut>> = built;
 
 /** How long a composition runs. `Root.tsx` reads only this. */
@@ -530,6 +550,7 @@ export const describe = (): string => {
           "replica".padStart(13),
           "rate".padStart(7),
           "push".padStart(6),
+          "frame".padStart(6),
         ].join(" "),
     );
     for (const b of t.beats) {
@@ -544,6 +565,7 @@ export const describe = (): string => {
             (b.replicaFrom === undefined ? "-" : `${b.replicaFrom}-${b.replicaTo}`).padStart(13),
             (b.replicaRate === null ? "-" : `${b.replicaRate.toFixed(2)}x`).padStart(7),
             (b.push === 1 ? "-" : b.push.toFixed(2)).padStart(6),
+            (b.frame === 1 ? "-" : b.frame.toFixed(2)).padStart(6),
           ].join(" "),
       );
     }

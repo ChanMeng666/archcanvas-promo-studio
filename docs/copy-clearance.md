@@ -181,3 +181,64 @@ the film a chapter verb and nothing else.
 - **`Tweak a number.`** — drafted for this film. Literal and ban-clear, but no
   growth-repo or product line says it. Approve it, replace it, or drop the
   `tweak` scene's split line (the scene still plays; it just plays silently).
+
+---
+
+## WP-9 — what the film actually puts on screen, and where it came from
+
+Three sources reach a viewer's eye, and only one of them is this repo's to write.
+
+**1. The film's own voice** — `src/copy.ts`. Eleven lines, every one with a row
+in the table above and a source beside it in the module. Nothing was added in
+WP-9; the roster the scaffold cleared is the roster that ships.
+
+**2. The product's own interface** — `src/replica/**`, synced one way. Scanned
+for banned terms by both `verify:copy` and `verify:replica`, never
+registration-gated: those strings are cleared upstream by
+`tests/marketingNoCode.test.ts` sitting next to them, and a clearance row here
+would be a second, drifting copy of that authority. Everything the studio says
+on screen is in that category — `Drafting…`, `Design my plan · 1 credit`,
+`Tweak parameters`, `AI-generated`, `Have AI fix`, the phase lines, the review
+findings (verbatim `lint()` output), the export menu's two groups.
+
+**3. The product's own SHOWCASE ROSTER** — new in WP-9, and the one thing worth
+spelling out. The 120 s cut's second brief draws four published showcase plans,
+and the only text over them is **each plan's own title and its own brief**, read
+out of `src/lib/showcase.generated.ts` at sync time. The film writes no sentence
+there. That is deliberate: "Different brief. Same flow." would have been the
+obvious line and nobody has cleared it, whereas four real briefs make the same
+point as evidence rather than as a claim.
+
+The four, for the record — these are the words the product was actually given:
+
+| Plan | On screen |
+|---|---|
+| `Three-bed Family House` | `A three-bedroom single-storey house. The road is on the south, the garden on the north — I want the bedrooms and living room on the garden and bifold doors out to it.` |
+| `Courtyard Apartment` | `A ground-floor flat built around a private courtyard — one bedroom, a bathroom off the hall, and living that opens onto the court.` |
+| `Neighbourhood Clinic` | `A small neighbourhood clinic: reception and waiting, three consulting rooms, a treatment room, staff room and an accessible toilet. Wheelchair users must get everywhere.` |
+| `Compact Bedsit` | `A tiny studio flat, about 35 square metres. I want a proper wardrobe and doors that don't eat the floor.` |
+
+A brief is typed, so it is on screen partially for most of its beat. The gate
+matches whole strings, so these rows clear the finished sentence; the partial
+states are prefixes of a cleared string and cannot introduce a word the finished
+one does not contain.
+
+**The chapter chips** carry `Brief` / `Draw` / `Edit` / `Tweak` / `Review` /
+`Render` / `Export` — the replica's own `CHAPTERS` labels, which are also the
+landing page's chapter tabs. Product vocabulary, not the film's.
+
+### The one line still open, and the switch that holds it
+
+`COPY_FLAGS.tweakLine` in `src/copy.ts`, default `true`.
+
+`Tweak a number.` is the single sentence in this film that no growth-repo or
+product line says. It is literal — a named parameter is dragged and the plan
+redraws — and it breaks no ban, but it is the film's own and the founder has not
+seen it.
+
+Set the flag to `false` and the tweak beat plays **exactly as long, framed
+exactly the same**, with the chapter chip ("Tweak") carrying it alone. No EDL
+changes, no cut re-sums, nothing to re-derive, and `verify:timeline` still shows
+both the 60 s and 120 s cuts summing to exactly their length. That is the whole
+reason it is a flag and not an edit: the answer either way is a one-character
+change, so the question can stay open without holding the film.

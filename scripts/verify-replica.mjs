@@ -205,8 +205,31 @@ const scanned = [];
 const CODE_EXT = new Set([".ts", ".tsx", ".js", ".jsx", ".css"]);
 const CLAIM_EXT = new Set([".ts", ".tsx", ".js", ".jsx", ".css", ".json", ".md"]);
 
+/**
+ * Two synced roots, and the claim token is read differently in each.
+ *
+ * `src/replica/**` is the PICTURE — the directory the product's own
+ * `tests/marketingNoCode.test.ts` scans recursively, where a claim in a comment
+ * is still a claim someone will paste onto a surface. Everything is read.
+ *
+ * `src/replica-data/**` is the CONTRACT: `studioDemo.types.ts`, a type
+ * declaration whose doc comments are an engineering argument about a compiler
+ * and name it a dozen times. Nothing in it reaches a screen, and the product
+ * deliberately does not cover it — so the comments are stripped and only what
+ * could actually become a string is read. The first version of this gate used
+ * `rel.startsWith("src/replica")`, which also matched `src/replica-data`, and
+ * failed five times on a file whose prose was correct. A gate that cannot tell
+ * a rule from its violation gets switched off.
+ */
+const scanModeFor = (rel) => {
+  if (rel.startsWith("src/replica/")) return "all";
+  if (rel.startsWith("src/replica-data/")) return "code";
+  return null;
+};
+
 for (const rel of rows.map((r) => r.path)) {
-  if (!rel.startsWith("src/replica")) continue;
+  const mode = scanModeFor(rel);
+  if (!mode) continue;
   const ext = path.extname(rel).toLowerCase();
   if (!CLAIM_EXT.has(ext)) continue;
   const abs = path.join(ROOT, rel);
@@ -223,11 +246,11 @@ for (const rel of rows.map((r) => r.path)) {
     });
   };
 
+  const stripped = CODE_EXT.has(ext) ? stripComments(raw) : raw;
   if (CODE_EXT.has(ext)) {
-    const code = stripComments(raw);
-    for (const { re, why } of CODE_TOKENS) report(re, why, code);
+    for (const { re, why } of CODE_TOKENS) report(re, why, stripped);
   }
-  for (const { re, why } of CLAIM_TOKENS) report(re, why, raw);
+  for (const { re, why } of CLAIM_TOKENS) report(re, why, mode === "all" ? raw : stripped);
 }
 
 // The same empty-set question, asked of check 3 rather than check 2: the lock
