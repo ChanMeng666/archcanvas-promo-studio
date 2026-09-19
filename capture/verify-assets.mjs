@@ -146,21 +146,50 @@ let audioFiles = 0;
 
 if (fs.existsSync(MUSIC) || fs.existsSync(SFX)) {
   const declared = [];
+  let versionNote = "";
   if (fs.existsSync(MUSIC)) {
+    /*
+     * EVERY version's beds, not only the active one.
+     *
+     * `music.json` keeps an entry per music take so that an older master stays
+     * renderable, and a version whose mp3s have been deleted is not one you can
+     * go back to. Checking only the active version would let that rot sit
+     * undetected until the day someone tried to re-cut version A — which is the
+     * day they least want to find out. The film ITSELF only ever plays the
+     * active one; `src/audio.ts` resolves that, and this gate does not repeat
+     * the resolution.
+     */
     const music = JSON.parse(fs.readFileSync(MUSIC, "utf8"));
-    for (const bed of Object.values(music.beds ?? {})) declared.push({ from: "music.json", file: bed.file });
+    const versions = music.versions ?? {};
+    if (!music.active) fail("audio", "src/data/music.json", "names no `active` version — run `npm run audio:beds`");
+    else if (!versions[music.active]) {
+      fail("audio", "src/data/music.json", `names "${music.active}" as active, which is not one of its versions: ${Object.keys(versions).join(", ") || "(none)"}`);
+    }
+    for (const [version, entry] of Object.entries(versions)) {
+      for (const bed of Object.values(entry.beds ?? {})) {
+        declared.push({ from: `music.json ${version}${version === music.active ? " (active)" : ""}`, file: bed.file });
+      }
+    }
+    const ids = Object.keys(versions);
+    versionNote = `music version ${music.active} of ${ids.length} (${ids.join(", ")}); `;
   } else fail("audio", "src/data/music.json", "missing — run `npm run audio:beds`");
   if (fs.existsSync(SFX)) {
     const sfx = JSON.parse(fs.readFileSync(SFX, "utf8"));
     for (const cue of sfx.cues ?? []) declared.push({ from: "sfx.json", file: cue.file });
   } else fail("audio", "src/data/sfx.json", "missing — run `npm run audio:sfx`");
 
+  let absent = 0;
   for (const { from, file } of declared) {
     if (!fs.existsSync(path.join(PUBLIC_DIR, file))) {
+      absent++;
       fail("missing", file, `declared by ${from}, but public/${file} does not exist — the film would play silence here`);
     }
   }
   audioFiles = declared.length;
+  // Say what is true, not what is usually true. The summary line used to read
+  // "all on disk" unconditionally — directly above its own list of the ones
+  // that were not.
+  const onDisk = absent === 0 ? "all on disk" : `${absent} NOT on disk`;
 
   // The real invariants, from the real module.
   try {
@@ -172,10 +201,10 @@ if (fs.existsSync(MUSIC) || fs.existsSync(SFX)) {
     });
     const mod = await import(`data:text/javascript;base64,${Buffer.from(built.outputFiles[0].text).toString("base64")}`);
     for (const problem of mod.audioProblems()) fail("audio", "src/audio.ts", problem);
-    audioNote = `${audioFiles} audio file(s) declared by the manifests, all on disk; src/audio.ts self-check ran`;
+    audioNote = `${versionNote}${audioFiles} audio file(s) declared by the manifests, ${onDisk}; src/audio.ts self-check ran`;
   } catch (err) {
     fail("audio", "src/audio.ts", `could not be evaluated: ${String(err.message).split("\n")[0]}`);
-    audioNote = `${audioFiles} audio file(s) declared; the self-check could NOT run`;
+    audioNote = `${versionNote}${audioFiles} audio file(s) declared; the self-check could NOT run`;
   }
 }
 

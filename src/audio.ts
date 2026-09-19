@@ -6,11 +6,13 @@
  *
  * Two manifests back it, and both are generated:
  *
- *   `src/data/music.json`  four beds, and where their downbeats are
+ *   `src/data/music.json`  one entry per music TAKE — four beds and their
+ *                          measured downbeats — and which one is `active`
  *   `src/data/sfx.json`    fourteen cues, synthesised offline with ffmpeg
  *
  * Neither is hand-edited. `npm run audio:all` rebuilds both from the take in
- * `audio/source/` and the recipes in `tools/synth-sfx.mjs`.
+ * `audio/source/` and the recipes in `tools/synth-sfx.mjs`;
+ * `node tools/use-music.mjs <version>` moves `active` without re-cutting.
  *
  * ── Two things worth knowing before you use this ────────────────────────────
  *
@@ -104,7 +106,46 @@ export type Music = {
   readonly beds: Readonly<Record<CutId, Bed>>;
 };
 
-export const music = musicJson as unknown as Music;
+/**
+ * `music.json` holds EVERY take the film has been cut to, and names one.
+ *
+ * The film's edit is snapped to the music — `timeline.ts` pulls every scene
+ * boundary onto the nearest downbeat of the cut's own bed — so a master is the
+ * picture and the take together. A second take is therefore a second set of
+ * masters, and keeping both means the first one has to stay renderable: its
+ * beds stay on disk under `public/audio/beds/<version>/` and its measured
+ * downbeats stay in this document.
+ *
+ * `active` is the switch, and it is deliberately the ONLY one. Every gate,
+ * every still and every render reads the film through this module, so there is
+ * no second place a version could be selected and disagree. `render.ps1` reads
+ * the same field and refuses to write a master into a folder that does not
+ * match it, which is what stops a master being filed under the wrong music.
+ *
+ * Move it with `node tools/use-music.mjs <version>`. See `docs/release.md`.
+ */
+export type MusicDoc = {
+  readonly active: string;
+  readonly versions: Readonly<Record<string, Music>>;
+};
+
+const doc = musicJson as unknown as MusicDoc;
+
+/** Which take the film is currently cut to. */
+export const MUSIC_VERSION: string = doc.active;
+
+export const musicVersions = (): readonly string[] => Object.keys(doc.versions ?? {});
+
+/**
+ * The active version's measurements.
+ *
+ * An unknown `active` degrades to an empty record rather than throwing: a module
+ * that throws on import takes the Remotion studio down with it, and a bad
+ * manifest should redden a gate, not the editor. `audioProblems()` reports it.
+ */
+export const music: Music =
+  doc.versions?.[doc.active] ??
+  ({ track: "", bpm: 0, barSec: 0, beatSec: 0, beds: {} } as unknown as Music);
 
 export const bedFor = (cut: CutId): Bed => {
   const bed = music.beds[cut];
@@ -256,6 +297,13 @@ export const audioProblems = (): readonly string[] => {
   }
   for (const row of sfxJson.cues as SfxCue[]) {
     if (!(SFX_IDS as readonly string[]).includes(row.id)) problems.push(`sfx.json has "${row.id}", which SFX_IDS does not list`);
+  }
+  if (!doc.versions?.[doc.active]) {
+    problems.push(
+      `music.json names "${doc.active}" as active, but its versions are ${musicVersions().join(", ") || "(none)"} — ` +
+      "run `node tools/use-music.mjs` to see what is built",
+    );
+    return problems;
   }
   for (const cut of CUT_IDS) {
     const bed = music.beds[cut];

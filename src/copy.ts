@@ -127,9 +127,9 @@ export const TWEAK_A_NUMBER: CopyLine = {
     portrait: ["Tweak a number."],
   },
   source:
-    "Drafted. Nearest authority: the product's own panel title 'Tweak parameters' (archcanvas/src/components/canvas/TweaksPanel.tsx, mirrored as TWEAKS_TITLE in the replica's strings.ts)",
-  cleared: "needs founder",
-  note: "DRAFTED — no growth-repo line says this. It is literal (a named parameter is dragged and the plan redraws) and breaks no ban, but it is the film's own sentence and the founder has not seen it.",
+    "Founder approval, 2026-09-20. Drafted for this film; nearest prior authority is the product's own panel title 'Tweak parameters' (archcanvas/src/components/canvas/TweaksPanel.tsx, mirrored as TWEAKS_TITLE in the replica's strings.ts)",
+  cleared: true,
+  note: "The film's own sentence, and the only one that was ever in that state. Literal — a named parameter is dragged and the plan redraws — and it breaks no ban. Approved by the founder on 2026-09-20; the approval IS the source, which is why the row names a date rather than a file.",
 };
 
 /**
@@ -248,16 +248,18 @@ export const HONESTY: CopyLine = {
 /* ── the one switch ───────────────────────────────────────────────────────── */
 
 /**
- * Lines that are on screen by a decision that is not final.
+ * Lines that are on screen by a decision that was not final.
  *
  * `tweakLine` is `Tweak a number.` — the single sentence in this film that no
- * growth-repo or product line says. It is literal and it breaks no ban, but it
- * is the film's own, and the founder has not seen it. Flip this to `false` and
- * the tweak beat plays exactly as long, framed exactly the same, with the
- * chapter chip ("Tweak") carrying the beat alone: no EDL changes, no cut
- * re-sums, nothing to re-derive. That is the whole point of it being a flag
- * rather than an edit — an answer either way is a one-character change, so the
- * question can stay open without holding the film.
+ * growth-repo or product line says. **The founder approved it on 2026-09-20**,
+ * so it is cleared copy now and the flag stays `true`; `NEEDS_FOUNDER` is empty
+ * for the first time.
+ *
+ * The switch stays, because retiring it would be deleting the cheap answer to a
+ * question that could be asked again. Flip it to `false` and the tweak beat
+ * plays exactly as long, framed exactly the same, with the chapter chip
+ * ("Tweak") carrying the beat alone: no EDL changes, no cut re-sums, nothing to
+ * re-derive. An answer either way is a one-character change.
  */
 export const COPY_FLAGS = {
   tweakLine: true,

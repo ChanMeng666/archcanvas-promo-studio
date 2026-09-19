@@ -17,6 +17,16 @@ out/*
 !out/*.srt
 !out/*.vtt
 
+# The masters are filed by music version -- out/masters/<version>/ -- because
+# the edit is snapped to the take and two takes are two sets of eight. The mp4s
+# and the review copies stay out of git; the MANIFEST.json beside them does NOT.
+# It is small, it is the record of what was actually produced (sha256, bytes,
+# duration, loudness, the commit and the track), and a release asset with no
+# record in the repo is a file nobody can later prove anything about.
+!out/masters/
+out/masters/*/*
+!out/masters/*/MANIFEST.json
+
 # ── What IS tracked, and why it is the opposite of the sibling film ─────────
 #
 # `../archcanvas-promo-remotion` gitignores `public/` because everything in it

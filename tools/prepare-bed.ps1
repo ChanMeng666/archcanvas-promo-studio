@@ -67,8 +67,11 @@ try {
   $source = Join-Path $repo ($planData.source -replace '/', '\')
   if (-not (Test-Path $source)) { throw "the plan names a source that is not there: $source" }
 
-  $outDir = Join-Path $repo "public\audio"
-  New-Item -ItemType Directory -Force -Path $outDir | Out-Null
+  # The beds are versioned -- public\audio\beds\<version>\bed-15.mp3 -- so the
+  # directory comes out of the plan's own path rather than being a constant here.
+  # A second take must never be able to overwrite the first one's beds: an old
+  # master's scene boundaries are snapped to ITS take's downbeats, so re-cutting
+  # in place would make that master unreproducible. See docs\release.md.
   $tmpDir = Join-Path $env:TEMP "archcanvas-beds-$PID"
   New-Item -ItemType Directory -Force -Path $tmpDir | Out-Null
 
@@ -96,6 +99,7 @@ try {
 
   Write-Host ""
   Write-Host "  prepare-bed"
+  Write-Host ("    version    {0}" -f $planData.version)
   Write-Host ("    source     {0}" -f $planData.source)
   Write-Host ("               {0:N3}s · {1} LUFS · true peak {2} dBFS{3}" -f [double]$srcDur, $srcLufs, $srcPeak, $(if ($srcPeak -gt 0) { "   <- clipping as delivered" } else { "" }))
   Write-Host ("    plan       {0} BPM · bar {1}s · ending from {2}s · crossfade {3}s (equal-power)" -f $planData.bpm, $planData.barSec, $planData.endingStartSec, $planData.crossfadeSec)
@@ -112,6 +116,7 @@ try {
     # `file` in the plan is PUBLIC-relative, exactly as `src/data/sfx.json`'s is,
     # because that is the path Remotion's staticFile() takes.
     $out = Join-Path $repo ("public\\" + ($bed.file -replace '/', '\'))
+    New-Item -ItemType Directory -Force -Path (Split-Path -Parent $out) | Out-Null
     $bodyWav = Join-Path $tmpDir "body-$cut.wav"
     $endWav = Join-Path $tmpDir "end-$cut.wav"
     $joinWav = Join-Path $tmpDir "join-$cut.wav"
@@ -193,10 +198,10 @@ try {
     if (-not $KeepIntermediates) { Remove-Item $bodyWav, $endWav, $joinWav -Force -ErrorAction SilentlyContinue }
   }
 
-  Write-Host "    cut     file                  duration    delta      LUFS   true peak      size"
+  Write-Host "    cut     file                                              duration    delta      LUFS   true peak      size"
   foreach ($r in $results) {
     $flag = if ($r.Ok) { " " } else { "<- OUT OF TOLERANCE" }
-    Write-Host ("    {0,4}s   {1,-18}  {2,8:N3}s  {3,7:N3}s  {4,8:N2}  {5,8:N2} dBTP  {6,7:N1}KB {7}" -f `
+    Write-Host ("    {0,4}s   {1,-46}  {2,8:N3}s  {3,7:N3}s  {4,8:N2}  {5,8:N2} dBTP  {6,7:N1}KB {7}" -f `
         $r.Cut, $r.File, $r.Duration, $r.Delta, $r.Lufs, $r.TruePeak, $r.Size, $flag)
   }
   Write-Host ""

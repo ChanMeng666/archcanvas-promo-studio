@@ -83,7 +83,7 @@ Each line is registered separately because a line is the unit the gate checks.
 | Line | Break | Cut(s) | Source | Cleared? | Note |
 | --- | --- | --- | --- | --- | --- |
 | `Say the change.` | L+P | 60 · 120 | `archcanvas/src/components/landing/StudioSection.tsx` — the live section caption *"Select a room, say the change, watch the plan recompile"*, truncated to its middle clause | ✅ | A truncation of shipped copy, not a paraphrase. Describes the interaction on screen and claims nothing about the result. |
-| `Tweak a number.` | L+P | 60 · 120 | **Drafted.** Nearest authority: the product's own panel title *"Tweak parameters"* (`TweaksPanel.tsx`, mirrored as `TWEAKS_TITLE` in the replica's `strings.ts`) | ⚠️ **needs founder** | Literal — a named parameter is dragged and the plan redraws — and it breaks no ban. But no growth-repo line says it, so it is the film's own sentence and the founder has not seen it. **The only line in the film in this state.** |
+| `Tweak a number.` | L+P | 60 · 120 | **Founder approval, 2026-09-20.** Drafted for this film; nearest prior authority is the product's own panel title *"Tweak parameters"* (`TweaksPanel.tsx`, mirrored as `TWEAKS_TITLE` in the replica's `strings.ts`) | ✅ | Literal — a named parameter is dragged and the plan redraws — and it breaks no ban. No growth-repo line says it, so it is the film's own sentence: **the founder is the source, which is why this row names a date rather than a file.** It was the only line in the film ever in that state. |
 | `Every room reachable.` | L+P | 60 · 120 | `archcanvas/src/components/landing/CompileScrollBand.tsx` — `BAND_COPY.process`, *"Every room reachable, every area exact"*, verbatim, split into its own sentence | ✅ | **B11 clear by construction.** Reachability is a real modeled access graph — one of only three things this company may call measurement. |
 | `Every area exact.` | L+P | 60 · 120 | Same constant, second clause | ✅ | Exact areas are shoelace / πR² — the second of the three. The third, byte-identical determinism, is a developer-room claim and is not used. **Nothing here says the check BLOCKS anything (B12).** |
 | `…and a written list of` | L | 30 · 60 · 120 | `archcanvas-growth/strategy/positioning.md` §The three-layer ladder, Layer 2: *"Describe your home. Get a dimensioned floor plan — and a written list of everything we couldn't get right."* Verbatim tail | ✅ | The receipt frame — the only claim backed by shipped code (`SHIP_RESIDUAL`) that no competitor in the set makes. |
@@ -175,12 +175,15 @@ not have to lose an afternoon to it first.
 
 ## Open, for the founder
 
-One line. It is on screen in the 60 s and 120 s cuts only, and cutting it costs
-the film a chapter verb and nothing else.
+**Nothing. Closed 2026-09-20.**
 
-- **`Tweak a number.`** — drafted for this film. Literal and ban-clear, but no
-  growth-repo or product line says it. Approve it, replace it, or drop the
-  `tweak` scene's split line (the scene still plays; it just plays silently).
+One line was ever open — **`Tweak a number.`**, on screen in the 60 s and 120 s
+cuts — and the founder approved it on 2026-09-20. `COPY_FLAGS.tweakLine` stays
+`true` and `NEEDS_FOUNDER` in `src/copy.ts` is now empty.
+
+The switch itself stays. It costs one boolean, and it is the cheap answer if the
+question is ever reopened: set it to `false` and the tweak beat plays exactly as
+long, framed exactly the same, with the chapter chip carrying it alone.
 
 ---
 
@@ -227,18 +230,20 @@ one does not contain.
 `Render` / `Export` — the replica's own `CHAPTERS` labels, which are also the
 landing page's chapter tabs. Product vocabulary, not the film's.
 
-### The one line still open, and the switch that holds it
+### The one line that was open, and the switch that held it
 
-`COPY_FLAGS.tweakLine` in `src/copy.ts`, default `true`.
+`COPY_FLAGS.tweakLine` in `src/copy.ts`, `true`.
 
 `Tweak a number.` is the single sentence in this film that no growth-repo or
 product line says. It is literal — a named parameter is dragged and the plan
-redraws — and it breaks no ban, but it is the film's own and the founder has not
-seen it.
+redraws — and it breaks no ban, but it was the film's own and the founder had not
+seen it. **The founder approved it on 2026-09-20**, so the row above is cleared
+and the flag stays `true`.
 
-Set the flag to `false` and the tweak beat plays **exactly as long, framed
-exactly the same**, with the chapter chip ("Tweak") carrying it alone. No EDL
-changes, no cut re-sums, nothing to re-derive, and `verify:timeline` still shows
-both the 60 s and 120 s cuts summing to exactly their length. That is the whole
-reason it is a flag and not an edit: the answer either way is a one-character
-change, so the question can stay open without holding the film.
+The switch stays anyway. Set it to `false` and the tweak beat plays **exactly as
+long, framed exactly the same**, with the chapter chip ("Tweak") carrying it
+alone. No EDL changes, no cut re-sums, nothing to re-derive, and
+`verify:timeline` still shows both the 60 s and 120 s cuts summing to exactly
+their length. That was the whole reason it was a flag and not an edit — the
+answer either way is a one-character change — and it is the reason to keep it:
+the question can be reopened without holding the film.

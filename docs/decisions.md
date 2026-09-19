@@ -1120,3 +1120,87 @@ document `ArchLang` is how prose names a symbol.
 | `scanModeFor` returning `"all"` for `.md` | 3 `forbidden` hits on the synced doc's prose |
 | `quotable` reading backtick spans too | 2 of the 3 come back |
 | `findings` mapped field-by-field again | `level` vanishes from `DEMO.findings` and the L1 pins return |
+
+---
+
+# WP-11 — the render
+
+## D32. A master is the picture AND the take, so the music is versioned.
+
+The founder's direction was to render now on the placeholder bed and render
+again on the SUNO take when it lands, and to **keep both**. That sounds like a
+filing decision and is not one.
+
+The film's edit is snapped to the music: `timeline.ts` pulls every scene
+boundary onto the nearest downbeat of that cut's own bed, and `cues.ts` then
+derives every sound effect by walking the resulting cut frame by frame. A new
+take has its own measured downbeats, so **it moves the cut points** — correctly,
+automatically, and irreversibly as far as the old masters are concerned. Version
+A cannot be reproduced from version B's audio.
+
+Keeping both therefore means keeping both **renderable**, which is a stronger
+claim than keeping both files. Three things are versioned by one id
+(`A-confident-arrival`, letter plus the take's own slug, both derived):
+
+- **the beds** — `public/audio/beds/<version>/`, so a second take cannot
+  overwrite the first's. `prepare-bed.ps1` takes the directory out of the plan's
+  own path rather than holding a constant.
+- **the measurements** — `music.json` is now `{ active, versions }` and
+  `build-music.mjs` **merges**. An old version's downbeat list is the only
+  record of the grid its masters were cut against; replacing the file would
+  delete it while leaving the mp3s sitting there looking fine.
+- **the masters** — `out/masters/<version>/`.
+
+**There is exactly one switch, and `render.ps1` cannot be it.** `music.json`'s
+`active` field is read by `src/audio.ts`, and every gate, every still and every
+render reaches the film through that module. So `-MusicVersion` is an
+**assertion**: it is compared against `active` and the run stops if they
+disagree. Making it a switch would have created a second place the film decides
+which take it is cut to — the same two-clocks failure `music-grid.ts` already
+records, wearing a different hat — and the failure it produces is the nastiest
+kind: eight correct masters filed under the wrong music, which look exactly like
+deliverables. `node tools/use-music.mjs <version>` moves the one field, and
+refuses to move it to a version whose mp3s are not on disk.
+
+`verify:assets` now checks **every** version's beds rather than the active one's.
+A gate that only looked at what is in use would report green for months and then
+fail on the day someone went back to A, which is the day it is least useful.
+
+**Evidence that the relocation was a pure move, not a re-cut.** The four beds
+were regenerated through the new versioned pipeline and came out **byte-identical
+to the originals** — same sha256, same byte count — with all four downbeat lists,
+both loudness figures and both true-peak figures unchanged. So version A's
+masters are cut on precisely the boundaries the three look passes and the contact
+sheets were shot against; nothing in the picture moved to get the audio filed.
+
+**Mutation evidence.**
+
+| mutation | what reddens |
+|---|---|
+| `active` set to a version the document does not hold | 2 `audio` failures — one from the gate, one from `audioProblems()` in the real module |
+| the ACTIVE version's `bed-15.mp3` renamed away | 1 `missing`, naming the version it was declared by |
+| a second, NON-active version added whose beds do not exist | 4 `missing` — which is the "every version" claim, proven rather than asserted |
+
+One wording bug fell out of writing them: the summary line read
+`all on disk` unconditionally, directly above its own list of the files that
+were not. It now says `N NOT on disk`.
+
+Full procedure, both directions: `docs/release.md`.
+
+## D33. `Tweak a number.` is cleared. The flag stays.
+
+The one line in the film that no growth-repo or product line says, and the only
+one ever registered `needs founder`. **Approved by the founder on 2026-09-20**,
+so the clearance row names a date rather than a file — the approval *is* the
+source — and `NEEDS_FOUNDER` in `src/copy.ts` is empty for the first time.
+
+`COPY_FLAGS.tweakLine` stays `true` rather than being retired. It costs one
+boolean and it is the cheap answer if the question is ever reopened: the tweak
+beat plays exactly as long, framed exactly the same, with the chapter chip
+carrying it alone. Deleting a working lever because the question it answered has
+been answered once is how the next round ends up rebuilding it.
+
+Worth recording, because it nearly went unnoticed: `verify:copy --strict` was
+**already green** with the line pending. `--strict` is about `Placeholder`
+scaffolding; `NEEDS_FOUNDER` is reported, not enforced. The clearance was a
+founder decision that needed making, not a red gate that needed clearing.
