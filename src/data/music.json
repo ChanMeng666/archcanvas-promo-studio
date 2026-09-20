@@ -3,6 +3,14 @@
   "active": "B-daylight-forward",
   "versions": {
     "A-confident-arrival": {
+      "provenance": {
+        "source": "suno",
+        "tier": "paid",
+        "confirmedBy": "founder",
+        "confirmedOn": "2026-09-08",
+        "commercialUse": true,
+        "note": "Dated founder confirmation recorded in ../archcanvas-promo-remotion/docs/suno-prompt.md. Not a measurement: a SUNO export does not carry the account's plan."
+      },
       "track": "confident-arrival.mp3",
       "trackSourceDurationSec": 134.974,
       "bpm": 101.69,
@@ -168,6 +176,14 @@
       }
     },
     "B-daylight-forward": {
+      "provenance": {
+        "source": "suno",
+        "tier": "paid",
+        "confirmedBy": "founder",
+        "confirmedOn": "2026-09-20",
+        "commercialUse": true,
+        "note": "Confirmed by founder 2026-09-20 for a take created 2026-09-19T23:20:50Z. Not a measurement: a SUNO export does not carry the account's plan. If challenged, produce the SUNO billing record for 2026-09-19."
+      },
       "track": "daylight-forward.mp3",
       "trackSourceDurationSec": 133.534,
       "bpm": 127.66,
