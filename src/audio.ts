@@ -49,6 +49,24 @@ export const SFX_IDS = [
 
 export type SfxId = (typeof SFX_IDS)[number];
 
+/**
+ * Where a set's audio came from, and whether the film may ship it.
+ *
+ * `commercialUse` is the field that matters and it is decided **at generation
+ * time**, not here: ElevenLabs' free plan withholds commercial rights from
+ * anything created outside a paid subscription *before or after*, so upgrading
+ * later does not license what already exists. `tools/generate-sfx-elevenlabs.mjs`
+ * measures the tier before it generates and writes the answer beside the bytes.
+ * Nothing downstream re-decides it — `releaseBlockers()` only reads it.
+ */
+export type SfxProvenance = {
+  readonly source: "synth" | "elevenlabs";
+  readonly tier: string | null;
+  readonly generatedAt: string;
+  readonly commercialUse: boolean;
+  readonly reconstructed?: string;
+};
+
 export type SfxCue = {
   readonly id: string;
   readonly file: string;
@@ -60,27 +78,107 @@ export type SfxCue = {
   readonly sampleRate: number;
   readonly channels: number;
   readonly bytes: number;
-  readonly recipeHash: string;
+  /** Synth set only — a sha256 of the cue's ffmpeg filter graph. */
+  readonly recipeHash?: string;
+  /** Vendor sets only. */
+  readonly role?: string;
+  readonly concept?: string | null;
+  readonly peakAtSec?: number;
+  /**
+   * How to line this cue up with the picture.
+   *
+   * `"attack"` — `cue.at = action.at - alignOffsetSec`. A transient's audible
+   * moment is its first strong onset, which is not necessarily its file start.
+   * `"start"`  — `cue.at = action.at`. A texture has no single moment that "is"
+   * the sound; `draw-e`'s loudest sample is at 7.0s of a 7.8s file, and
+   * attack-aligning that would begin the drawing sound seven seconds early.
+   */
+  readonly alignBy?: "attack" | "start";
+  readonly alignOffsetSec?: number;
+  readonly centroidHz?: number;
+  readonly provenance?: SfxProvenance;
 };
 
-const SFX_BY_ID = new Map<string, SfxCue>((sfxJson.cues as SfxCue[]).map((c) => [c.id, c]));
+export type SfxSet = {
+  readonly generator: string;
+  readonly provenance: SfxProvenance;
+  /** Canonical film cue id -> this set's own cue id. */
+  readonly aliases: Readonly<Record<string, string>>;
+  readonly cues: readonly SfxCue[];
+};
+
+type SfxDoc = { readonly active: string; readonly sets: Readonly<Record<string, SfxSet>> };
+const sfxDoc = sfxJson as unknown as SfxDoc;
+
+export const SFX_SET_IDS: readonly string[] = Object.keys(sfxDoc.sets);
 
 /**
- * Look up a cue. Throws on an unknown id rather than returning undefined: a
- * missing cue is a silent hole in the master, and `staticFile` on a path that
- * does not exist fails SOFTLY in Remotion — you get a blank, not an error. The
+ * The set the film is cut with. **One switch**, in `src/data/sfx.json`, exactly
+ * as the music has one `active` — so there is no second place the film could
+ * decide which palette it is using. Change it with `node tools/use-sfx.mjs`.
+ */
+export const activeSfxSetId = (): string => sfxDoc.active;
+export const sfxSet = (id: string = sfxDoc.active): SfxSet => {
+  const set = sfxDoc.sets[id];
+  if (!set) throw new Error(`unknown sfx set "${id}" — known sets: ${SFX_SET_IDS.join(", ")}`);
+  return set;
+};
+
+const byIdFor = (setId: string) => new Map(sfxSet(setId).cues.map((c) => [c.id, c]));
+
+/**
+ * Look up a cue by its CANONICAL id, resolved through the active set's aliases.
+ *
+ * The alias hop is what lets a vendor set reduce fourteen cues to six roles
+ * without `src/cues.ts` knowing: the film asks for `pencil-line` and gets
+ * whichever file this set nominates for it.
+ *
+ * Throws on an unknown id rather than returning undefined. A missing cue is a
+ * silent hole in the master — `staticFile` on a path that does not exist fails
+ * SOFTLY in Remotion, so you get a blank region rather than an error, and the
  * only good time to find out is now.
  */
-export const sfx = (id: SfxId): SfxCue => {
-  const cue = SFX_BY_ID.get(id);
-  if (!cue) throw new Error(`unknown sfx id "${id}" — rebuild with \`npm run audio:sfx\``);
+export const sfx = (id: SfxId, setId: string = sfxDoc.active): SfxCue => {
+  const set = sfxSet(setId);
+  const resolved = set.aliases[id] ?? id;
+  const cue = byIdFor(setId).get(resolved);
+  if (!cue) {
+    throw new Error(
+      `sfx "${id}" resolves to "${resolved}" in set "${setId}", which has no such cue — ` +
+      `rebuild with \`npm run audio:sfx\` or fix the aliases in audio/sfx-sets/prompts.json`,
+    );
+  }
   return cue;
 };
 
 /** The public path a `staticFile` call takes. */
-export const sfxFile = (id: SfxId): string => sfx(id).file;
+export const sfxFile = (id: SfxId, setId: string = sfxDoc.active): string => sfx(id, setId).file;
 
-export const allSfx = (): readonly SfxCue[] => sfxJson.cues as SfxCue[];
+export const allSfx = (setId: string = sfxDoc.active): readonly SfxCue[] => sfxSet(setId).cues;
+
+/**
+ * Everything standing between the current configuration and a releasable
+ * master. Empty means the film may be rendered into `out/masters/`.
+ *
+ * `capture/verify-release.mjs` is the gate; this function is the rule, so the
+ * gate cannot drift from what the film actually reads.
+ */
+export const releaseBlockers = (setId: string = sfxDoc.active): readonly string[] => {
+  const problems: string[] = [];
+  const set = sfxSet(setId);
+  if (!set.provenance.commercialUse) {
+    problems.push(
+      `sfx set "${setId}" is not licensed for commercial use ` +
+      `(source ${set.provenance.source}, tier ${set.provenance.tier ?? "n/a"}) — it is an audition set`,
+    );
+  }
+  for (const cue of set.cues) {
+    if (cue.provenance && !cue.provenance.commercialUse) {
+      problems.push(`sfx "${cue.id}" in set "${setId}" carries commercialUse: false (tier ${cue.provenance.tier ?? "n/a"})`);
+    }
+  }
+  return problems;
+};
 
 /* ── music ──────────────────────────────────────────────────────────────────── */
 
@@ -373,15 +471,27 @@ export const duckGainAt = (
  */
 export const audioProblems = (): readonly string[] => {
   const problems: string[] = [];
+  const active = sfxSet();
   for (const id of SFX_IDS) {
-    const cue = SFX_BY_ID.get(id);
-    if (!cue) { problems.push(`sfx "${id}" is in SFX_IDS but not in sfx.json`); continue; }
+    let cue: SfxCue | null = null;
+    try { cue = sfx(id); } catch (err) { problems.push(String((err as Error).message)); continue; }
     if (cue.durationSec > 1.2) problems.push(`sfx "${id}" is ${cue.durationSec}s — the budget is 1.2s`);
     if (cue.peakDb > -3 + 0.05) problems.push(`sfx "${id}" peaks at ${cue.peakDb} dBFS — the ceiling is -3`);
     if (Math.abs(cue.dcOffset) > 0.001) problems.push(`sfx "${id}" has a DC offset of ${cue.dcOffset}`);
   }
-  for (const row of sfxJson.cues as SfxCue[]) {
-    if (!(SFX_IDS as readonly string[]).includes(row.id)) problems.push(`sfx.json has "${row.id}", which SFX_IDS does not list`);
+  /*
+   * A vendor set legitimately carries cues the film has no canonical id for —
+   * five competing `draw` concepts, a fourth typing variant — so an unmapped
+   * cue is only a problem in the set that IS the canonical vocabulary.
+   */
+  const mapped = new Set(Object.values(active.aliases));
+  for (const row of active.cues) {
+    if (active.provenance.source === "synth" && !(SFX_IDS as readonly string[]).includes(row.id)) {
+      problems.push(`the synth set has "${row.id}", which SFX_IDS does not list`);
+    }
+    if (active.provenance.source !== "synth" && !mapped.has(row.id) && !(SFX_IDS as readonly string[]).includes(row.id)) {
+      // Not fatal, and not reported: an audition set is meant to hold extras.
+    }
   }
   if (!doc.versions?.[doc.active]) {
     problems.push(

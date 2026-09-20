@@ -90,6 +90,28 @@ if ($MusicVersion -and $MusicVersion -ne $activeVersion) {
 }
 $MusicVersion = $activeVersion
 
+# ── The release gate ────────────────────────────────────────────────────────
+#
+# Masters may only be rendered from audio the film is allowed to publish, and
+# that is not something to remember: `elevenlabs-audition` was generated on a
+# free plan whose terms withhold commercial rights from anything created
+# outside a paid subscription -- before or after -- so upgrading later would not
+# license it. A quarantined set looks exactly like a releasable one to the
+# renderer: same manifest, same paths.
+#
+# `verify-release.mjs` reads `releaseBlockers()` out of `src/audio.ts`, so this
+# check and the film cannot disagree. It runs HERE, before a two-hour render,
+# rather than at ship time -- finding out afterwards costs the render.
+#
+# An audition render is still allowed; it just does not go in this folder.
+Write-Host ""
+& node (Join-Path $repo "capture\verify-release.mjs")
+if ($LASTEXITCODE -ne 0) {
+  Write-Host "Refusing to render masters. Audition previews belong in out/previews/AUDITION-not-for-release/." -ForegroundColor Red
+  Write-Host ""
+  exit 1
+}
+
 $outDir = Join-Path $repo "out\masters\$MusicVersion"
 $reviewDir = Join-Path $outDir "review"
 
