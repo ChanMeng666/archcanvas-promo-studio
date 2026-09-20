@@ -51,7 +51,7 @@ const load = async () => {
   const esbuild = createRequire(import.meta.url)("esbuild");
   const built = await esbuild.build({
     stdin: {
-      contents: `export { releaseBlockers, activeSfxSetId, sfxSet } from "./audio";`,
+      contents: `export { releaseBlockers, activeSfxSetId, sfxSet, auditionVersions, releasableVersions, outDirFor } from "./audio";`,
       resolveDir: SRC, sourcefile: "release-gate.ts", loader: "ts",
     },
     bundle: true, write: false, format: "esm", platform: "node", target: "node22", logLevel: "silent",
@@ -80,6 +80,35 @@ const musicNote = version?.provenance?.commercialUse === false
     : `music version "${music.active}": no commercialUse field — covered by the dated SUNO confirmation, not re-decided here`;
 if (version?.provenance?.commercialUse === false) blockers.push(musicNote);
 
+/*
+ * Version routing.
+ *
+ * A version is {music, edit, sfxSet}, and an AUDITION version is one whose
+ * sound set is not licensed for release. Those still render at full master
+ * quality — the founder judges them as finished films, and an audition that
+ * looks cheaper than the real thing is not an audition of the real thing — but
+ * they must never land in `out/masters/`.
+ *
+ * So the routing is checked here rather than trusted: every audition version
+ * must resolve to the quarantine folder, and every RELEASABLE version must name
+ * a sound set that is actually releasable. The second half is the one that
+ * catches the real mistake — adding a version that quietly points at the
+ * audition palette.
+ */
+const versionRows = [];
+for (const [id, v] of Object.entries(mod.auditionVersions())) {
+  const dir = mod.outDirFor(id).split("\\").join("/");
+  const ok = dir.startsWith("out/previews/AUDITION-not-for-release/");
+  versionRows.push({ id, kind: "audition", sfxSet: v.sfxSet, outDir: dir, ok });
+  if (!ok) blockers.push(`audition version "${id}" routes to ${dir}, outside the quarantine folder`);
+}
+for (const [id, v] of Object.entries(mod.releasableVersions())) {
+  const dir = mod.outDirFor(id).split("\\").join("/");
+  const setOk = mod.sfxSet(v.sfxSet).provenance?.commercialUse === true;
+  versionRows.push({ id, kind: "releasable", sfxSet: v.sfxSet, outDir: dir, ok: setOk });
+  if (!setOk) blockers.push(`releasable version "${id}" names sfx set "${v.sfxSet}", which is not licensed for commercial use`);
+}
+
 const summary = {
   activeSfxSet: setId,
   sfxSource: set.provenance?.source ?? null,
@@ -89,6 +118,7 @@ const summary = {
   musicNote,
   auditionDir: AUDITION_DIR.split(path.sep).join("/"),
   releasable: blockers.length === 0,
+  versions: versionRows,
   blockers,
 };
 
@@ -101,6 +131,9 @@ console.log(`\n  verify-release`);
 console.log(`    sfx set     ${setId} · source ${summary.sfxSource} · tier ${summary.sfxTier ?? "n/a"} · commercialUse ${summary.sfxCommercialUse}`);
 console.log(`    music       ${musicNote}`);
 console.log(`    cues        ${set.cues.length} checked for per-asset provenance`);
+for (const v of versionRows) {
+  console.log(`    ${v.kind === "audition" ? "audition  " : "releasable"}  ${v.id.padEnd(24)} sfx ${v.sfxSet.padEnd(20)} -> ${v.outDir}${v.ok ? "" : "   <- WRONG"}`);
+}
 
 if (!blockers.length) {
   if (EXPLAIN) console.log(`\n    every active audio asset is licensed for commercial use.`);

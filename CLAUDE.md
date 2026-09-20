@@ -16,6 +16,9 @@ camera move). What is inherited from the second is the engineering — the gates
 seconds-not-frames law, `useLayout()`, the trap list below. Read `docs/decisions.md` for
 what was deliberately not repeated.
 
+**Cutting a version, swapping the take, re-timing or reviewing a render?**
+`.claude/skills/promo-film/` is the loop, the constraints and the traps, gathered.
+
 ---
 
 ## The four laws

@@ -31,8 +31,11 @@ export type EditId = "A" | "B";
 export type SfxSetId = "synth" | "elevenlabs";
 
 export type VersionSpec = {
+  readonly music?: string;
   readonly edit: EditId;
   readonly sfxSet: SfxSetId;
+  readonly release?: string;
+  readonly outDir?: string;
   readonly note?: string;
 };
 
@@ -65,6 +68,15 @@ export const specFor = (id: string): VersionSpec => doc.versions?.[id] ?? { edit
 
 export const EDIT_ID: EditId = specFor(VERSION).edit;
 export const SFX_SET: SfxSetId = specFor(VERSION).sfxSet;
+
+/**
+ * Which MUSIC this version plays.
+ *
+ * Not the version ID: `B-daylight-forward+el` is the B take with a different
+ * sound palette, and `music.json` has no key of that name. The map says which
+ * bed to load, which is the point of having the map.
+ */
+export const MUSIC_ID: string = specFor(VERSION).music ?? VERSION;
 
 /** Everything a gate should be able to say about the version map. */
 export const versionProblems = (): readonly string[] => {
