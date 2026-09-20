@@ -198,12 +198,57 @@ export const measure = (wavAbs) => {
   return { lufs: num("I"), lra: num("LRA"), truePeakDb: num("Peak") };
 };
 
-/** Mix a cut, write it to a scratch WAV and measure it. */
+/**
+ * The AAC the master is delivered in, and why the gate now measures it.
+ *
+ * ⚠ The offline mix predicted -1.4 dBTP for `B-daylight-forward+el`'s 15 s cut
+ * and the rendered film measured **-1.0**, 0.027 dB under the ceiling. The mix
+ * was not wrong about the mix: a lossy encoder reconstructs a waveform that is
+ * close in the ear and not identical on the sample, and the difference shows up
+ * as inter-sample overshoot at exactly the transients a true-peak meter is
+ * about. The same gap is in D33's table — the 60 s cut predicted -2.4 and
+ * measured -1.2 — recorded there as "unmodelled headroom" and left alone.
+ *
+ * A prediction that is systematically optimistic about the one number with no
+ * margin left is worse than no prediction, so the gate stops predicting and
+ * encodes: same codec and bitrate `package-masters.ps1` delivers, measured
+ * after the encode. It costs one ffmpeg pass per cut.
+ *
+ * LUFS is still read off the float mix. Integrated loudness is a long-window
+ * average and the encode moves it by hundredths; true peak is the one the
+ * encoder changes.
+ */
+const AAC_BITRATE = "192k";
+
+const encodeAac = (wavAbs, outAbs) => {
+  ffmpeg(["-y", "-i", wavAbs, "-c:a", "aac", "-b:a", AAC_BITRATE, "-ar", String(SAMPLE_RATE), "-ac", String(CHANNELS), outAbs]);
+  return outAbs;
+};
+
+/** Mix a cut, write it to a scratch WAV, encode it, and measure both. */
 export const mixAndMeasure = async (cut, film, version) => {
   const mix = await mixCut(cut, { film, version });
-  const wav = path.join(os.tmpdir(), `archcanvas-mix-${version ?? "active"}-${cut}.wav`);
+  const base = path.join(os.tmpdir(), `archcanvas-mix-${version ?? "active"}-${cut}`);
+  const wav = `${base}.wav`;
+  const m4a = `${base}.m4a`;
   writeWav(mix.pcm, wav);
-  const m = measure(wav);
+  const float = measure(wav);
+  let encoded = { truePeakDb: NaN };
+  try {
+    encodeAac(wav, m4a);
+    encoded = measure(m4a);
+  } catch {
+    // An encoder that is not there is a gate that says so, not one that
+    // silently reports the float peak as if it were the delivered one.
+  }
   fs.rmSync(wav, { force: true });
-  return { ...mix, ...m, pcm: undefined };
+  fs.rmSync(m4a, { force: true });
+  return {
+    ...mix,
+    ...float,
+    /** The peak of the FLOAT mix, kept so the encode's cost can be read. */
+    floatPeakDb: float.truePeakDb,
+    truePeakDb: encoded.truePeakDb,
+    pcm: undefined,
+  };
 };

@@ -5,7 +5,6 @@
     "master": "Identical to a release master: H.264, crf 18, yuv420p, AAC 192k, -16 LUFS +/-0.5, true peak <= -1.0 dBTP. An audition that looks or sounds cheaper than the real thing is not an audition of the real thing.",
     "$loudnessNote": "verify:loudness must pass per version. Watch the first 64 ms: the 60s A master measured -1.2 dBTP there, where the bed's entry meets the opening cue. The opening cue's gain is the dial, not the bed's."
   },
-
   "versions": {
     "A-confident-arrival": {
       "music": "A-confident-arrival",
@@ -19,7 +18,10 @@
       "edit": "B",
       "sfxSet": "synth",
       "release": "master",
-      "note": "Re-arranged around the second take: brighter, faster, every major boundary on a measured downbeat."
+      "note": "Re-arranged around the second take: brighter, faster, every major boundary on a measured downbeat.",
+      "openingCueTrimDb": {
+        "120": -7
+      }
     },
     "A-confident-arrival+el": {
       "music": "A-confident-arrival",
@@ -37,7 +39,10 @@
       "release": "audition",
       "outDir": "out/previews/AUDITION-not-for-release/B-daylight-forward+el",
       "quality": "master",
-      "note": "The B edit with the ElevenLabs palette. Unblocked: edit B exists now, and this entry resolves through the same map as every other version."
+      "note": "The B edit with the ElevenLabs palette. Unblocked: edit B exists now, and this entry resolves through the same map as every other version.",
+      "openingCueTrimDb": {
+        "15": -8
+      }
     }
   }
 }
