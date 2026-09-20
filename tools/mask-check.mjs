@@ -117,7 +117,7 @@ const bandLevels = (x, from = 0, to = Infinity) => {
 };
 
 const music = JSON.parse(fs.readFileSync(path.join(ROOT, "src", "data", "music.json"), "utf8"));
-const bedRel = music.versions[val("--music") ?? music.active].beds["30"].file;
+const bedRel = music.versions[val("--music") ?? music.active].beds[val("--cut") ?? "30"].file;
 const bed = decode(path.join(ROOT, "public", bedRel));
 
 const sfxDoc = JSON.parse(fs.readFileSync(path.join(ROOT, "src", "data", "sfx.json"), "utf8"));

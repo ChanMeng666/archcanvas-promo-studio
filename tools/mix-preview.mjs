@@ -63,7 +63,40 @@ const outPng = path.join(OUT_DIR, `draw-${MUSIC}-${CUT}s.png`);
  * seam, and letting it run past the beat would play a drawing sound over a
  * drawing that has stopped.
  */
-const drawLen = Math.min(audio.sfx ? Number.MAX_SAFE_INTEGER : Infinity, drawTo - drawFrom);
+const drawLen = drawTo - drawFrom;
+
+/*
+ * The base take is shorter than the beat on three of the four cuts, so it
+ * loops. `aloop` repeats the raw samples and would put a hard edge at every
+ * seam; instead the file is laid down N times with an equal-power crossfade
+ * between copies, which is what the role manifest's `loop.crossfadeSec` is for.
+ *
+ * N is derived from the beat, not typed: each extra copy adds (len - crossfade)
+ * seconds, and the result is trimmed back to the beat exactly.
+ */
+const roleDraw = audio.role("draw");
+const xfade = roleDraw.loop?.crossfadeSec ?? 0.25;
+
+const cueRow = audio.allSfx().find((c) => c.id === draw.cueId);
+const cueLen = cueRow.durationSec;
+const copies = Math.max(1, Math.ceil((drawLen - cueLen) / Math.max(0.01, cueLen - xfade)) + 1);
+
+
+const loopInputs = [];
+const loopParts = [];
+for (let i = 0; i < copies; i++) loopInputs.push("-i", drawPath);
+if (copies === 1) {
+  loopParts.push(`[1:a]aformat=sample_rates=48000:channel_layouts=stereo[loop]`);
+} else {
+  for (let i = 0; i < copies; i++) loopParts.push(`[${i + 1}:a]aformat=sample_rates=48000:channel_layouts=stereo[c${i}]`);
+  let prev = "c0";
+  for (let i = 1; i < copies; i++) {
+    const tag = i === copies - 1 ? "loop" : `x${i}`;
+    loopParts.push(`[${prev}][c${i}]acrossfade=d=${xfade}:c1=qsin:c2=qsin[${tag}]`);
+    prev = tag;
+  }
+}
+
 const drawChain = [
   `volume=${draw.gainDb}dB`,
   draw.eq,
@@ -74,10 +107,11 @@ const drawChain = [
 
 const r = spawnSync("ffmpeg", [
   "-hide_banner", "-nostdin", "-y", "-v", "error",
-  "-i", bedPath, "-i", drawPath,
+  "-i", bedPath, ...loopInputs,
   "-filter_complex",
     `[0:a]aformat=sample_rates=48000:channel_layouts=stereo[bed];` +
-    `[1:a]aformat=sample_rates=48000:channel_layouts=stereo,${drawChain}[draw];` +
+    loopParts.join(";") + `;` +
+    `[loop]${drawChain}[draw];` +
     `[bed][draw]amix=inputs=2:normalize=0:duration=first,alimiter=limit=0.95[a]`,
   "-map", "[a]", "-ar", "48000", "-ac", "2", "-c:a", "pcm_s16le", outWav,
 ], { encoding: "utf8" });
@@ -109,6 +143,7 @@ const mixL = loud(outWav);
 console.log(`\n  mix-preview · ${MUSIC} · ${CUT}s cut`);
 console.log(`    draw beat    ${drawFrom.toFixed(2)}s -> ${drawTo.toFixed(2)}s (${(drawTo - drawFrom).toFixed(2)}s)`);
 console.log(`    draw cue     ${draw.cueId} · ${draw.gainDb} dB${draw.eq ? ` · ${draw.eq}` : ""}`);
+console.log(`    loop         ${cueLen.toFixed(2)}s source x${copies} @ ${xfade}s equal-power crossfade -> ${drawLen.toFixed(2)}s beat`);
 console.log(`    bed          ${bed.file} · ${bed.lufs} LUFS`);
 console.log(`    mix          ${mixL.lufs} LUFS · true peak ${mixL.tp} dBTP`);
 console.log(`    wav          ${outWav}`);

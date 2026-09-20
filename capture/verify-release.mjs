@@ -28,6 +28,46 @@
  * gate that re-implements what it checks eventually disagrees with it, and a
  * gate that disagrees goes green on a broken film and red on a good one.
  *
+ * ── The bypass this gate once had, and the four mutations that hold it shut ──
+ *
+ * **It printed the violation and then passed.** When the version model landed,
+ * `activeSfxSetId()` became version-aware — FILM_VERSION picks the version, the
+ * version names the sound set — while every default parameter in `src/audio.ts`
+ * still read the legacy `sfxDoc.active` field. Under
+ * `FILM_VERSION=B-daylight-forward+el` this gate rendered:
+ *
+ *     sfx set   elevenlabs-audition · source elevenlabs · tier free · commercialUse false
+ *     ✓ masters may be rendered
+ *
+ * Green on the exact configuration it exists to refuse, with the contradiction
+ * one line above the tick. The lesson is not "check the field": it is that
+ * "what is the film playing?" must have exactly ONE answer, and a fallback left
+ * lying beside it will be read by something. `sfxDoc.active` is now only the
+ * fallback INSIDE `activeSfxSetId()`.
+ *
+ * Four mutations, each verified to turn this gate red, and each re-runnable:
+ *
+ *   1. `FILM_VERSION=B-daylight-forward+el` — a version whose set is unlicensed
+ *      -> REFUSED, exit 1.
+ *
+ *      ⚠ It is FILM_VERSION, not `tools/use-sfx.mjs`. That tool writes
+ *      `sfx.json`'s `active`, which the version model demoted to a fallback, so
+ *      running it no longer changes what the film plays and no longer moves
+ *      this gate. Writing the mutation as the tool would have documented a
+ *      test that passes for the wrong reason — which is how a mutation record
+ *      rots into decoration.
+ *   2. Hand-edit `commercialUse: true` into `src/data/sfx.json` -> PASSES. That
+ *      is correct and deliberate: the field is data-driven so a PAID
+ *      regeneration flips it automatically, and nothing can distinguish a
+ *      hand-edit from a legitimate change. **This gate stops accidents, not
+ *      decisions**, and the mutation is here so nobody mistakes it for more.
+ *   3. Point a `release: "master"` version at the audition set -> REFUSED.
+ *   4. Give an audition version an `outDir` outside the quarantine folder
+ *      -> REFUSED.
+ *
+ * Mutation 2 is the one worth re-reading. A gate that cannot be lied to does
+ * not exist; a gate that catches every accident does, and that is what this is.
+ *
  * Usage:
  *   node capture/verify-release.mjs            # 0 if masters may be rendered
  *   node capture/verify-release.mjs --json

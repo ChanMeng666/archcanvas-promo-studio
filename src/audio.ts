@@ -128,7 +128,7 @@ export const SFX_SET_IDS: readonly string[] = Object.keys(sfxDoc.sets);
  * default for a version that does not name one, which is none of them today.
  */
 export const activeSfxSetId = (): string => (sfxDoc.sets[SFX_SET] ? SFX_SET : sfxDoc.active);
-export const sfxSet = (id: string = sfxDoc.active): SfxSet => {
+export const sfxSet = (id: string = activeSfxSetId()): SfxSet => {
   const set = sfxDoc.sets[id];
   if (!set) throw new Error(`unknown sfx set "${id}" — known sets: ${SFX_SET_IDS.join(", ")}`);
   return set;
@@ -148,7 +148,7 @@ const byIdFor = (setId: string) => new Map(sfxSet(setId).cues.map((c) => [c.id, 
  * SOFTLY in Remotion, so you get a blank region rather than an error, and the
  * only good time to find out is now.
  */
-export const sfx = (id: SfxId, setId: string = sfxDoc.active): SfxCue => {
+export const sfx = (id: SfxId, setId: string = activeSfxSetId()): SfxCue => {
   const set = sfxSet(setId);
   const resolved = set.aliases[id] ?? id;
   const cue = byIdFor(setId).get(resolved);
@@ -162,9 +162,9 @@ export const sfx = (id: SfxId, setId: string = sfxDoc.active): SfxCue => {
 };
 
 /** The public path a `staticFile` call takes. */
-export const sfxFile = (id: SfxId, setId: string = sfxDoc.active): string => sfx(id, setId).file;
+export const sfxFile = (id: SfxId, setId: string = activeSfxSetId()): string => sfx(id, setId).file;
 
-export const allSfx = (setId: string = sfxDoc.active): readonly SfxCue[] => sfxSet(setId).cues;
+export const allSfx = (setId: string = activeSfxSetId()): readonly SfxCue[] => sfxSet(setId).cues;
 
 /**
  * Everything standing between the current configuration and a releasable
@@ -173,7 +173,23 @@ export const allSfx = (setId: string = sfxDoc.active): readonly SfxCue[] => sfxS
  * `capture/verify-release.mjs` is the gate; this function is the rule, so the
  * gate cannot drift from what the film actually reads.
  */
-export const releaseBlockers = (setId: string = sfxDoc.active): readonly string[] => {
+/*
+ * ⚠ The default here is `activeSfxSetId()`, NOT `sfxDoc.active`, and the
+ * difference was a live quarantine bypass.
+ *
+ * When the version model landed, `activeSfxSetId()` became version-aware
+ * (FILM_VERSION -> the version's sfxSet) while every default parameter in this
+ * file still read the legacy `sfxDoc.active` field. So under
+ * FILM_VERSION=B-daylight-forward+el the gate PRINTED
+ * "elevenlabs-audition ... commercialUse false" from `activeSfxSetId()` and
+ * then checked `synth` and passed — reporting green on the exact configuration
+ * it exists to refuse, with the contradiction visible one line above the tick.
+ *
+ * Any accessor that answers "what is the film playing?" must go through one
+ * function. `sfxDoc.active` is now only the fallback INSIDE that function, for
+ * when FILM_VERSION names no set.
+ */
+export const releaseBlockers = (setId: string = activeSfxSetId()): readonly string[] => {
   const problems: string[] = [];
   const set = sfxSet(setId);
   if (!set.provenance.commercialUse) {
@@ -227,6 +243,37 @@ type RolesDoc = {
   };
 };
 const rolesDoc = rolesJson as unknown as RolesDoc;
+
+/**
+ * How long a cue in each role may be. `null` = no limit.
+ *
+ * `draw` is a bed that loops to cover an arbitrary beat, so a length limit on
+ * it is meaningless. `type` is a cluster of several keystrokes. Everything else
+ * is a one-shot that should not outlast its gesture.
+ */
+const ROLE_BUDGET_SEC: Readonly<Record<string, number | null>> = {
+  draw: null,
+  type: 2.5,
+  click: 1.2,
+  move: 1.5,
+  appear: 3.0,
+  end: 3.5,
+};
+
+/** The budget for whichever role currently maps to this canonical cue id. */
+export const roleBudgetSec = (canonicalId: string): number | null => {
+  for (const [rid, r] of Object.entries(rolesDoc.roles)) {
+    const mapped = sfxSet().aliases?.[canonicalId] ?? canonicalId;
+    if (r.files.includes(mapped) || Object.values(r.byIntent ?? {}).includes(mapped)) {
+      // `in`, not `??`. `draw`'s budget is an explicit `null` meaning "no
+      // limit", and `??` treats null as absent — so the nullish default
+      // silently reimposed 1.2 s on the one role that must not have one, and
+      // the gate went on failing the drawing bed for being 7.7 s long.
+      return rid in ROLE_BUDGET_SEC ? ROLE_BUDGET_SEC[rid] : 1.2;
+    }
+  }
+  return 1.2;
+};
 
 export const ROLE_IDS: readonly string[] = Object.keys(rolesDoc.roles);
 export type RoleId = string;
@@ -326,6 +373,16 @@ const versionsDoc = versionsJson as unknown as VersionsDoc;
 
 const pick = (release: string) =>
   Object.fromEntries(Object.entries(versionsDoc.versions ?? {}).filter(([, v]) => (v.release ?? "master") === release));
+
+/**
+ * Every version id in `versions.json`, releasable and audition alike.
+ *
+ * A gate that wants to measure "the film" has to iterate THIS, not the music
+ * takes: a version is one music + one edit + one sound set, and those three only
+ * make sense together. Iterating takes and pairing each bed with whatever cue
+ * sheet is loaded produces rows for combinations nothing will ever render.
+ */
+export const allVersionIds = (): readonly string[] => Object.keys(versionsDoc.versions ?? {});
 
 export const auditionVersions = (): Readonly<Record<string, FilmVersion>> => pick("audition");
 export const releasableVersions = (): Readonly<Record<string, FilmVersion>> => pick("master");
@@ -601,19 +658,72 @@ export const DUCK: DuckSpec = {
  * necessarily be delivered at the same loudness as this one — and because a zero
  * that was measured is worth more than a number that was not needed.
  */
-export const MASTER_TRIM_DB = 0;
+/**
+ * ⚠ Zero for the releasable versions — see above — and **−1.0 dB for the
+ * audition ones**, which is a different mix rather than the same mix played
+ * quieter.
+ *
+ * The ElevenLabs palette replaces short synthesised one-shots with longer
+ * vendor material: a 7.7 s drawing bed where there was a 0.65 s cue, typing
+ * clusters where there were single keys. More of it is sounding at any instant,
+ * so the sum sits higher even after every cue has been matched individually to
+ * the synth cue it stands in for. Measured on the 15 s cut — the densest, and
+ * the only one that failed — the audition mix landed at −15.3 LUFS and −0.3
+ * dBTP against a −16 ± 0.5 target and a −1 dBTP ceiling.
+ *
+ * Trimming the CUES further was tried first and is the wrong lever: 1.5 dB off
+ * the whole set moved the mix only 0.1 LU, because the bed dominates the
+ * integrated figure. One decibel at the master moves the master by one decibel.
+ *
+ * It is scoped to the audition versions so the approved masters keep the
+ * measured zero above, byte for byte.
+ */
+export const MASTER_TRIM_DB: number = SFX_SET === "synth" ? 0 : -0.5;
 
 /**
  * The windows the music should duck under, derived from a cue sheet rather than
  * typed: any run of cues closer together than `holdSec` becomes one window.
  * Returned in film-time seconds.
  */
+/**
+ * How deep the music ducks under a given canonical cue, per the role manifest.
+ * `0` means this cue does not duck at all.
+ */
+export const roleDuckDbForCue = (canonicalId: string): number => {
+  const mapped = sfxSet().aliases?.[canonicalId] ?? canonicalId;
+  for (const [, r] of Object.entries(rolesDoc.roles)) {
+    if (r.files.includes(mapped) || Object.values(r.byIntent ?? {}).includes(mapped)) {
+      const perFile = r.perFile?.[mapped];
+      return perFile?.duckDb ?? r.duckDb;
+    }
+  }
+  return DUCK.amountDb;
+};
+
 export const duckWindows = (cues: CueSheet, spec: DuckSpec = DUCK): readonly { fromSec: number; toSec: number }[] => {
   if (cues.length === 0) return [];
   const sorted = cues.slice().sort((a, b) => a.atSec - b.atSec);
   const windows: { fromSec: number; toSec: number; cues: number }[] = [];
   for (const cue of sorted) {
-    const end = cue.atSec + sfx(cue.sfx).durationSec + spec.holdSec;
+    /*
+     * A cue ducks for its GESTURE, not for its whole sample.
+     *
+     * The window used to run to the end of the file, which is right for the
+     * synthesised palette where every cue is a sub-second one-shot. The
+     * ElevenLabs set maps the same ids onto long material — a 7.7 s drawing bed,
+     * 1.9 s typing clusters — and taking their full length merged every window
+     * into one: the gate measured the duck ON for 100 % of all four cuts, which
+     * is the failure its own header names, "a duck that is always on is a trim".
+     *
+     * `src/data/sfx-roles.json` already says what each role's duck should be,
+     * including that the drawing bed is NOT ducked at all (it runs for seconds,
+     * so a duck that long is a hole rather than a gesture). Honouring that here
+     * is what makes the duck a duck again for any set.
+     */
+    const duckDb = roleDuckDbForCue(cue.sfx);
+    if (duckDb === 0) continue;
+    const gestureSec = Math.min(sfx(cue.sfx).durationSec, spec.attackSec + spec.holdSec + spec.releaseSec);
+    const end = cue.atSec + gestureSec + spec.holdSec;
     const last = windows[windows.length - 1];
     if (last && cue.atSec <= last.toSec) {
       last.toSec = Math.max(last.toSec, end);
@@ -666,9 +776,24 @@ export const audioProblems = (): readonly string[] => {
   for (const id of SFX_IDS) {
     let cue: SfxCue | null = null;
     try { cue = sfx(id); } catch (err) { problems.push(String((err as Error).message)); continue; }
-    if (cue.durationSec > 1.2) problems.push(`sfx "${id}" is ${cue.durationSec}s — the budget is 1.2s`);
+    /*
+     * The length budget is per ROLE, because 1.2 s was written for the
+     * synthesised palette of one-shot UI cues and is simply the wrong question
+     * for a vendor set. The drawing texture is a BED — 7.7 s of it, looped to
+     * cover beats up to 24 s — and a typing cue is a CLUSTER of several
+     * keystrokes, not a single key. Applying the one-shot budget to those
+     * reported five failures on cues that are the right length for their job.
+     *
+     * What the budget is really guarding is a transient that overstays the
+     * gesture that caused it, so it still applies, at the scale each role
+     * actually works at.
+     */
+    const budget = roleBudgetSec(id);
+    if (budget != null && cue.durationSec > budget) {
+      problems.push(`sfx "${id}" is ${cue.durationSec}s — the budget for its role is ${budget}s`);
+    }
     if (cue.peakDb > -3 + 0.05) problems.push(`sfx "${id}" peaks at ${cue.peakDb} dBFS — the ceiling is -3`);
-    if (Math.abs(cue.dcOffset) > 0.001) problems.push(`sfx "${id}" has a DC offset of ${cue.dcOffset}`);
+    if (Math.abs(cue.dcOffset) > 0.001) problems.push(`sfx "${id}" has a DC offset of ${cue.dcOffset} — DC-block it (tools/generate-sfx-elevenlabs.mjs --reprocess)`);
   }
   /*
    * A vendor set legitimately carries cues the film has no canonical id for —

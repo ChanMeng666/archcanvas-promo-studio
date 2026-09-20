@@ -101,6 +101,53 @@ export async function loadFilm() {
   return cachedFilm;
 }
 
+const filmByVersion = new Map();
+
+/**
+ * The film as ONE named version sees it — its music, its edit and its sound set
+ * together.
+ *
+ * `src/version.ts` reads `FILM_VERSION` once, at module scope, so a single
+ * evaluation can only ever hold one version's edit and one version's cue sheet.
+ * That is why `verify-loudness` used to pair every bed with whichever sheet
+ * happened to be active and mark the rows "cue sheet is the active take's": not
+ * a choice, a limitation of loading the core once.
+ *
+ * It produced a gate that was red for a pairing no version describes — B's bed
+ * under A's sheet — and a red gate with a standing excuse is a gate that gets
+ * ignored the day it goes red for a real reason. So instead of explaining the
+ * impossible row, this removes it: set the variable, evaluate again, and measure
+ * each version as the thing it actually is.
+ *
+ * The bundle text is identical between versions (the value is read at runtime,
+ * not inlined), and a `data:` URL is content-addressed — so two versions would
+ * import the SAME cached module and silently share the first one's edit. The
+ * version marker in the banner comment is what makes the two URLs differ, and
+ * it is load-bearing rather than decorative.
+ */
+export async function loadFilmForVersion(versionId) {
+  if (filmByVersion.has(versionId)) return filmByVersion.get(versionId);
+  const previous = process.env.FILM_VERSION;
+  process.env.FILM_VERSION = versionId;
+  try {
+    const film = await evaluate(
+      // An EXPORT, not a comment: esbuild strips comments, so a comment marker
+      // left the bundle text byte-identical between versions, the data: URL
+      // identical with it, and the second version silently got the first one's
+      // cached module — reporting A's numbers under B's name, which is the very
+      // failure this function exists to stop.
+      `${FILM_ENTRY}
+export const LOADED_VERSION = ${JSON.stringify(versionId)};`,
+      `film-entry.${versionId}.ts`,
+    );
+    filmByVersion.set(versionId, film);
+    return film;
+  } finally {
+    if (previous === undefined) delete process.env.FILM_VERSION;
+    else process.env.FILM_VERSION = previous;
+  }
+}
+
 /* ── run directly ─────────────────────────────────────────────────────────── */
 
 const invokedDirectly =

@@ -88,9 +88,16 @@ export const cuesFor = (cut: CutId): CueSheet => {
     if (isMontage) {
       // Four plans, each drawing itself: a pencil line per plan, on its entrance.
       const slots = Math.max(1, Math.round((beat.replicaTo ?? 0) - (beat.replicaFrom ?? 0)));
+      // Same floor as the drawing beat: with a long bed, four montage plans
+      // would otherwise put four overlapping copies of it on one beat.
+      const montageGap = retriggerGapSec("pencil-line", 0);
+      let lastMontage = -Infinity;
       for (let i = 0; i < slots; i += 1) {
         const at = beat.startSec + (beat.durationSec / slots) * (i + 0.18);
-        out.push({ atSec: at, sfx: "pencil-line", gainDb: -8 });
+        if (at - lastMontage >= montageGap) {
+          out.push({ atSec: at, sfx: "pencil-line", gainDb: -8 });
+          lastMontage = at;
+        }
         out.push({ atSec: at + beat.durationSec / slots * 0.62, sfx: "paper-settle", gainDb: -13 });
       }
       continue;
@@ -137,7 +144,7 @@ export const cuesFor = (cut: CutId): CueSheet => {
 
       // the drawing, while any band is still running
       const drawing = s.plan.bands.some((b) => b > 0.001 && b < 0.999);
-      if (drawing && atSec - lastPencil >= PENCIL_GAP_SEC) {
+      if (drawing && atSec - lastPencil >= retriggerGapSec("pencil-line", PENCIL_GAP_SEC)) {
         out.push({ atSec, sfx: "pencil-line", gainDb: -9 });
         lastPencil = atSec;
       }
@@ -178,6 +185,23 @@ export const cuesFor = (cut: CutId): CueSheet => {
 const PENCIL_GAP_SEC = 0.42;
 
 /**
+ * The shortest interval at which a cue may be re-triggered.
+ *
+ * Every hand-tuned gap in this file was chosen against the synthesised palette,
+ * where the drawing cue is 0.65 s and a key press is 0.07 s. A vendor set maps
+ * the same ids onto much longer material — the ElevenLabs drawing texture is a
+ * 7.7 s BED, meant to run once under the whole beat and loop if the beat is
+ * longer — and re-firing that every 0.42 s stacked eighteen copies of it, which
+ * `verify:audio` reported as `too-dense`.
+ *
+ * So the authored gap is treated as a musical PREFERENCE and this is the
+ * physical floor: never re-trigger a sample before it has finished. It needs no
+ * per-set table and it is correct for any set, including ones not made yet.
+ */
+const retriggerGapSec = (id: SfxId, preferredSec: number): number =>
+  Math.max(preferredSec, sfx(id).durationSec * 0.9);
+
+/**
  * Thin a run of character times down to `MAX_KEYS_PER_SEC`, cycling the three
  * key variants.
  *
@@ -193,7 +217,24 @@ const PENCIL_GAP_SEC = 0.42;
  */
 const thin = (times: readonly number[]): Cue[] => {
   const keys: SfxId[] = ["key-1", "key-2", "key-3"];
-  const gap = 1 / MAX_KEYS_PER_SEC;
+  /*
+   * The gap is at least as long as the sample itself, which `MAX_KEYS_PER_SEC`
+   * alone does not guarantee.
+   *
+   * That constant was chosen against the synthesised set, whose key cues are
+   * ~70 ms, so any plausible typing rate leaves them well separated. The
+   * ElevenLabs set maps the same three ids onto typing CLUSTERS of 1.36–1.92 s —
+   * four to seven keystrokes already inside one file — and firing those at the
+   * old rate stacked five to seven of them, which `verify:audio` reported as
+   * 261 `too-dense` violations across the four cuts.
+   *
+   * Deriving the floor from the cue's own length fixes it for any set and needs
+   * no table: a sample should never be re-triggered before it has finished. The
+   * per-role figure in `src/data/sfx-roles.json` (`type.minGapSec`) is the
+   * musical preference; this is the physical floor.
+   */
+  const longest = Math.max(...keys.map((k) => sfx(k).durationSec));
+  const gap = Math.max(1 / MAX_KEYS_PER_SEC, longest * 0.9);
   const out: Cue[] = [];
   let last = -Infinity;
   for (const t of times) {

@@ -326,6 +326,66 @@ const remeasure = () => {
   console.log(`\n  rewrote src/data/sfx.json -> sets.${SET}\n`);
 };
 
+/**
+ * Rebuild every wav from the RAW vendor files already on disk — no API call, no
+ * credits.
+ *
+ * The raw `.pcm` responses are committed precisely so that the processing chain
+ * can change without buying the sound design again. Generation here is not
+ * reproducible (the API exposes no seed), so a regeneration would be a
+ * different take; a reprocess is the same take through a corrected chain. That
+ * distinction is what made adding the DC blocker free.
+ */
+const reprocess = () => {
+  const doc = JSON.parse(fs.readFileSync(SFX_JSON, "utf8"));
+  const set = doc.sets?.[SET];
+  if (!set) { console.error(`
+  src/data/sfx.json has no set "${SET}".
+`); process.exit(1); }
+  console.log(`
+  reprocess · set "${SET}" · no API call, no credits
+`);
+  for (const row of set.cues) {
+    const cue = bank.cues.find((c) => c.id === row.id);
+    if (!cue) { console.log(`    ${row.id.padEnd(12)} no prompt — skipped`); continue; }
+    const raw = [".pcm", ".mp3"].map((e) => path.join(SET_DIR, `${cue.id}${e}`)).find((f) => fs.existsSync(f));
+    if (!raw) { console.log(`    ${row.id.padEnd(12)} no raw file — skipped`); continue; }
+    const isPcm = raw.endsWith(".pcm");
+    const pcmRate = 48000;
+    const bytes = fs.statSync(raw).size;
+    let ffIn = ["-i", raw];
+    if (isPcm) {
+      const channels = Math.round(bytes / 2 / pcmRate / cue.durationSeconds);
+      ffIn = ["-f", "s16le", "-ar", String(pcmRate), "-ac", String(channels), "-i", raw];
+    }
+    const wide = path.join(PUBLIC_DIR, `.${cue.id}.raw.wav`);
+    ff(["-y", "-v", "error", ...ffIn, "-af", "highpass=f=20", "-ar", "48000", "-c:a", "pcm_s16le", wide], cue.id);
+    const w = readWav(wide);
+    const a = analyse(w);
+    const gainDb = (cue.norm === "texture"
+      ? Math.min(-3 - db(a.peak), -20 - db(a.rms))
+      : -3 - db(a.peak)) + (cue.levelTrimDb ?? 0) + (bank.setTrimDb ?? 0);
+    const trimStart = Math.max(0, a.startSec - 0.005);
+    const trimEnd = Math.min(a.endSec + 0.03, w.mono.length / w.rate, cue.maxSeconds ?? Infinity);
+    const dur = trimEnd - trimStart;
+    const outFile = path.join(PUBLIC_DIR, `${cue.id}.wav`);
+    ff(["-y", "-v", "error", "-i", wide, "-ss", trimStart.toFixed(4), "-t", dur.toFixed(4),
+      // A capped cue is cut mid-decay, so it needs a real fade rather than the
+      // 20 ms click-guard: without it the ring-out stops dead.
+      "-af", `volume=${gainDb.toFixed(3)}dB,afade=t=out:st=${Math.max(0, dur - (cue.maxSeconds ? 0.3 : 0.02)).toFixed(4)}:d=${cue.maxSeconds ? 0.3 : 0.02}:curve=cub`,
+      "-ar", "48000", "-c:a", "pcm_s16le", outFile], cue.id);
+    fs.unlinkSync(wide);
+    const f = readWav(outFile);
+    const fa = analyse(f);
+    console.log(`    ${row.id.padEnd(12)} ${Number(probe(outFile).format.duration).toFixed(3)}s  peak ${db(fa.peak).toFixed(1)} dB  dc ${fa.dc.toFixed(6)}`);
+  }
+  console.log(`
+  now run --remeasure to refresh the manifest.
+`);
+};
+
+if (argv.includes("--reprocess")) { reprocess(); process.exit(0); }
+
 if (argv.includes("--remeasure")) { remeasure(); process.exit(0); }
 
 const main = async () => {
@@ -420,7 +480,14 @@ const main = async () => {
 
     // 1. To the repo's SFX format: 48 kHz WAV. Channels are kept as delivered.
     const wide = path.join(PUBLIC_DIR, `.${cue.id}.raw.wav`);
-    ff(["-y", "-v", "error", ...ffIn, "-ar", "48000", "-c:a", "pcm_s16le", wide], cue.id);
+    /*
+     * The DC block runs HERE, before anything is measured, not in the final
+     * chain. Applied afterwards it shifts the waveform after the peak has
+     * already been measured, so the normalisation misses its target — pin-drop
+     * came out -2.8 dBFS against a -3.0 ceiling that way. Measure the signal
+     * you are going to ship.
+     */
+    ff(["-y", "-v", "error", ...ffIn, "-af", "highpass=f=20", "-ar", "48000", "-c:a", "pcm_s16le", wide], cue.id);
 
     // 2. Measure, then trim to where the sound actually is and normalise for the
     //    role. Transients get a peak ceiling; textures get an RMS target so a
@@ -433,16 +500,32 @@ const main = async () => {
       fs.unlinkSync(wide);
       continue;
     }
-    const gainDb = cue.norm === "texture"
+    /*
+     * `levelTrimDb` keeps a vendor cue no louder than the synthesised cue it
+     * replaces. Peak normalisation is the wrong equivalence across sets of
+     * different density — a long dense texture and a short transient at the
+     * same -3 dBFS peak are nowhere near the same loudness, and the cue sheet's
+     * gains were tuned against the synth levels.
+     */
+    const gainDb = (cue.norm === "texture"
       ? Math.min(-3 - db(a.peak), -20 - db(a.rms))  // RMS target, peak-capped
-      : -3 - db(a.peak);                            // peak target
+      : -3 - db(a.peak))                            // peak target
+      + (cue.levelTrimDb ?? 0) + (bank.setTrimDb ?? 0);
 
     const trimStart = Math.max(0, a.startSec - 0.005);
-    const trimEnd = Math.min(a.endSec + 0.03, raw.mono.length / raw.rate);
+    const trimEnd = Math.min(a.endSec + 0.03, raw.mono.length / raw.rate, cue.maxSeconds ?? Infinity);
     const outFile = path.join(PUBLIC_DIR, `${cue.id}.wav`);
     const dur = trimEnd - trimStart;
     ff([
       "-y", "-v", "error", "-i", wide, "-ss", trimStart.toFixed(4), "-t", dur.toFixed(4),
+      /*
+       * `highpass=f=20` is a DC blocker, and it is not optional for vendor
+       * audio. The generated cues arrived with DC offsets up to 0.007 —
+       * hundreds of times the synthesised set's ~1e-5. DC is inaudible on its
+       * own and costs real headroom: it shifts the whole waveform toward one
+       * rail, so the normalisation pass spends gain on an offset instead of on
+       * the sound, and a cue that starts or ends off-zero clicks.
+       */
       "-af", `volume=${gainDb.toFixed(3)}dB,afade=t=out:st=${Math.max(0, dur - 0.02).toFixed(4)}:d=0.02:curve=tri`,
       "-ar", "48000", "-c:a", "pcm_s16le", outFile,
     ], cue.id);
