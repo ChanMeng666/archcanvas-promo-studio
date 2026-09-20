@@ -66,13 +66,46 @@ export const VERSION_IDS: readonly string[] = Object.keys(doc.versions ?? {});
 /**
  * The active version's ID.
  *
- * `FILM_VERSION` first — that is the seam a render script and a gate both use
+ * The environment first — that is the seam a render script and a gate both use
  * to build a version that is not the active one — then the music manifest's own
  * `active`, which is what the founder's `use-music.mjs` flips.
+ *
+ * ── ⚠ Why the variable is named `REMOTION_FILM_VERSION` ────────────────────
+ *
+ * Because `FILM_VERSION` **never reached the picture**, and nothing said so.
+ *
+ * This module is executed in two completely different places. In Node —
+ * `capture/lib/load-core.mjs`, so every gate — `process.env` is the real
+ * environment and `FILM_VERSION` worked, which is why `verify:loudness` could
+ * measure four versions and `verify:bars` could hold edit A's lock. Inside the
+ * **Remotion bundle** it runs in a browser, where `process.env` is a small
+ * object the bundler injects, and Remotion injects only variables prefixed
+ * `REMOTION_` (plus whatever is in `.env`). So `process.env.FILM_VERSION` was
+ * `undefined` in every still, every contact sheet and every render, and all of
+ * them silently fell back to `music.json`'s `active`.
+ *
+ * Proven rather than reasoned: with `FILM_VERSION=A-confident-arrival`, a still
+ * of `Studio-15-Landscape-16x9` at 4.0 s came back as edit **B**'s aubergine
+ * claim card, which edit A does not have at that second.
+ *
+ * What that cost: the gates and the picture disagreed about which film was
+ * being built, in the direction where the gates are right and the deliverable
+ * is wrong. The `+el` audition versions were **unrenderable** — a run would
+ * have produced the `synth` mix and filed it in the audition folder as though
+ * it were the ElevenLabs one. That is D32's "eight correct masters filed under
+ * the wrong music", in a second place.
+ *
+ * `FILM_VERSION` is still read, so a shell, a script or a habit that sets it
+ * keeps working in Node; the prefixed one wins because it is the only one that
+ * works in both.
  */
+const fromEnv = (): string | undefined => {
+  if (typeof process === "undefined" || !process.env) return undefined;
+  return process.env.REMOTION_FILM_VERSION || process.env.FILM_VERSION || undefined;
+};
+
 export const VERSION: string =
-  (typeof process !== "undefined" ? process.env?.FILM_VERSION : undefined) ||
-  ((musicJson as unknown as { active?: string }).active ?? "A-confident-arrival");
+  fromEnv() || ((musicJson as unknown as { active?: string }).active ?? "A-confident-arrival");
 
 /**
  * What travels with a version.

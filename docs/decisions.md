@@ -1474,3 +1474,261 @@ the second silent-pass of this exact shape in this repo.
 Piecewise per-bar warps inside the draw beat, per-role ducking, the stills and
 the motion preview. The edit and the version model land first because everything
 else is measured against them.
+
+## D35. The sound was decided in a manifest almost nothing read.
+
+`src/data/sfx-roles.json` has held the sound design since the palette was
+chosen: six roles, a file and a level per role, per-music levels and EQ, a duck
+depth with an attack, a hold and a release for each, a loop crossfade for the
+drawing texture, and a rule for when the end cue should be suppressed. Every
+number in it was measured (`tools/rate-draw.mjs`, `tools/mask-check.mjs`) and
+argued in D12.
+
+**The film read one field of it.** `duckWindows` asked whether a cue's role
+ducked at all; everything else — `roleCue`, `endCueSuppressed`, every `perMusic`
+gain, the loop, the EQ — was reachable from a dev tool and from nothing the
+render mounts. `src/cues.ts` hard-coded an absolute gain per emitter and applied
+it to whichever sound set happened to be loaded.
+
+Three consequences, all measured rather than inferred:
+
+- **The ElevenLabs palette played at the synthesised palette's levels**, four to
+  six decibels hot across the board (a card pop at −5 where its own calibration
+  says −10, the end hit at −1 against −6), on material that is longer and
+  therefore sums higher. That is what `MASTER_TRIM_DB = −0.5` was compensating
+  for. With the roles wired the trim measures **zero again for all four
+  versions**, and the 15 s audition cut's true peak went from exactly −1.0 dBTP,
+  the gate's ceiling with no margin at all, to **−1.4**.
+- **Anchoring was never applied.** `alignBy`/`alignOffsetSec` are measured per
+  cue and stored; `FilmAudio` scheduled `cue.atSec` raw. The ElevenLabs typing
+  clusters ran **157 ms** behind the characters they were for.
+- **The per-music EQ reached nothing**, because Remotion's `<Audio>` takes a
+  gain and nothing else. See below.
+
+### A cue names a role, not a file
+
+`Cue` is now `{atSec, role, intent?, nth?, gainDb?, playSec?, fades}`. The sheet
+owns WHEN; the manifest owns WHAT and HOW LOUD, per sound set (`perSet` blocks)
+and per take. One sheet plays with `synth` and with `elevenlabs-audition`, and a
+`gainDb` in the sheet is a **trim on top of** the role's level rather than a
+replacement — which is how version A's approved per-gesture levels are carried
+over exactly, and how the chapter chip stays the same `appear`/`card` sound six
+decibels down.
+
+⚠ **A per-set block's material-calibrated fields do not fall through.** Both
+halves of that rule were live bugs within minutes of the merge existing:
+`perMusic` fell through and put A's 0.65 s synthesised stroke at the −14 dB
+measured for a 7.69 s ElevenLabs texture; `minGapSec` fell through and applied a
+1.3 s floor written for typing CLUSTERS to 70 ms single presses, taking the 15 s
+cut's typing from twelve cues to **one**. A block exists because the material is
+different, so a number measured on the other set's material is wrong here by
+construction.
+
+### The drawing is one texture, and in B it is punctuated by bars
+
+The money shot used to be sounded by re-firing a `pencil-line` every 0.42 s — a
+stutter with a gap in it for the synthesised palette, and for a vendor set whose
+drawing cue is a 7.69 s BED, one copy that ran 2.1 s past its own beat. Now the
+beat gets ONE base: anchored on the first stroke's film second, looped with an
+equal-power crossfade when the beat outlasts the sample, faded out at the beat's
+end. Edit B adds a light `tick` on each band's downbeat, placed from `warp.ts`'s
+own knots — **10 ticks across the four cuts, worst 0.00 frames from its knot**.
+Edit A gets the base only, because A has no band pins to punctuate.
+
+### Per-role ducking, and the one number that is new
+
+Each cue claims the music for its own role's depth and shape — typing −2.5 dB, a
+click −3, a chapter move −4, a confirmation and the end card −5, the drawing bed
+nothing at all — and `duckGainAt` takes the DEEPEST claim at every instant,
+never the sum.
+
+**D33's density rule survives**, because per-role depths do not fix what it was
+about: a shallower duck that is always on is still a trim. What is new is
+`SOLO_DUCK_DB`, the depth that ducks outside a dense passage. It was −4 for one
+measurement, which let `move` duck alone — and `move` fires on every beat
+boundary, five times in the 15 s cut, twenty in the 120 s. Coverage went
+**17 % → 31 %**, straight through the ceiling the gate exists to hold. At −5
+only a confirmation and the end card qualify and they fire once each. This is
+D33's finding arriving again wearing a per-role hat: **a cue that fires at every
+cut is not a solo event, whatever its depth says.**
+
+`endCueSuppressed` is wired for the first time. Four of the sixteen cuts drop
+their end cue because the card lands within 250 ms of the bed's own final hit.
+
+### The EQ had to be baked, because Remotion cannot filter audio
+
+Version B's 30 s draw window, `draw-b` at its −10 dB role gain, headroom against
+the bed (negative means the cue is **louder than the music**):
+
+| band | unshelved | with the manifest's EQ |
+|---|---|---|
+| 6300 Hz | −0.5 dB | +6.8 dB |
+| 8000 Hz | −0.4 dB | +9.3 dB |
+| 10000 Hz | −3.7 dB | +7.6 dB |
+
+Three of the bands the hats and shaker live in, on the money shot, in the one
+beat the whole edit is built around — and the reason the drawing role is *not*
+ducked at all is that its space was supposed to be carved exactly here.
+
+`tools/bake-eq.mjs` renders each recipe into real bytes once, measures the
+result the way the vendor cues were measured, registers it as a derived cue and
+writes the filename into the `perMusic` entry. `roleCue` plays the baked file
+and returns `eq: null` with it, so an offline mixer cannot shelve the same
+texture twice. Anchoring is **re-measured** on the baked file rather than copied
+— a shelf moves where the first sample within 12 dB of the peak is. Provenance
+is **inherited**: a file derived from audition material is audition material,
+and `verify:release` reads the same field it always did.
+
+---
+
+## D36. `FILM_VERSION` never reached the picture, and every still was of the wrong film.
+
+The version model (D34) turns on one environment variable. It worked everywhere
+it was tested and nowhere it mattered.
+
+`src/version.ts` is executed in two completely different places. In **Node** —
+every gate, through `capture/lib/load-core.mjs` — `process.env` is the real
+environment, so `FILM_VERSION` selected the version, which is why
+`verify:loudness` could measure four versions and `verify:bars` could hold edit
+A's lock. Inside the **Remotion bundle** the same module runs in a browser,
+where `process.env` is a small object the bundler injects — and Remotion injects
+only variables prefixed `REMOTION_`. So `process.env.FILM_VERSION` was
+`undefined` in every still, every contact sheet and every render, and all of
+them silently fell back to `music.json`'s `active`.
+
+**Proven, not reasoned.** With `FILM_VERSION=A-confident-arrival`, a still of
+`Studio-15-Landscape-16x9` at 4.0 s came back as edit **B**'s aubergine claim
+card. Edit A has no card at that second; it has the drafting sheet. After the
+fix, the same command at the same second returns the drafting sheet.
+
+What it cost, and why it is worse than a wrong still:
+
+- **The gates and the deliverable disagreed about which film was being built**,
+  in the direction where the gates are right and the artefact is wrong. Every
+  gate in this repo is a Node gate.
+- **The two `+el` versions were unrenderable.** A run would have produced the
+  `synth` mix and filed it in `out/previews/AUDITION-not-for-release/…+el/` as
+  though it were the ElevenLabs one. That is D32's "eight correct masters filed
+  under the wrong music", in a second place, and it is the nastier kind of
+  failure for the same reason: the output looks exactly like a deliverable.
+- **Every look pass ever run on this film was a look pass at `active`.** For
+  this round that is harmless — `B-daylight-forward` and `B-daylight-forward+el`
+  share a picture — and it would not have been harmless on the day someone shot
+  A's sheets while B was active.
+
+The fix is the prefix: `REMOTION_FILM_VERSION` wins, `FILM_VERSION` is still
+read so a Node-side habit keeps working, and `capture/stills.mjs` also passes it
+explicitly through `renderStill`'s `envVariables`, which is the supported seam
+and does not depend on the prefix at all.
+
+`verify:timeline` grew a TEXT tripwire on both halves. It is a text check for
+the same reason the frame-literal scan beside it is: the end-to-end proof needs
+a render, and a gate that needs a render is a gate nobody runs. The render-side
+recipe is in `docs/release.md`.
+
+| revert | what reddens |
+|---|---|
+| `version.ts` back to `FILM_VERSION` only | 1 `verify:timeline` |
+| `stills.mjs`'s `envVariables` removed | 1 `verify:timeline` |
+
+---
+
+## D37. What the look loop found, and what was left alone.
+
+Eight contact sheets (four cuts × two aspects, 210 frames), a beat-overlay strip
+for the 30 s cut, one 8 s motion preview with sound, and every image opened.
+
+**What is right.** The story reads with the sound off now that the claim card
+precedes the draw: hook → brief → drafting → *"Get a real, dimensioned floor
+plan."* → the plan drawing itself → edit → receipt → export → price → end card.
+The honesty caption runs three continuous seconds in the 15 s cut with no
+drafting sheet, uncropped and never doubled. The montage's four panes differ in
+ground colour, brief and plan proportion. Every one of the 30 s cut's eleven
+scene boundaries sits on a measured bar, visibly, on the strip. The "AI-generated"
+pill is large and whole on every rendering. No violet-family field is over 15 %.
+
+**Where the levels land.** Offline mix, `capture/lib/mix.mjs`:
+
+| version | 15 s | 30 s | 60 s | 120 s |
+|---|---|---|---|---|
+| `A-confident-arrival` | −15.5 / −3.4 / 15 % | −16.0 / −4.2 / 17 % | −16.2 / −2.4 / 13 % | −16.1 / −3.2 / 10 % |
+| `B-daylight-forward` | −16.3 / −2.0 / 23 % | −16.1 / −3.5 / 15 % | −16.2 / −3.3 / 12 % | −16.1 / −1.6 / 8 % |
+| `A-confident-arrival+el` | −15.5 / −4.2 / 5 % | −15.9 / −4.2 / 3 % | −16.1 / −3.1 / 1 % | −16.2 / −3.4 / 0 % |
+| `B-daylight-forward+el` | −16.5 / −1.4 / 16 % | −16.1 / −3.5 / 0 % | −16.2 / −4.1 / 2 % | −16.2 / −2.1 / 1 % |
+
+LUFS / dBTP / duck coverage. All sixteen inside −16 ± 0.5, all under −1.0 dBTP,
+all under the 30 % duck ceiling.
+
+⚠ **Two of those rows duck for 0 % of their runtime**, and that is reported
+rather than engineered away. The ElevenLabs palette is sparse — three typing
+cues in a 30 s cut where the synthesised palette fires thirty-eight — so no
+passage is dense, and on B's 30 s cut the end cue is suppressed as well, which
+removes the one solo event. Nothing is in the music's way there, so nothing
+moves it. Raising the coverage would mean loosening the density rule D33 was
+written to impose.
+
+### Three findings NOT fixed here, each with a still rather than an opinion
+
+All three are in the camera or the replica's own screenplay, which this round
+did not touch, and all three are in **both** editions — so each is a founder or
+an upstream question rather than a late change to an audio round.
+
+1. **The money shot opens on two overlapping sentences.** At the hand-over the
+   replica's drafting card is still ~60 % opaque and does not clear for about
+   0.4 s, so *"Sequence shortened — a design really takes two to three
+   minutes."* is printed over *"Saving your plan… 2m 16s"* and over the card's
+   own *"Designing, checking and reviewing your plan — usually 2–3 minutes."*
+   Both are the product's own elements, so no gate is wrong: `verify:honesty`
+   compares the film's band against the replica's caption, not the replica's
+   caption against the replica's card. It is on the first frames of the beat the
+   whole edit is built around, in **A as well as B**, because both start their
+   money shot at `DRAW_HANDOFF_SEC` — and `verify:bars` asserts that they do.
+   The stills pass never caught it because `stills.mjs` shoots the money shot at
+   45 % through the beat, two and a half seconds later.
+   Evidence: `D:\.claude-scratch\2026-09-20\edit-b-finish\preview\f04.png`
+   (9.30 s), `f05.png` (9.40 s), `f07.png` (9.60 s).
+2. **A word cut in half at the bottom of every 9:16 drawing beat.** The sheet's
+   own label reads `-storey Townhouse` — "Two" is off the left edge — at about
+   40 px, in all four vertical cuts. It sits inside the bottom 390 px that
+   Reels/TikTok/Shorts reserve for their own chrome, which is the band the
+   replica's `picture` box deliberately overruns, so again no gate is wrong. It
+   still reads as a mistake on a surface with no chrome, such as an embed.
+   Evidence: `out/stills/wp9/Studio-30-Vertical-9x16/ad-01-11.00s.png`.
+3. **The "AI-generated" pill lands in that same bottom band in 9:16.**
+   `verify:honesty` requires the pill's rectangle wholly inside the FRAME and it
+   is, comfortably and legibly. "Inside the frame" and "visible to a viewer of
+   the vertical master on the platform it is cut for" are not the same claim,
+   and the obligation the pill discharges (EU AI Act Art. 50) is about the
+   second one. Evidence:
+   `out/stills/wp9/Studio-60-Vertical-9x16/ad-01-46.00s.png`.
+
+### Mutation evidence for this round
+
+| mutation | what reddens |
+|---|---|
+| the draw base 2 frames off the first stroke | 4 `draw` |
+| the base allowed to outlast its beat | 4 `draw` |
+| band ticks 2 frames off their knots | 10 `band` |
+| ticks taken from `knots.slice(0, -1)` | 4 `band` + 1 `vacuous` |
+| anchoring dropped (`start = action`) | 4 `anchor` |
+| the synth set's draw file renamed | 1 `role`, while building `+el` |
+| `perMusic` allowed to fall through | 1 `fallthrough` |
+| `minGapSec` allowed to fall through | 1 `fallthrough` |
+| `SOLO_DUCK_DB` back to −4 | 2 `duck` + 1 `loudness` |
+| `MASTER_TRIM_DB` back to −0.5 on audition | 6 `loudness` |
+| a version naming a set `sfx.json` does not hold | 2 `version` |
+| `version.ts` back to an unprefixed `FILM_VERSION` | 1 `timeline` |
+
+The `perMusic` mutation run against **`verify:loudness` is green**, at the same
+−15.5 LUFS, because one cue five decibels down does not move an integrated
+figure the bed dominates. That is the whole argument for the `fallthrough`
+check, and it is why the manifest's belt-and-braces `perMusic: {}` and
+`minGapSec: 0` were deleted: **a second guard that makes the first untestable is
+not a second guard.**
+
+### Not done in this pass
+
+The three findings above. A full render of version B — nothing here has been
+heard in a master, only in the offline mix and in one 8 s motion preview. The
+preview was cut at `--scale=0.75` rather than the 0.667 that was asked for,
+because 1080 × 0.667 is 720.36 and Remotion refuses a non-integer height.

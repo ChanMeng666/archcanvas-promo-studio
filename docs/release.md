@@ -112,6 +112,81 @@ which say 127.66. The older tool has deliberately not been changed.
 
 ---
 
+## The four versions, and the one variable that selects them
+
+A version is `{music, edit, sfxSet}` (`src/data/versions.json`, `docs/decisions.md`
+D34). There are four:
+
+| version | music | edit | sound set | may ship | renders to |
+|---|---|---|---|---|---|
+| `A-confident-arrival` | A | A | `synth` | **yes** | `out/masters/A-confident-arrival/` |
+| `B-daylight-forward` | B | B | `synth` | **yes** | `out/masters/B-daylight-forward/` |
+| `A-confident-arrival+el` | A | A | `elevenlabs-audition` | **no** | `out/previews/AUDITION-not-for-release/A-confident-arrival+el/` |
+| `B-daylight-forward+el` | B | B | `elevenlabs-audition` | **no** | `out/previews/AUDITION-not-for-release/B-daylight-forward+el/` |
+
+The two `+el` versions render at **full master quality** — same codec, same
+loudness target — because the founder judges finished films, not drafts. What
+makes them auditions is the licence: the ElevenLabs set was generated on a free
+plan, which carries no commercial rights (`docs/audio-provenance.md` §4), so
+`outDirFor()` sends them somewhere else and `verify:release` refuses to let them
+into `out/masters/`. **The routing is a function of the licence, not of anyone
+remembering.**
+
+### ⚠ The variable is `REMOTION_FILM_VERSION`, and the prefix is load-bearing
+
+```powershell
+$env:REMOTION_FILM_VERSION = "B-daylight-forward+el"   # picture AND sound
+$env:FILM_VERSION          = "B-daylight-forward+el"   # for anything Node-only
+```
+
+Set **both**. `src/version.ts` runs in two places and they do not share an
+environment: in Node — every gate — `process.env` is the real one, and inside
+the Remotion bundle it is a small object the bundler injects, into which
+Remotion puts only `REMOTION_`-prefixed variables.
+
+This is not a style note. For the whole life of the version model the variable
+was unprefixed, so it selected the version for every gate and for **nothing that
+renders**: stills, contact sheets and masters all silently fell back to
+`music.json`'s `active`. `docs/decisions.md` D36 has the proof and what it cost.
+
+**The end-to-end check, when anything near this changes** — a text tripwire in
+`verify:timeline` covers the mechanism, but only a frame proves it:
+
+```powershell
+$env:REMOTION_FILM_VERSION = "A-confident-arrival"
+npx remotion still Studio-15-Landscape-16x9 out/env-check.png --frame=120 --scale=0.4
+```
+
+Frame 120 is 4.0 s. **Edit A shows the drafting sheet there; edit B shows the
+aubergine "Get a real, dimensioned floor plan." card.** A card means the variable
+is not reaching the picture.
+
+### Rendering an audition version
+
+`render.ps1` knows about **music** versions, not about the four-version map: it
+files into `out/masters/<active music version>/` and asserts `-MusicVersion`
+against `music.json`'s `active`. With an audition version selected it stops
+before rendering anything, because it calls `verify:release` first and that
+refuses an unlicensed set — so it **cannot** misfile an audition as a master,
+but it cannot produce one either.
+
+So the two `+el` versions are rendered by hand, to the directory `outDirFor()`
+names, and that is a gap rather than a design:
+
+```powershell
+$env:REMOTION_FILM_VERSION = "B-daylight-forward+el"
+$env:FILM_VERSION          = "B-daylight-forward+el"
+npx remotion bundle --out-dir out/bundle
+npx remotion render Studio-30-Landscape-16x9 `
+  out/previews/AUDITION-not-for-release/B-daylight-forward+el/Studio-30-Landscape-16x9.mp4 `
+  --concurrency=2
+```
+
+Copy `capture/audition-notice.txt` in beside them. A render script that reads
+`outDirFor()` and drives all four versions is the obvious next piece of work.
+
+---
+
 ## Cutting a version — the whole procedure
 
 Four commands. The only judgement in it is the one no command can make: whether
