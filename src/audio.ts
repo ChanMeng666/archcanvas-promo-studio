@@ -28,6 +28,7 @@
  */
 
 import musicJson from "./data/music.json";
+import { VERSION } from "./version";
 import sfxJson from "./data/sfx.json";
 import { CUT_IDS, type CutId } from "./layout-core";
 
@@ -131,8 +132,14 @@ export type MusicDoc = {
 
 const doc = musicJson as unknown as MusicDoc;
 
-/** Which take the film is currently cut to. */
-export const MUSIC_VERSION: string = doc.active;
+/**
+ * Which take the film is currently cut to.
+ *
+ * The VERSION's, not the manifest's `active` — a version is `{music, edit,
+ * sfxSet}` and `FILM_VERSION` selects all three at once. `active` is still the
+ * default, which is what `tools/use-music.mjs` writes.
+ */
+export const MUSIC_VERSION: string = doc.versions?.[VERSION] ? VERSION : doc.active;
 
 export const musicVersions = (): readonly string[] => Object.keys(doc.versions ?? {});
 
@@ -144,7 +151,7 @@ export const musicVersions = (): readonly string[] => Object.keys(doc.versions ?
  * manifest should redden a gate, not the editor. `audioProblems()` reports it.
  */
 export const music: Music =
-  doc.versions?.[doc.active] ??
+  doc.versions?.[MUSIC_VERSION] ??
   ({ track: "", bpm: 0, barSec: 0, beatSec: 0, beds: {} } as unknown as Music);
 
 /**

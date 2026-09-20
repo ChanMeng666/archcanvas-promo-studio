@@ -1,0 +1,15 @@
+{
+  "$comment": "A version of the film is {music, edit, sfxSet}. The version ID is the MUSIC version's ID, because that is what `tools/use-music.mjs` flips and what `render.ps1 -Version` takes; this file says what else travels with it. Nothing here is derived — it is the one place the three axes are tied together.",
+  "versions": {
+    "A-confident-arrival": {
+      "edit": "A",
+      "sfxSet": "synth",
+      "note": "Rendered, approved, and re-renderable byte for byte. Its resolved timeline is locked in edit-a-timeline.lock.json."
+    },
+    "B-daylight-forward": {
+      "edit": "B",
+      "sfxSet": "synth",
+      "note": "Re-arranged around the second take: brighter, faster, cut on the bar grid. The sfxSet stays `synth` until the ElevenLabs set lands on its own branch."
+    }
+  }
+}
