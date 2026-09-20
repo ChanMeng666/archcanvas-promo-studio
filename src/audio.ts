@@ -374,6 +374,16 @@ const versionsDoc = versionsJson as unknown as VersionsDoc;
 const pick = (release: string) =>
   Object.fromEntries(Object.entries(versionsDoc.versions ?? {}).filter(([, v]) => (v.release ?? "master") === release));
 
+/**
+ * Every version id in `versions.json`, releasable and audition alike.
+ *
+ * A gate that wants to measure "the film" has to iterate THIS, not the music
+ * takes: a version is one music + one edit + one sound set, and those three only
+ * make sense together. Iterating takes and pairing each bed with whatever cue
+ * sheet is loaded produces rows for combinations nothing will ever render.
+ */
+export const allVersionIds = (): readonly string[] => Object.keys(versionsDoc.versions ?? {});
+
 export const auditionVersions = (): Readonly<Record<string, FilmVersion>> => pick("audition");
 export const releasableVersions = (): Readonly<Record<string, FilmVersion>> => pick("master");
 export const allVersions = (): Readonly<Record<string, FilmVersion>> => versionsDoc.versions ?? {};
