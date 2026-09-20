@@ -27,6 +27,7 @@ import { CUTS, HONESTY_MIN_SEC, HONESTY_OVERLAY_SEC, type Edit } from "./cuts";
 import { DRAFTING_SPAN, DRAW_HANDOFF_SEC } from "./honesty";
 import { gridFor } from "./data/music-grid";
 import { EDIT_ID } from "./version";
+import { drawKnots, replicaSecondAt, type Knot } from "./warp";
 import { REPLICA_CAPTION, REPLICA_CAPTION_WINDOW } from "./honesty";
 import { CARD_SEC, MAX_STATIC_UI_SEC, SCENES, hasReplica, type SceneId } from "./scenes";
 
@@ -191,6 +192,8 @@ export interface ResolvedBeat {
    * compressed. Null on a card.
    */
   replicaRate: number | null;
+  /** Pinned (film, screenplay) pairs inside a drawing beat. Empty = constant rate. */
+  warpKnots: readonly Knot[];
 }
 
 export interface ResolvedCut {
@@ -326,7 +329,12 @@ export const resolveCut = (cut: CutId, grid?: BeatGrid | null, aspect: Aspect = 
   /* snap the interior boundaries only, and never past a neighbour */
   let snapped = 0;
   for (let i = 1; i < bounds.length - 1; i += 1) {
-    const wanted = snapToDownbeat(bounds[i], grid);
+    // ⚠ Edit B is not snapped. Its boundaries ARE downbeats — every length in
+    // `edits/B.ts` is a difference between two entries in the measured list — so
+    // the snapper is a second opinion fighting the first; it moved fourteen of
+    // B's boundaries the first time it ran. The GRID is still passed in, because
+    // the piecewise draw warp needs the same downbeats.
+    const wanted = EDIT_ID === "B" ? bounds[i] : snapToDownbeat(bounds[i], grid);
     if (wanted === bounds[i]) continue;
     const floor = bounds[i - 1] + MIN_BEAT_SEC;
     // Every beat after this one still needs room, so the ceiling walks back
@@ -383,6 +391,16 @@ export const resolveCut = (cut: CutId, grid?: BeatGrid | null, aspect: Aspect = 
       fill: edit.fill ?? scene.camera?.fill ?? 1,
       expelsCaption: expels(edit.scene, win, edit.fill ?? scene.camera?.fill ?? 1, aspect),
       replicaRate: win && durationSec > 0 ? (win.to - win.from) / durationSec : null,
+      /*
+       * The piecewise warp, when this beat is the drawing and the edit asks for
+       * one. Attached to the BEAT rather than looked up later, because the
+       * picture and the sound both read it and they must not disagree by a
+       * frame: a tick that lands where the stroke is not is worse than no tick.
+       */
+      warpKnots:
+        EDIT_ID === "B" && win
+          ? drawKnots(startSec, endSec, win.from, win.to, grid?.downbeats ?? [])
+          : [],
     };
   });
 
@@ -397,14 +415,12 @@ export const resolveCut = (cut: CutId, grid?: BeatGrid | null, aspect: Aspect = 
 /**
  * The beat grid, or NOTHING when the edit was authored on one.
  *
- * ⚠ Edit A was cut in seconds and then nudged onto the nearest downbeat within
- * 150 ms, which is what `gridFor` does. Edit B's boundaries ARE downbeats —
- * every length in `edits/B.ts` is a difference between two entries in the bed's
- * own measured list — so running the snapper over it is not a refinement, it is
- * a second opinion fighting the first. It moved fourteen of B's sixty-one beats
- * the first time it was tried.
+ * ⚠ Both edits get the grid; only A gets SNAPPED to it. B's boundaries already
+ * are downbeats, but the piecewise draw warp needs the same measured list to pin
+ * its bands to, so withholding the grid from B withheld it from the warp as
+ * well — which is how the first version of this produced no knots at all.
  */
-const gridForEdit = (id: CutId) => (EDIT_ID === "B" ? null : gridFor(id));
+const gridForEdit = (id: CutId) => gridFor(id);
 
 const built = {} as Record<CutId, ResolvedCut>;
 for (const id of CUT_IDS) built[id] = resolveCut(id, gridForEdit(id));
@@ -438,6 +454,15 @@ export const endcardStartSec = (cut: CutId, aspect: Aspect = "landscape"): numbe
   const beat = timelineFor(cut, aspect).beats.find((b) => SCENES[b.scene].kind === "endcard");
   return beat ? beat.startSec : null;
 };
+
+/**
+ * The screenplay second a beat shows at progress `p`. THE entry point.
+ *
+ * Constant rate unless the beat carries knots, which only a drawing beat in
+ * edit B does.
+ */
+export const replicaSecondFor = (beat: ResolvedBeat, p: number): number =>
+  replicaSecondAt(p, beat.startSec, beat.endSec, beat.replicaFrom ?? 0, beat.replicaTo ?? beat.replicaFrom ?? 0, beat.warpKnots);
 
 /** The resolved edit for a frame shape. `Film.tsx` and every gate read this. */
 export const timelineFor = (cut: CutId, aspect: Aspect): ResolvedCut =>

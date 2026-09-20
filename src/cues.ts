@@ -34,7 +34,7 @@ import { SCREENPLAY, stateAt } from "./film-demo";
 import type { CutId } from "./layout-core";
 import { SCENES } from "./scenes";
 import { MOTION } from "./tokens";
-import { FPS, TIMELINES, frameToSec, type ResolvedBeat, type ResolvedCut } from "./timeline";
+import { FPS, TIMELINES, frameToSec, replicaSecondFor, type ResolvedBeat, type ResolvedCut } from "./timeline";
 
 /** The ceiling on typing density, in cues per second. */
 export const MAX_KEYS_PER_SEC = 14;
@@ -47,7 +47,8 @@ const replicaSecond = (beat: ResolvedBeat, localFrame: number): number | null =>
   if (beat.replicaFrom === undefined || beat.replicaTo === undefined) return null;
   const dur = Math.max(1, beat.durationInFrames);
   const p = Math.min(1, Math.max(0, localFrame / dur));
-  return beat.replicaFrom + (beat.replicaTo - beat.replicaFrom) * p;
+  // The SAME map the picture uses. See `timeline.ts` § replicaSecondFor.
+  return replicaSecondFor(beat, p);
 };
 
 /**
