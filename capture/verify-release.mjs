@@ -91,7 +91,7 @@ const load = async () => {
   const esbuild = createRequire(import.meta.url)("esbuild");
   const built = await esbuild.build({
     stdin: {
-      contents: `export { releaseBlockers, activeSfxSetId, sfxSet, auditionVersions, releasableVersions, outDirFor } from "./audio";`,
+      contents: `export { releaseBlockers, activeSfxSetId, sfxSet, auditionVersions, releasableVersions, outDirFor, MUSIC_VERSION } from "./audio";`,
       resolveDir: SRC, sourcefile: "release-gate.ts", loader: "ts",
     },
     bundle: true, write: false, format: "esm", platform: "node", target: "node22", logLevel: "silent",
@@ -111,13 +111,25 @@ const blockers = [...mod.releaseBlockers()];
  * and is covered by a dated paid-tier confirmation
  * (`docs/audio-provenance.md` § 3). It is reported, so the silence is visible.
  */
+/*
+ * ⚠ The version's OWN music, not `music.json`'s `active`.
+ *
+ * Reading `active` here was a leftover from before a version was
+ * {music, edit, sfxSet}: under `FILM_VERSION=A-confident-arrival` with B
+ * active, this gate reported and provenance-checked **B's** take while
+ * building A. Harmless today because both takes are releasable, and exactly
+ * the shape that is not harmless the day one is not — the licensing gate would
+ * clear the wrong file. Same lesson as the bypass above: "what is the film
+ * playing?" must have one answer, and a fallback lying beside it gets read.
+ */
 const music = JSON.parse(fs.readFileSync(path.join(SRC, "data", "music.json"), "utf8"));
-const version = music.versions?.[music.active];
+const musicId = mod.MUSIC_VERSION;
+const version = music.versions?.[musicId];
 const musicNote = version?.provenance?.commercialUse === false
-  ? `music version "${music.active}" carries commercialUse: false`
+  ? `music version "${musicId}" carries commercialUse: false`
   : version?.provenance?.commercialUse === true
-    ? `music version "${music.active}": releasable`
-    : `music version "${music.active}": no commercialUse field — covered by the dated SUNO confirmation, not re-decided here`;
+    ? `music version "${musicId}": releasable`
+    : `music version "${musicId}": no commercialUse field — covered by the dated SUNO confirmation, not re-decided here`;
 if (version?.provenance?.commercialUse === false) blockers.push(musicNote);
 
 /*
@@ -154,7 +166,7 @@ const summary = {
   sfxSource: set.provenance?.source ?? null,
   sfxTier: set.provenance?.tier ?? null,
   sfxCommercialUse: set.provenance?.commercialUse ?? null,
-  activeMusic: music.active,
+  activeMusic: musicId,
   musicNote,
   auditionDir: AUDITION_DIR.split(path.sep).join("/"),
   releasable: blockers.length === 0,

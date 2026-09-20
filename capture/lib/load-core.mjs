@@ -127,8 +127,32 @@ const filmByVersion = new Map();
  */
 export async function loadFilmForVersion(versionId) {
   if (filmByVersion.has(versionId)) return filmByVersion.get(versionId);
+
+  /*
+   * ⚠ BOTH variables, and the one that matters is the PREFIXED one.
+   *
+   * `src/version.ts` reads `REMOTION_FILM_VERSION || FILM_VERSION`, in that
+   * order, because the prefixed one is the only one Remotion injects into the
+   * bundle (D36). Setting only `FILM_VERSION` here therefore isolated nothing
+   * whenever `REMOTION_FILM_VERSION` was exported in the shell: the outer value
+   * won for every version, and `verify:loudness` printed the ACTIVE version's
+   * mix four times under four different names.
+   *
+   * The nasty part is which runs it broke. With neither variable set — the
+   * repo's own habit — the gate was correct, so it looked fine. It went wrong
+   * precisely when someone followed the documented procedure and exported both,
+   * which is what the skill and `render.ps1` now tell you to do. A gate that is
+   * right by default and wrong when driven as documented is worse than one that
+   * is simply wrong: the numbers stay plausible and nothing says they moved.
+   *
+   * Caught by comparing rows: under `REMOTION_FILM_VERSION=B-daylight-forward`
+   * the row labelled `A-confident-arrival` reported B's 120 s true peak of
+   * -1.6 dBTP.
+   */
   const previous = process.env.FILM_VERSION;
+  const previousPrefixed = process.env.REMOTION_FILM_VERSION;
   process.env.FILM_VERSION = versionId;
+  process.env.REMOTION_FILM_VERSION = versionId;
   try {
     const film = await evaluate(
       // An EXPORT, not a comment: esbuild strips comments, so a comment marker
@@ -145,6 +169,8 @@ export const LOADED_VERSION = ${JSON.stringify(versionId)};`,
   } finally {
     if (previous === undefined) delete process.env.FILM_VERSION;
     else process.env.FILM_VERSION = previous;
+    if (previousPrefixed === undefined) delete process.env.REMOTION_FILM_VERSION;
+    else process.env.REMOTION_FILM_VERSION = previousPrefixed;
   }
 }
 
