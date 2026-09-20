@@ -55,17 +55,17 @@ const total = resolved.totalSeconds;
 
 /* ── geometry ─────────────────────────────────────────────────────────────── */
 
-const W = 1920, H = 470;
+const W = 1920, H = 484;
 const L = 84, R = 84;
 const INNER = W - L - R;
 const x = (sec) => Math.round(L + (sec / total) * INNER);
 
-const WAVE_Y = 54, WAVE_H = 120;
-const LANE_Y = 196, LANE_H = 14;
+const WAVE_Y = 64, WAVE_H = 120;
+const LANE_Y = 240, LANE_H = 14;
 const LANES = ["draw", "type", "click", "move", "appear", "end"];
 const laneY = (role) => LANE_Y + LANES.indexOf(role) * (LANE_H + 3);
 const AXIS_Y = LANE_Y + LANES.length * (LANE_H + 3) + 10;
-const THUMB_Y = 384, THUMB_H = 72;
+const THUMB_Y = 398, THUMB_H = 72;
 
 /* ── the marks ────────────────────────────────────────────────────────────── */
 
@@ -96,8 +96,11 @@ for (const b of resolved.beats) {
   const isMajor = b.index === 0 || b.prevScene !== b.scene;
   box(x(b.startSec), WAVE_Y - 14, isMajor ? 3 : 1, AXIS_Y - WAVE_Y + 18, isMajor ? "0xffd166" : "0x8d7a3f", isMajor ? 1 : 0.8);
   if (!isMajor) continue;
+  // Under the waveform, alternating two rows: above it the header and the
+  // legend already live, and a label that collides with a sentence is a label
+  // nobody reads.
   row = 1 - row;
-  text(x(b.startSec) + 5, WAVE_Y - 34 + row * 17, b.scene, "0xffd166", 15);
+  text(x(b.startSec) + 5, WAVE_Y + WAVE_H + 22 + row * 17, b.scene, "0xffd166", 15);
 }
 
 /* the drawing's band pins — the warp's own knots */
@@ -106,7 +109,7 @@ for (const b of resolved.beats) {
   for (const k of (b.warpKnots ?? []).slice(1, -1)) {
     pins += 1;
     box(x(k.film) - 1, WAVE_Y, 3, WAVE_H, "0x06d6a0", 1);
-    text(x(k.film) - 10, WAVE_Y + WAVE_H + 4, "band", "0x06d6a0", 13);
+    text(x(k.film) - 12, WAVE_Y - 18, "band", "0x06d6a0", 13);
   }
 }
 
