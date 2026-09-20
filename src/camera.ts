@@ -835,6 +835,41 @@ const showOpenFinding = (scene: SceneId): boolean => scene === "receipt";
 const closeFinding = (state: ReplicaState): ReplicaState =>
   state.review.openPin === null ? state : { ...state, review: { ...state.review, openPin: null } };
 
+/**
+ * The drafting sheet is not part of the 9:16 money shot.
+ *
+ * ── Measured, after three attempts at keeping it ───────────────────────────
+ *
+ * Upstream deliberately holds the sheet up while the drawing starts underneath
+ * it, so the money-shot beat opens with the card on screen for about half a
+ * second. In 16:9 that is a good half-second: the card is 78 % of the frame
+ * width, legible, with the walls coming up behind it. In 9:16 the same card is
+ * **2491 px wide in a 1080 px frame — 231 %** — and it arrives cropped through
+ * its own words on both sides: `...y Townhouse`, `Kitche...`, `...ting and
+ * reviewing your plan — usu...`.
+ *
+ * Containing it is not available. At the money shot's 2.60x it would take a
+ * scale of about **1.07** to fit the card across, which is not a punch-in from
+ * a held framing, it is a different shot — and at 1.07 the product's own
+ * honesty caption is back inside the frame, so it can no longer be expelled and
+ * `verify:honesty` fails eight ways on "whole or gone, never half". That was
+ * measured twice, once as a protection and once as an eased `lerpPush`.
+ *
+ * So in 9:16 the card is GONE rather than half. A row of type is whole or it is
+ * gone; a card is no different, and the sheet legitimately disappears a moment
+ * later anyway.
+ *
+ * ⚠ A HOST decision, not an edit to the replica — the same standing as
+ * `closeFinding` above. `state` is a prop, a dismissed drafting sheet is an
+ * ordinary product state, and the film already chooses which second of the
+ * screenplay to show. `src/replica` is untouched.
+ *
+ * Only in 9:16, and only on the beat that frames past the caption: the 16:9
+ * hand-over keeps the card because there it reads.
+ */
+const hideDraftingSheet = (state: ReplicaState): ReplicaState =>
+  state.drafting.visible ? { ...state, drafting: { ...state.drafting, visible: false } } : state;
+
 export const shotFor = (
   beat: ResolvedBeat,
   localFrame: number,
@@ -852,7 +887,8 @@ export const shotFor = (
   // attached the knots; this does not decide, it reads.
   const t = replicaSecondFor(beat, p);
 
-  const state = showOpenFinding(beat.scene) ? stateAt(t) : closeFinding(stateAt(t));
+  const raw = showOpenFinding(beat.scene) ? stateAt(t) : closeFinding(stateAt(t));
+  const state = layout.aspect === "portrait" && beat.expelsCaption ? hideDraftingSheet(raw) : raw;
   const probe = mountReplica(box, layout.replicaLayout, { browserFrame: opts.browserFrame });
   const page = pickPage(PAGES, state.plan.variant, state.plan.page);
   const mount = page
