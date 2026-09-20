@@ -69,7 +69,7 @@ const clipFor = (layout, split) => {
 
 const { timelineFor } = film.timeline;
 const { SCENES } = film.scenes;
-const { shotFor, designRect, focusRectFor, pushRect, visibleSubjects, union } = film.camera;
+const { shotFor, designRect, focusRectFor, pushRect, sheetCaptionRect, visibleSubjects, union } = film.camera;
 const { linesFor } = film.copy;
 const { fitLines, ADVANCE } = film.typefit;
 const { TYPE } = film.tokens;
@@ -123,12 +123,10 @@ for (const d of DELIVERABLES) {
     const split = scene.kind === "split";
     const box = split ? sp.replica : layout.picture;
     const clipBottom = clipFor(layout, split);
-    const clipBottom = split ? sp.line.y - layout.u(10) : undefined;
 
     const shot = shotFor(beat, Math.round(beat.durationInFrames * SETTLED), layout, box, {
       clipBottom,
       browserFrame: layout.aspect === "landscape",
-      clipBottom,
     });
     const focus = focusRectFor(
       beat.scene,
@@ -162,6 +160,83 @@ for (const d of DELIVERABLES) {
 
 if (framed === 0) fail("vacuous", "framing", "no replica beat was measured — the sweep found nothing to check");
 
+/* ── 2b. no row of TEXT is bisected by the picture clip ───────────────────── */
+
+/*
+ * In 9:16 the picture ends at `pictureClipBottom` and the chapter's colour owns
+ * the band below it. A row of TYPE meeting that edge is a word cut in half:
+ * eleven beats across the four vertical cuts showed the sheet's own caption row
+ * as `-storey Townhouse`, with "Two" outside the frame, at about 40 px.
+ *
+ * ⚠ The rects come from `camera.ts` — `sheetCaptionRect` resolves through
+ * `sheetChrome`/`worldToDesign`, the same geometry the component draws with —
+ * so this asserts against what is on screen rather than a second copy of it.
+ * The fix it guards is a TRANSLATE: expelling these rows raised the scale until
+ * the honesty caption and the pill cropped, nine failures across the verticals.
+ */
+let rowsChecked = 0;
+const rowStep = Math.max(1, Math.round(0.1 * FPS));
+
+for (const d of DELIVERABLES) {
+  const layout = deriveLayout(d.width, d.height);
+  if (pictureClipBottom(layout) >= layout.height) continue;
+  const sp = splitStage(layout);
+
+  for (const beat of timelineFor(d.cut, layout.aspect).beats) {
+    if (beat.replicaFrom === undefined || beat.scene === "second-brief") continue;
+    const split = SCENES[beat.scene].kind === "split";
+    const box = split ? sp.replica : layout.picture;
+    const clipBottom = clipFor(layout, split);
+    /*
+     * ⚠ Only where the PICTURE CLIP is the operative edge.
+     *
+     * A `split` scene's band is film furniture the picture deliberately runs
+     * under — opaque, designed, and the reason the split exists. The rule here
+     * is about the other edge: the one standing in for the platform's own
+     * chrome, where a row of type meeting it is a word cut in half with nothing
+     * to explain it. Checking a split's band would be asserting that a design
+     * decision is a defect.
+     */
+    if (clipBottom === undefined || clipBottom !== pictureClipBottom(layout)) continue;
+
+    for (let f = 0; f < beat.durationInFrames; f += rowStep) {
+      const shot = shotFor(beat, f, layout, box, {
+        clipBottom,
+        browserFrame: layout.aspect === "landscape",
+      });
+      const ctx = { spec: shot.mount.spec, state: shot.state, page: shot.page, storeys: 2 };
+      const rows = [];
+      const cap = sheetCaptionRect(ctx);
+      if (cap) rows.push(["the sheet's caption row", cap]);
+      if (shot.state.actProgress >= 0.5) rows.push(["the command bar", shot.mount.spec.commandBar]);
+
+      let reported = false;
+      for (const [name, r] of rows) {
+        const pr = pushRect(shot.push, designRect(shot.mount, r));
+        rowsChecked += 1;
+        const top = pr.y;
+        const bot = pr.y + pr.h;
+        // Wholly inside the clip, or wholly past it. Never across it.
+        if (top >= clipBottom - 0.5 || bot <= clipBottom + 0.5) continue;
+        fail(
+          "bisected",
+          `${d.id} beat ${beat.index} "${beat.scene}"`,
+          `${name} is cut by the picture clip at ${(beat.startSec + f / FPS).toFixed(2)}s: ` +
+            `the row runs ${top.toFixed(0)}–${bot.toFixed(0)} and the clip is at ${clipBottom.toFixed(0)}. ` +
+            "A row of type is whole or it is gone",
+        );
+        reported = true;
+        break;
+      }
+      if (reported) break;
+    }
+  }
+}
+
+if (rowsChecked === 0) {
+  fail("vacuous", "framing", "no text row was measured against the picture clip — 9:16 has rows and a clip");
+}
+
 /* ── 3. nothing is framing a space for something that is not there ────────── */
 
 let sampled = 0;
@@ -178,7 +253,6 @@ for (const d of DELIVERABLES) {
     const split = scene.kind === "split";
     const box = split ? sp.replica : layout.picture;
     const clipBottom = clipFor(layout, split);
-    const clipBottom = split ? sp.line.y - layout.u(10) : undefined;
     const viewH = clipBottom ?? layout.height;
 
     const step = Math.max(1, Math.round(SAMPLE_SEC * FPS));
@@ -187,7 +261,6 @@ for (const d of DELIVERABLES) {
       const shot = shotFor(beat, f, layout, box, {
         clipBottom,
         browserFrame: layout.aspect === "landscape",
-        clipBottom,
       });
       const ctx = { spec: shot.mount.spec, state: shot.state, page: shot.page, storeys: 2 };
       // The montage draws four other plans on its own ground and has no layout
@@ -209,7 +282,6 @@ for (const d of DELIVERABLES) {
       const lookahead = shotFor(beat, Math.min(f + 3, beat.durationInFrames - 1), layout, box, {
         clipBottom,
         browserFrame: layout.aspect === "landscape",
-        clipBottom,
       });
       const span = {
         from: Math.min(beat.replicaFrom, beat.replicaTo),
@@ -350,6 +422,7 @@ if (AS_JSON) {
   console.log(`    ${framed} replica beat(s) measured at ${SETTLED * 100} % through the beat, ceiling ${CROP_TOLERANCE}`);
   for (const w of worst) console.log(`      ${w}`);
   console.log(`    ${cards} card(s) measured; the 30s cut sets ${heroes.join(", ")}`);
+  console.log(`    ${rowsChecked} text row(s) checked against the 9:16 picture clip`);
   console.log(`    ${sampled} frame(s) sampled every ${SAMPLE_SEC}s, lean ceiling ${(LOPSIDED_MAX * 100).toFixed(0)} %`);
   for (const e of emptiest) console.log(`      ${e}`);
   if (failures.length === 0) {
