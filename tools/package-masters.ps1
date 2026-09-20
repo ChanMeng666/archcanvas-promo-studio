@@ -93,6 +93,17 @@ $TRUE_PEAK_MAX = -1.5
 $LUFS_TARGET = -16
 $LUFS_WINDOW = 0.5
 
+# A fingerprint of the RESOLVED cue sheet, per cut. `verify:loudness` has to
+# tell a stale master from a wrong model, and its own note says the
+# discriminator it wants is exactly this -- until now it asked git what the trim
+# was at `renderCommit`, which cannot answer through a dirty tree or a shallow
+# clone, and which sees only the per-cut dial. Anything else that moves a cue
+# changes the sound without moving that table. A hash of the sheet makes
+# staleness a property of THIS FILE.
+$cueShaJson = & node (Join-Path $repo "tools\cue-sha.mjs") --version $FilmVersion
+$cueSha = if ($LASTEXITCODE -eq 0) { $cueShaJson | ConvertFrom-Json } else { $null }
+if (-not $cueSha) { Write-Host "  (could not compute cue-sheet hashes -- rows will omit them)" -ForegroundColor Yellow }
+
 $commit = (& git -C $repo rev-parse HEAD).Trim()
 
 # The manifest cannot meaningfully report on its OWN pending state. Writing it
@@ -203,6 +214,10 @@ foreach ($t in $targets) {
     audioProfile = if ($a) { $a[0].profile } else { $null }
     bitrate = [int]$f.bit_rate
     modified = $item.LastWriteTime.ToString("s")
+    # The resolved cue sheet this film was rendered from, as a hash — so a
+    # later run can tell "this master is old" from "the model is wrong" without
+    # asking git anything.
+    cueSheetSha = if ($cueSha) { $cueSha.($t.cut.ToString()) } else { $null }
     # The verdict, and it is about THIS file rather than a model of it.
     verified = $issues.Count -eq 0
     reason = if ($issues.Count -eq 0) { $null } else { $issues -join "; " }

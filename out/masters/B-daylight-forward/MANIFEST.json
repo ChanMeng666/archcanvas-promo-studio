@@ -15,8 +15,8 @@
     "musicCommercialUse": true,
     "musicNote": "Confirmed by founder 2026-09-20 for a take created 2026-09-19T23:20:50Z. Not a measurement: a SUNO export does not carry the account's plan. If challenged, produce the SUNO billing record for 2026-09-19."
   },
-  "renderCommit": "860c2a799f6543fc8a5b478076f533a36c4f3e97",
-  "workingTreeDirty": true,
+  "renderCommit": "5ba0c583c93e113fee6080df3745667270ca7dc7",
+  "workingTreeDirty": false,
   "renderedOn": "2026-09-21",
   "fps": 30,
   "codec": "h264 / yuv420p, crf 18, AAC audio",
@@ -61,6 +61,7 @@
       "audioProfile": null,
       "bitrate": 1644850,
       "modified": "2026-09-20T23:38:53",
+      "cueSheetSha": "3274500121ffac45",
       "verified": true,
       "reason": null
     },
@@ -89,6 +90,7 @@
       "audioProfile": null,
       "bitrate": 1506716,
       "modified": "2026-09-20T23:39:25",
+      "cueSheetSha": "3274500121ffac45",
       "verified": true,
       "reason": null
     },
@@ -117,6 +119,7 @@
       "audioProfile": null,
       "bitrate": 1936907,
       "modified": "2026-09-21T01:42:23",
+      "cueSheetSha": "3c733387ffdd4f6f",
       "verified": true,
       "reason": null
     },
@@ -145,6 +148,7 @@
       "audioProfile": null,
       "bitrate": 1963082,
       "modified": "2026-09-21T01:43:20",
+      "cueSheetSha": "3c733387ffdd4f6f",
       "verified": true,
       "reason": null
     },
@@ -173,6 +177,7 @@
       "audioProfile": null,
       "bitrate": 2081866,
       "modified": "2026-09-21T01:45:06",
+      "cueSheetSha": "d47484ca68cd0e99",
       "verified": true,
       "reason": null
     },
@@ -201,6 +206,7 @@
       "audioProfile": null,
       "bitrate": 2084763,
       "modified": "2026-09-21T01:46:54",
+      "cueSheetSha": "d47484ca68cd0e99",
       "verified": true,
       "reason": null
     },
@@ -229,6 +235,7 @@
       "audioProfile": null,
       "bitrate": 1891562,
       "modified": "2026-09-21T01:50:40",
+      "cueSheetSha": "943fdb582fa1fd06",
       "verified": true,
       "reason": null
     },
@@ -257,6 +264,7 @@
       "audioProfile": null,
       "bitrate": 1958141,
       "modified": "2026-09-21T01:54:16",
+      "cueSheetSha": "943fdb582fa1fd06",
       "verified": true,
       "reason": null
     }
