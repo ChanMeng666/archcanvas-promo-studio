@@ -1849,3 +1849,26 @@ should be guessed at the end of a round.
 `sheetCaptionRect` lands anyway — derived through `sheetChrome`/`worldToDesign`
 so it cannot drift from what the component draws — because whichever way that
 question is answered, the next attempt needs the rect.
+
+### ⚠ And the new hand-over frames found a fourth thing, in 9:16 only
+
+The first thing the new samples showed is that the fix works: at the hand-over
+in 16:9 the drafting card is clean, legible and whole, with the drawing coming
+up behind it and no band on top of it.
+
+The second is that **in 9:16 the drafting card is cropped on both sides** for
+the same half-second. The money-shot beat is framed for the drawing at about
+2.6x, the card is still on screen for the first 0.5 s of it, and at that scale
+the card does not fit: `...y Townhouse`, `...room`, `Kitche...`, `...ting and
+reviewing your plan — usu...`. Nearly every line meets a frame edge.
+
+It is pre-existing and was not introduced here — only the band moved — and
+`timeline.ts` § `expels` already records the same shape being fixed once before
+("applied to the whole scene it cropped the drafting card on both sides"). The
+resolution then was to expel only on the money-shot half; what nobody sampled
+is that the money-shot half *begins* with the card still up.
+
+It is the same question as the sheet's caption row, at a larger size: in 9:16,
+during the hand-over, the frame is holding two subjects that need different
+framings. Recorded with the still rather than guessed at.
+Evidence: `out/stills/wp9/Studio-30-Vertical-9x16/08-handover+0.1s.png`.
