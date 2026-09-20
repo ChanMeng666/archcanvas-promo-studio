@@ -15,8 +15,8 @@
     "musicCommercialUse": true,
     "musicNote": "Dated founder confirmation recorded in ../archcanvas-promo-remotion/docs/suno-prompt.md. Not a measurement: a SUNO export does not carry the account's plan."
   },
-  "renderCommit": "860c2a799f6543fc8a5b478076f533a36c4f3e97",
-  "workingTreeDirty": true,
+  "renderCommit": "5ba0c583c93e113fee6080df3745667270ca7dc7",
+  "workingTreeDirty": false,
   "renderedOn": "2026-09-21",
   "fps": 30,
   "codec": "h264 / yuv420p, crf 18, AAC audio",
@@ -26,7 +26,7 @@
     "lufsWindow": 0.5,
     "measuredOn": "the delivered file, not the offline mix"
   },
-  "verifiedCount": 6,
+  "verifiedCount": 8,
   "supersedes": [
     {
       "renderCommit": "8593e720c653ab53b2974951b3bfef96d6963c75",
@@ -45,6 +45,12 @@
       "renderedOn": "2026-09-21",
       "filmVersion": "A-confident-arrival",
       "note": "superseded by 860c2a799f65"
+    },
+    {
+      "renderCommit": "860c2a799f6543fc8a5b478076f533a36c4f3e97",
+      "renderedOn": "2026-09-21",
+      "filmVersion": "A-confident-arrival",
+      "note": "superseded by 5ba0c583c93e"
     }
   ],
   "masters": [
@@ -73,6 +79,7 @@
       "audioProfile": null,
       "bitrate": 1951649,
       "modified": "2026-09-21T00:02:41",
+      "cueSheetSha": "dbbd4a93d8b98994",
       "verified": true,
       "reason": null
     },
@@ -101,6 +108,7 @@
       "audioProfile": null,
       "bitrate": 1799345,
       "modified": "2026-09-21T00:03:14",
+      "cueSheetSha": "dbbd4a93d8b98994",
       "verified": true,
       "reason": null
     },
@@ -129,6 +137,7 @@
       "audioProfile": null,
       "bitrate": 2143962,
       "modified": "2026-09-21T02:00:06",
+      "cueSheetSha": "c4b47e4e5a0f0a1f",
       "verified": true,
       "reason": null
     },
@@ -157,14 +166,15 @@
       "audioProfile": null,
       "bitrate": 2171447,
       "modified": "2026-09-21T02:01:03",
+      "cueSheetSha": "c4b47e4e5a0f0a1f",
       "verified": true,
       "reason": null
     },
     {
       "tag": "60l",
       "file": "archcanvas-studio-2026-09_60s_landscape_1920x1080.mp4",
-      "bytes": 15775730,
-      "sha256": "c39431505a918331ff81176af8d8484e262408cc4c48a8aa96d24715f59a1610",
+      "bytes": 15781626,
+      "sha256": "b009200c0116b1d6b70ab115c938173da4f429a3a0d5039eb9d0a1ea76734be5",
       "durationSec": 60.053,
       "videoDurationSec": 60.0,
       "frames": 1800,
@@ -178,21 +188,22 @@
       "audioChannels": 2,
       "lufs": -16.2,
       "lra": 5.2,
-      "truePeakDb": -1.2,
+      "truePeakDb": -2.6,
       "meanVolumeDb": -17.7,
-      "maxVolumeDb": -1.2,
+      "maxVolumeDb": -2.6,
       "audioBitrate": null,
       "audioProfile": null,
-      "bitrate": 2101562,
-      "modified": "2026-09-21T02:02:50",
-      "verified": false,
-      "reason": "true peak -1.2 > -1.5 dBTP"
+      "bitrate": 2102348,
+      "modified": "2026-09-21T02:56:46",
+      "cueSheetSha": "aecfe1e1e7b38a75",
+      "verified": true,
+      "reason": null
     },
     {
       "tag": "60v",
       "file": "archcanvas-studio-2026-09_60s_vertical_1080x1920.mp4",
-      "bytes": 15546395,
-      "sha256": "ec74ee0431d1897c9b1cc42764b0ad61b81d89fd7758492b7d88e258132abeaa",
+      "bytes": 15552870,
+      "sha256": "4f820806c296794d908a5fa32ddd52fe1e537934582aa3899adf7a28bf61439f",
       "durationSec": 60.053,
       "videoDurationSec": 60.0,
       "frames": 1800,
@@ -206,15 +217,16 @@
       "audioChannels": 2,
       "lufs": -16.2,
       "lra": 5.2,
-      "truePeakDb": -1.2,
+      "truePeakDb": -2.6,
       "meanVolumeDb": -17.7,
-      "maxVolumeDb": -1.2,
+      "maxVolumeDb": -2.6,
       "audioBitrate": null,
       "audioProfile": null,
-      "bitrate": 2071011,
-      "modified": "2026-09-21T02:04:40",
-      "verified": false,
-      "reason": "true peak -1.2 > -1.5 dBTP"
+      "bitrate": 2071874,
+      "modified": "2026-09-21T02:58:36",
+      "cueSheetSha": "aecfe1e1e7b38a75",
+      "verified": true,
+      "reason": null
     },
     {
       "tag": "120l",
@@ -241,6 +253,7 @@
       "audioProfile": null,
       "bitrate": 2013229,
       "modified": "2026-09-21T02:14:49",
+      "cueSheetSha": "468dde7ca344f964",
       "verified": true,
       "reason": null
     },
@@ -269,6 +282,7 @@
       "audioProfile": null,
       "bitrate": 1995167,
       "modified": "2026-09-21T02:18:26",
+      "cueSheetSha": "468dde7ca344f964",
       "verified": true,
       "reason": null
     }

@@ -15,8 +15,8 @@
     "musicCommercialUse": true,
     "musicNote": "Dated founder confirmation recorded in ../archcanvas-promo-remotion/docs/suno-prompt.md. Not a measurement: a SUNO export does not carry the account's plan."
   },
-  "renderCommit": "860c2a799f6543fc8a5b478076f533a36c4f3e97",
-  "workingTreeDirty": true,
+  "renderCommit": "5ba0c583c93e113fee6080df3745667270ca7dc7",
+  "workingTreeDirty": false,
   "renderedOn": "2026-09-21",
   "fps": 30,
   "codec": "h264 / yuv420p, crf 18, AAC audio",
@@ -61,6 +61,7 @@
       "audioProfile": null,
       "bitrate": 1957900,
       "modified": "2026-09-20T23:05:25",
+      "cueSheetSha": "f49402061719daf2",
       "verified": true,
       "reason": null
     },
@@ -89,6 +90,7 @@
       "audioProfile": null,
       "bitrate": 1797566,
       "modified": "2026-09-20T23:06:19",
+      "cueSheetSha": "f49402061719daf2",
       "verified": true,
       "reason": null
     },
@@ -117,6 +119,7 @@
       "audioProfile": null,
       "bitrate": 2143814,
       "modified": "2026-09-21T01:24:47",
+      "cueSheetSha": "618039657ebf07dd",
       "verified": true,
       "reason": null
     },
@@ -145,6 +148,7 @@
       "audioProfile": null,
       "bitrate": 2177762,
       "modified": "2026-09-21T01:25:43",
+      "cueSheetSha": "618039657ebf07dd",
       "verified": true,
       "reason": null
     },
@@ -173,6 +177,7 @@
       "audioProfile": null,
       "bitrate": 2101965,
       "modified": "2026-09-21T01:27:28",
+      "cueSheetSha": "baa64fe272fc2d4b",
       "verified": true,
       "reason": null
     },
@@ -201,6 +206,7 @@
       "audioProfile": null,
       "bitrate": 2073422,
       "modified": "2026-09-21T01:29:14",
+      "cueSheetSha": "baa64fe272fc2d4b",
       "verified": true,
       "reason": null
     },
@@ -229,6 +235,7 @@
       "audioProfile": null,
       "bitrate": 2013345,
       "modified": "2026-09-21T01:32:54",
+      "cueSheetSha": "2afd5e3710558b04",
       "verified": true,
       "reason": null
     },
@@ -257,6 +264,7 @@
       "audioProfile": null,
       "bitrate": 1995178,
       "modified": "2026-09-21T01:36:21",
+      "cueSheetSha": "2afd5e3710558b04",
       "verified": true,
       "reason": null
     }
