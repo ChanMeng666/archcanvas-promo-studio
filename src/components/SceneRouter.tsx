@@ -100,23 +100,35 @@ const FullBleed: React.FC<{ beat: ResolvedBeat }> = ({ beat }) => {
     ? `linear-gradient(to bottom, #000 calc(100% - ${PICTURE_FEATHER_PX}px), transparent 100%)`
     : undefined;
 
+  /*
+   * ⚠ The MONTAGE is not clipped, and the first version of this clipped it.
+   *
+   * The clip exists because `camera.ts` scales the replica about its origin and
+   * carries content out of the mount box. The montage has no camera: it is
+   * film-drawn, it paints its own full-bleed ground per pane, and clipping it
+   * left the pane's buttercream stopping at 1520 with 400 px of ivory under it
+   * — a pane that looks cut short, which is the defect this round is about
+   * wearing the opposite hat.
+   */
+  const montage = beat.scene === "second-brief";
+
   return (
     <AbsoluteFill style={{ backgroundColor: groundOf(beat.scene) ?? APP.page }}>
-      <AbsoluteFill
-        style={{
-          height: clip,
-          overflow: "hidden",
-          maskImage: feather,
-          WebkitMaskImage: feather,
-        }}
-      >
-        {beat.scene === "second-brief" ? (
-          <SecondBrief beat={beat} />
-        ) : (
+      {montage ? (
+        <SecondBrief beat={beat} />
+      ) : (
+        <AbsoluteFill
+          style={{
+            height: clip,
+            overflow: "hidden",
+            maskImage: feather,
+            WebkitMaskImage: feather,
+          }}
+        >
           <ReplicaSlot beat={beat} clipBottom={clipped ? clip : undefined} />
-        )}
-      </AbsoluteFill>
-      {scene.chapter && beat.scene !== "second-brief" ? (
+        </AbsoluteFill>
+      )}
+      {scene.chapter && !montage ? (
         <ChapterChip label={CHAPTER_LABELS[scene.chapter]} />
       ) : null}
     </AbsoluteFill>
