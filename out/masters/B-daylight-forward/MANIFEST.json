@@ -15,7 +15,7 @@
     "musicCommercialUse": true,
     "musicNote": "Confirmed by founder 2026-09-20 for a take created 2026-09-19T23:20:50Z. Not a measurement: a SUNO export does not carry the account's plan. If challenged, produce the SUNO billing record for 2026-09-19."
   },
-  "renderCommit": "5ba0c583c93e113fee6080df3745667270ca7dc7",
+  "renderCommit": "31b9173950670f3ff17312c248181bd2bcbf8090",
   "workingTreeDirty": false,
   "renderedOn": "2026-09-21",
   "fps": 30,
@@ -60,8 +60,8 @@
       "audioBitrate": null,
       "audioProfile": null,
       "bitrate": 1644850,
+      "cueSha": "45bd68c1ad9bede9",
       "modified": "2026-09-20T23:38:53",
-      "cueSheetSha": "3274500121ffac45",
       "verified": true,
       "reason": null
     },
@@ -89,8 +89,8 @@
       "audioBitrate": null,
       "audioProfile": null,
       "bitrate": 1506716,
+      "cueSha": "45bd68c1ad9bede9",
       "modified": "2026-09-20T23:39:25",
-      "cueSheetSha": "3274500121ffac45",
       "verified": true,
       "reason": null
     },
@@ -118,8 +118,8 @@
       "audioBitrate": null,
       "audioProfile": null,
       "bitrate": 1936907,
+      "cueSha": "0402150c7a0f2976",
       "modified": "2026-09-21T01:42:23",
-      "cueSheetSha": "3c733387ffdd4f6f",
       "verified": true,
       "reason": null
     },
@@ -147,8 +147,8 @@
       "audioBitrate": null,
       "audioProfile": null,
       "bitrate": 1963082,
+      "cueSha": "0402150c7a0f2976",
       "modified": "2026-09-21T01:43:20",
-      "cueSheetSha": "3c733387ffdd4f6f",
       "verified": true,
       "reason": null
     },
@@ -176,8 +176,8 @@
       "audioBitrate": null,
       "audioProfile": null,
       "bitrate": 2081866,
+      "cueSha": "a70a52c4f5725d06",
       "modified": "2026-09-21T01:45:06",
-      "cueSheetSha": "d47484ca68cd0e99",
       "verified": true,
       "reason": null
     },
@@ -205,8 +205,8 @@
       "audioBitrate": null,
       "audioProfile": null,
       "bitrate": 2084763,
+      "cueSha": "a70a52c4f5725d06",
       "modified": "2026-09-21T01:46:54",
-      "cueSheetSha": "d47484ca68cd0e99",
       "verified": true,
       "reason": null
     },
@@ -234,8 +234,8 @@
       "audioBitrate": null,
       "audioProfile": null,
       "bitrate": 1891562,
+      "cueSha": "f8b73f44218b9ed2",
       "modified": "2026-09-21T01:50:40",
-      "cueSheetSha": "943fdb582fa1fd06",
       "verified": true,
       "reason": null
     },
@@ -263,8 +263,8 @@
       "audioBitrate": null,
       "audioProfile": null,
       "bitrate": 1958141,
+      "cueSha": "f8b73f44218b9ed2",
       "modified": "2026-09-21T01:54:16",
-      "cueSheetSha": "943fdb582fa1fd06",
       "verified": true,
       "reason": null
     }
