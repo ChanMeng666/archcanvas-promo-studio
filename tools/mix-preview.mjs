@@ -74,11 +74,13 @@ const drawLen = drawTo - drawFrom;
  * N is derived from the beat, not typed: each extra copy adds (len - crossfade)
  * seconds, and the result is trimmed back to the beat exactly.
  */
-const roleDraw = audio.role("draw");
+// The ACTIVE set's view of the role, not the role's own fields: the crossfade
+// scales with the material, and the synthesised stroke is a tenth the length of
+// the ElevenLabs texture the 0.25 s seam was chosen for.
+const roleDraw = audio.roleView("draw");
 const xfade = roleDraw.loop?.crossfadeSec ?? 0.25;
 
-const cueRow = audio.allSfx().find((c) => c.id === draw.cueId);
-const cueLen = cueRow.durationSec;
+const cueLen = draw.durationSec;
 const copies = Math.max(1, Math.ceil((drawLen - cueLen) / Math.max(0.01, cueLen - xfade)) + 1);
 
 

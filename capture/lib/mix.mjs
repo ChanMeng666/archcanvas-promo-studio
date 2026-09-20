@@ -80,7 +80,8 @@ export const mixCut = async (cut, opts = {}) => {
    */
   const bed = A.bedFor(cut, opts.version);
   const bedPcm = decode(path.join(ROOT, "public", bed.file));
-  const windows = A.duckWindows(cuesFor(cut));
+  const sheet = cuesFor(cut);
+  const events = A.duckEvents(sheet);
   const trim = dbToGain(A.MASTER_TRIM_DB);
 
   // The bed, ducked sample by sample with the film's own envelope.
@@ -103,7 +104,7 @@ export const mixCut = async (cut, opts = {}) => {
      * A trim is not a duck. The metric is about the envelope, so it reads the
      * envelope.
      */
-    const duckG = A.duckGainAt(sec, windows);
+    const duckG = A.duckGainAt(sec, events);
     const g = duckG * trim;
     if (duckG < 0.999) ducked += 1;
     const src = (i + Math.round((bed.offsetSec ?? 0) * SAMPLE_RATE)) * CHANNELS;
@@ -112,17 +113,29 @@ export const mixCut = async (cut, opts = {}) => {
     out[i * CHANNELS + 1] = bedPcm[src + 1] * g;
   }
 
-  // The effects, summed on top at their own gains.
+  /*
+   * The effects, summed on top at their own gains.
+   *
+   * ⚠ Three things come from `resolveCue`, not from the cue: the FILE (the role
+   * resolved against this version's sound set and take), the START (the action
+   * minus the cue's measured first strong onset) and the ENVELOPE (`playSec`
+   * plus the equal-power fades a looped texture is made of). Reading
+   * `cue.gainDb` and `cue.atSec` directly — which is what this did — measured a
+   * mix nothing would ever render.
+   */
   const cache = new Map();
-  for (const cue of cuesFor(cut)) {
-    const meta = A.sfx(cue.sfx);
-    if (!cache.has(meta.file)) cache.set(meta.file, decode(path.join(ROOT, "public", meta.file)));
-    const pcm = cache.get(meta.file);
-    const g = dbToGain(cue.gainDb ?? 0);
-    const start = Math.round(cue.atSec * SAMPLE_RATE);
+  for (const cue of sheet) {
+    const rc = A.resolveCue(cue);
+    if (!cache.has(rc.file)) cache.set(rc.file, decode(path.join(ROOT, "public", rc.file)));
+    const pcm = cache.get(rc.file);
+    const start = Math.round(rc.startSec * SAMPLE_RATE);
+    const playFrames = Math.round(rc.playSec * SAMPLE_RATE);
     for (let j = 0; j + 1 < pcm.length; j += CHANNELS) {
-      const i = start + j / CHANNELS;
+      const n = j / CHANNELS;
+      if (n >= playFrames) break;
+      const i = start + n;
       if (i < 0 || i >= frames) continue;
+      const g = A.cueGainAt(rc, n / SAMPLE_RATE);
       out[i * CHANNELS] += pcm[j] * g;
       out[i * CHANNELS + 1] += pcm[j + 1] * g;
     }
@@ -132,9 +145,9 @@ export const mixCut = async (cut, opts = {}) => {
     cut,
     durationSec,
     pcm: out,
-    windows,
+    events,
     duckedFraction: ducked / frames,
-    cueCount: cuesFor(cut).length,
+    cueCount: sheet.length,
     masterTrimDb: A.MASTER_TRIM_DB,
   };
 };
