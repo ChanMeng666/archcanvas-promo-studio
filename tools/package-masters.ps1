@@ -79,7 +79,14 @@ function Read-Metric {
 }
 
 $commit = (& git -C $repo rev-parse HEAD).Trim()
-$dirty = @(& git -C $repo status --porcelain).Count -gt 0
+
+# The manifest cannot meaningfully report on its OWN pending state. Writing it
+# is what makes it dirty, so counting it made every manifest say the tree was
+# dirty -- which is the same as saying nothing, and worse, because it reads
+# like a warning. Everything else still counts: a master rendered from
+# uncommitted source is a real thing to know about.
+$dirty = @(& git -C $repo status --porcelain |
+  Where-Object { $_ -notmatch 'out/masters/.*/MANIFEST\.json$' }).Count -gt 0
 
 Write-Host ""
 Write-Host "  package-masters · $MusicVersion · $($entry.track)"
