@@ -76,6 +76,21 @@ stops being aubergine. The end wipe has its own ceiling at 0.14 (`src/tokens.ts:
 
 ## Frame shapes
 
+**In 9:16 the PICTURE CLIPS at the mount's bottom and the chapter's colour owns
+the band below it** (`pictureClipBottom`, D39). The mount already cleared the
+platform furniture; the mount is not the picture, because `camera.ts` scales the
+whole layer about its origin and a 2.6x push carries content out of the box it
+was mounted in. A text row meeting that edge is a word cut in half — the rule is
+**wholly inside the clip or wholly past it**, resolved with a bounded TRANSLATE
+(≤ 48 px) and never with scale, because expelling those rows raised the scale
+until the honesty caption and the pill cropped. `verify:framing` § `bisected`.
+
+**The drafting sheet is hidden on the 9:16 money shot.** At that framing it is
+231 % of the frame width and arrives cut through its own words; containing it
+needs a scale of 1.07 against 2.60, at which the product's caption can no longer
+be expelled. A host decision with the same standing as `closeFinding` — the
+replica is untouched. 16:9 keeps it, where it reads. `verify:honesty` § `sheet`.
+
 9:16 is re-laid-out, never cropped from 16:9. The **top 250 px and bottom 390 px belong to
 Reels / TikTok / Shorts** — type stays out of them (`stage`); the replica's `picture` box is
 deliberately larger than the type-safe stage (7.9 % at 1920×1080, 16 % at 1080×1920).

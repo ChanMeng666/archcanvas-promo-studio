@@ -1872,3 +1872,116 @@ It is the same question as the sheet's caption row, at a larger size: in 9:16,
 during the hand-over, the frame is holding two subjects that need different
 framings. Recorded with the still rather than guessed at.
 Evidence: `out/stills/wp9/Studio-30-Vertical-9x16/08-handover+0.1s.png`.
+
+---
+
+## D39. The 9:16 picture clips, and what that settled.
+
+D38 left one question open and called it a question: in 9:16, during the
+hand-over, the frame holds two subjects that need different framings. The
+commander answered it — the picture clips at the safe line and the chapter's
+colour owns the bottom 390 px — and the answer settled two of the three findings
+outright and changed the shape of the third.
+
+### a. The clip
+
+The mount box already cleared the platform furniture: `PICTURE.portrait` bottoms
+out at 1520 against a 1530 safe line. **The mount is not the picture.**
+`camera.ts` scales the whole layer about its origin, so a 2.6x push carries
+content straight out of the box it was mounted in, and in 9:16 it lands in the
+390 px the platforms cover with their own interface.
+
+So the picture ENDS at `pictureClipBottom` and the chapter's colour owns the
+band below it — which is exactly what a `split` scene has always done with its
+type band, now one rule instead of two. A 20 px feather at the edge, because a
+hard line across the paper reads as a crop while a short one reads as the sheet
+running under the band.
+
+⚠ The clip is the MOUNT's bottom rather than the safe line, and the ten pixels
+are the point: clipping at 1530 would leave a sliver in which pushed-out content
+could still show — the same defect with a smaller number on it.
+
+⚠ **And the gates had to be told.** `camera.ts` reads `clipBottom` for
+`fillScale` and for the protection bounds, so `verify:honesty` and
+`verify:framing` passing the mount box and not the clip would have measured a
+camera the renderer does not use. That is this repo's oldest failure — the gate
+that re-implements what it checks — arriving through an omitted argument rather
+than a re-derivation. It was live for the length of one commit.
+
+### b. The nudge, and being honest about what it does
+
+A text row must be wholly inside the clip or wholly past it. `framePush` can now
+move the picture vertically by at most 48 px to make that true, choosing the
+cheaper direction, deciding it **once per beat** (the choice flips when a row is
+exactly half across, so a per-frame choice would jump by the row's own height),
+and putting the result back through the protection clamp so the honesty caption
+and the pill stay authoritative.
+
+A TRANSLATE, never a scale, and that is the whole point of the shape: expelling
+these rows raised the SCALE until the caption and the pill cropped — nine
+failures — because everything in the lower third of the 9:16 design moves
+together.
+
+**With the shipping geometry the nudge does nothing.** The clip already puts the
+sheet's caption row well below the edge, so every row is wholly outside and
+removing the nudge reddens nothing. It is the mechanism that keeps the invariant
+HOLDABLE, not a fix for a live defect, and its evidence comes from a probe that
+forces the clip into a row:
+
+| clip forced to 1780 | bisected |
+|---|---|
+| with the nudge | 2 |
+| without the nudge | 6 |
+
+The two that remain are the beats where the protection clamp eats the move,
+which is the rule working rather than failing.
+
+`verify:framing` asserts the invariant against `camera.ts`'s own
+`sheetCaptionRect` and `spec.commandBar`. Scoped to the PICTURE clip: a `split`
+scene's band is film furniture the picture deliberately runs under, and checking
+it would be asserting that a design decision is a defect.
+
+### c. The drafting sheet cannot be whole in 9:16, so it is gone
+
+The brief was to hold a framing that contains the card and then punch in.
+**Measured, that is not a punch-in.** At the money shot's framing the card is
+**2491 px wide in a 1080 px frame — 231 %**. Containing it takes a scale of about
+**1.07** against 2.60, which is a different shot; and at 1.07 the product's own
+honesty caption is back inside the frame, so it can no longer be expelled and
+`verify:honesty` fails eight ways on "whole or gone, never half".
+
+That has now been measured three times across two rounds — as a protection (the
+scale pops 1.61 → 2.71 in one frame), as an eased `lerpPush` (8 failures), and
+as arithmetic. The conclusion is the same each time and it is structural: **the
+card and the caption are vertically adjacent, so lifting one brings the other
+back.**
+
+So in 9:16 the card is GONE rather than half. A row of type is whole or it is
+gone; a card is no different, and the sheet legitimately disappears a moment
+later anyway. A HOST decision with the same standing as `closeFinding`: `state`
+is a prop, a dismissed drafting sheet is an ordinary product state, and the film
+already chooses which second of the screenplay to show. `src/replica` is
+untouched. **16:9 keeps the card**, because there it is 78 % of the frame,
+legible, with the walls coming up behind it — the hand-over reads.
+
+The `sheet` check is about cuts **through words**, not every edge. Words run
+horizontally, so a left or right edge through the card lands in the middle of
+one; a panel whose blank lower edge runs past the frame is how a full-bleed
+replica has always looked, and `draftCardBox` pads its height by 100 units for a
+stale upstream spec — asserting on that would be asserting against a labelled
+workaround. In 9:16 the picture also clips, so there the bottom counts too.
+
+### Mutation evidence
+
+| mutation | what reddens |
+|---|---|
+| keep the drafting sheet in 9:16 | 4 `sheet` per edit, one per vertical cut |
+| the clip forced through a row, nudge removed | 6 `bisected` (2 with the nudge) |
+| remove the picture clip | nothing — which is why the `bisected` assertion exists |
+
+### What this round did not settle
+
+The nudge is untested by the shipping geometry, and that is stated rather than
+hidden. If the 9:16 arrangement ever moves a text row back across the clip, the
+assertion fires and the mechanism is already there; until then it is insurance
+with a probe attached rather than a proven fix.

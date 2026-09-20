@@ -69,7 +69,7 @@ const exceptions = [];
 const fail = (kind, subject, detail) => failures.push({ kind, subject, detail });
 
 const film = await loadFilm();
-const { DELIVERABLES, deriveLayout, FPS, splitStage } = film.layout;
+const { DELIVERABLES, deriveLayout, FPS, pictureClipBottom, splitStage } = film.layout;
 const { timelineFor, honestyWindow } = film.timeline;
 const { SCENES } = film.scenes;
 const { shotFor, insideFrame, draftCardRectFor } = film.camera;
@@ -97,6 +97,21 @@ if (drift) fail("drift", "the honesty caption", drift);
  * reach it. It is two lines and it is derived from the aspect, so it cannot
  * drift in a way that matters; anything larger would belong in `camera.ts`.
  */
+/**
+ * The clip `SceneRouter` applies, for this frame shape and this scene kind.
+ *
+ * ⚠ It is not optional detail. `camera.ts` reads `clipBottom` for `fillScale`
+ * and for the protection bounds, so a gate that passes the mount box and not
+ * the clip measures a camera the renderer does not use — "the gate that
+ * re-implements what it checks", arriving through an omitted argument.
+ */
+const clipFor = (layout, split) => {
+  const clip = split
+    ? Math.min(splitStage(layout).line.y - layout.u(10), pictureClipBottom(layout))
+    : pictureClipBottom(layout);
+  return clip < layout.height ? clip : undefined;
+};
+
 const boxFor = (layout, beat) =>
   SCENES[beat.scene].kind === "split" ? splitStage(layout).replica : layout.picture;
 
@@ -114,6 +129,8 @@ for (const d of DELIVERABLES) {
   let captionSamples = 0;
   let pillSamples = 0;
   let overlapFrames = 0;
+  let cardSamples = 0;
+  let cardCut = 0;
   const band = honestyBandRect(layout, captionLines(layout.aspect));
   const frameRect = { x: 0, y: 0, w: layout.width, h: layout.height };
 
@@ -170,9 +187,10 @@ for (const d of DELIVERABLES) {
     if (beat.replicaFrom === undefined) continue;
     if (beat.scene === "second-brief") continue;
     const box = boxFor(layout, beat);
+    const clipBottom = clipFor(layout, SCENES[beat.scene].kind === "split");
 
     for (let f = 0; f < beat.durationInFrames; f += 1) {
-      const shot = shotFor(beat, f, layout, box, { browserFrame: windowed });
+      const shot = shotFor(beat, f, layout, box, { browserFrame: windowed, clipBottom });
       const abs = beat.startFrame + f;
 
       // Only a caption the camera has left WHOLE counts toward the floor. One
@@ -217,6 +235,45 @@ for (const d of DELIVERABLES) {
                 `${(beat.startSec + f / FPS).toFixed(2)}s (beat ${beat.index} "${beat.scene}"): ` +
                 `band ${fmt(band)}, card ${fmt(card)} in ${layout.width}x${layout.height}`,
             );
+          }
+        }
+      }
+
+      /*
+       * 3c — the drafting sheet is never cut THROUGH ITS WORDS.
+       *
+       * ⚠ Sideways, not every edge, and the distinction is the finding. Words
+       * run horizontally: a left or right edge through the card lands in the
+       * middle of one (`...y Townhouse`, `Kitche...`), which is what every 9:16
+       * drawing beat was doing. A panel whose blank lower edge runs past the
+       * frame is how a full-bleed replica has always looked, and `draftCardBox`
+       * pads its height by 100 units for a stale upstream spec anyway — asserting
+       * on that would be asserting against a labelled workaround.
+       *
+       * In 9:16 the picture also CLIPS, so there the bottom counts too: below
+       * the clip is the chapter's band, not more picture.
+       */
+      {
+        const card = draftCardRectFor(shot);
+        if (card) {
+          cardSamples += 1;
+          const edge = clipBottom ?? layout.height;
+          const gone =
+            card.x + card.w <= 0 || card.y + card.h <= 0 ||
+            card.x >= layout.width || card.y >= edge;
+          const sideCut = !gone && (card.x < 0 || card.x + card.w > layout.width);
+          const clipCut = !gone && layout.aspect === "portrait" && card.y + card.h > edge;
+          if (sideCut || clipCut) {
+            cardCut += 1;
+            if (cardCut === 1) {
+              fail(
+                "sheet",
+                d.id,
+                `the drafting sheet is cut by the frame at ${(beat.startSec + f / FPS).toFixed(2)}s ` +
+                  `(beat ${beat.index} "${beat.scene}"): card ${fmt(card)} in ${layout.width}x` +
+                  `${(clipBottom ?? layout.height)}. A sheet is whole or it is gone`,
+              );
+            }
           }
         }
       }

@@ -189,6 +189,26 @@ export interface FrameInput {
   protectBounds?: StageRect;
   /** How far inside the protection bounds a protected rectangle must stay. */
   margin?: number;
+  /**
+   * Rows of TEXT that must end up wholly inside the clip or wholly past it,
+   * each with the direction chosen for the beat.
+   *
+   * ⚠ A TRANSLATE, never a scale, and that is the whole design. Expelling the
+   * sheet's caption row raised the scale until the honesty caption and the
+   * "AI-generated" pill cropped — nine failures across the vertical masters —
+   * because everything in the lower third of the 9:16 design moves together.
+   * A vertical nudge of a few tens of pixels moves the row across the edge and
+   * leaves the composition where it was.
+   *
+   * The direction is decided per BEAT and passed in, not re-chosen per frame:
+   * the choice flips when the row is exactly half across, and a nudge that
+   * flipped mid-beat would jump by the row's own height.
+   */
+  nudge?: readonly { rect: StageRect; dir: 1 | -1 }[];
+  /** The edge the nudge is about — the picture clip, in film pixels. */
+  nudgeEdge?: number;
+  /** The most a nudge may move the picture. */
+  nudgeMax?: number;
 }
 
 const clampTo = (v: number, lo: number, hi: number): number =>
@@ -238,6 +258,9 @@ export const framePush = ({
   expel = [],
   protectBounds,
   margin = 8,
+  nudge = [],
+  nudgeEdge,
+  nudgeMax = 48,
 }: FrameInput): FramePush => {
   const bounds = protectBounds ?? { x: 0, y: 0, w: frameW, h: frameH };
   let s = Number.isFinite(scale) && scale > 1 ? scale : 1;
@@ -323,10 +346,44 @@ export const framePush = ({
   const tx = clampTo(wantX, loX, hiX);
   const ty = clampTo(wantY, loY, hiY);
 
+  /*
+   * The nudge, last, and bounded by everything above it.
+   *
+   * It runs AFTER the protection clamp and is put back through it, so the
+   * honesty caption and the pill stay authoritative: a nudge that would crop
+   * either is reduced to whatever fits, and where the outward move is the one
+   * that gets clamped away the inward one is tried instead — "prefer pulling
+   * the row IN" is a fallback rather than a preference, because a row pulled in
+   * is legible and a row pushed half-way is the defect.
+   */
+  let nudged = ty;
+  if (nudgeEdge !== undefined && nudge.length > 0) {
+    const needed = (dir: 1 | -1, r: StageRect): number => {
+      const top = r.y * s + ty;
+      const bot = (r.y + r.h) * s + ty;
+      if (top >= nudgeEdge - 1e-6 || bot <= nudgeEdge + 1e-6) return 0;
+      return dir > 0 ? nudgeEdge - top : nudgeEdge - bot;
+    };
+    let want = 0;
+    let fallback = 0;
+    for (const n of nudge) {
+      const d = needed(n.dir, n.rect);
+      if (Math.abs(d) > Math.abs(want)) want = d;
+      const back = needed(n.dir > 0 ? -1 : 1, n.rect);
+      if (Math.abs(back) > Math.abs(fallback)) fallback = back;
+    }
+    const cap = (v: number) => Math.max(-nudgeMax, Math.min(nudgeMax, v));
+    const first = clampTo(ty + cap(want), loY, hiY);
+    // Did the protection clamp eat it? Then take the other direction.
+    nudged = Math.abs(first - ty) + 1e-6 < Math.abs(cap(want))
+      ? clampTo(ty + cap(fallback), loY, hiY)
+      : first;
+  }
+
   return {
     scale: s,
     tx,
-    ty,
+    ty: nudged,
     scaleClamped,
     focusClamped: Math.abs(tx - wantX) > 0.5 || Math.abs(ty - wantY) > 0.5,
   };
@@ -663,6 +720,29 @@ export const visibleSubjects = (ctx: TargetContext): Rect[] => {
   return out;
 };
 
+/**
+ * The sheet's own CAPTION ROW — the line under the paper that names the design
+ * — in design space, or `null` when there is no sheet on screen.
+ *
+ * ⚠ It is text, it is the width of a sentence, and in 9:16 it was being cut in
+ * half by the clip: eleven beats across the four vertical cuts showed
+ * `-storey Townhouse`, with "Two" outside the frame, at about 40 px.
+ *
+ * Resolved through `sheetChrome` and `worldToDesign`, the same geometry the
+ * component draws the row with, so it cannot drift from what is on screen —
+ * and exported so `verify:framing` asserts against the same rect rather than a
+ * second copy of it.
+ */
+export const sheetCaptionRect = (ctx: TargetContext): Rect | null => {
+  const { spec, state } = ctx;
+  if (state.actProgress < 0.5) return null;
+  const chrome = sheetChrome(spec, ctx.storeys, state.review.badgeCount);
+  const cap = chrome.caption;
+  const tl = worldToDesign(spec, state.camera, cap.x, cap.y);
+  const z = state.camera.zoom;
+  return { x: tl.x, y: tl.y, w: cap.w * z, h: cap.h * z };
+};
+
 /** How much of `a` lies inside `b`, 0..1. */
 const overlapFraction = (a: { from: number; to: number }, b: { from: number; to: number }): number => {
   const width = a.to - a.from;
@@ -755,6 +835,41 @@ const showOpenFinding = (scene: SceneId): boolean => scene === "receipt";
 const closeFinding = (state: ReplicaState): ReplicaState =>
   state.review.openPin === null ? state : { ...state, review: { ...state.review, openPin: null } };
 
+/**
+ * The drafting sheet is not part of the 9:16 money shot.
+ *
+ * ── Measured, after three attempts at keeping it ───────────────────────────
+ *
+ * Upstream deliberately holds the sheet up while the drawing starts underneath
+ * it, so the money-shot beat opens with the card on screen for about half a
+ * second. In 16:9 that is a good half-second: the card is 78 % of the frame
+ * width, legible, with the walls coming up behind it. In 9:16 the same card is
+ * **2491 px wide in a 1080 px frame — 231 %** — and it arrives cropped through
+ * its own words on both sides: `...y Townhouse`, `Kitche...`, `...ting and
+ * reviewing your plan — usu...`.
+ *
+ * Containing it is not available. At the money shot's 2.60x it would take a
+ * scale of about **1.07** to fit the card across, which is not a punch-in from
+ * a held framing, it is a different shot — and at 1.07 the product's own
+ * honesty caption is back inside the frame, so it can no longer be expelled and
+ * `verify:honesty` fails eight ways on "whole or gone, never half". That was
+ * measured twice, once as a protection and once as an eased `lerpPush`.
+ *
+ * So in 9:16 the card is GONE rather than half. A row of type is whole or it is
+ * gone; a card is no different, and the sheet legitimately disappears a moment
+ * later anyway.
+ *
+ * ⚠ A HOST decision, not an edit to the replica — the same standing as
+ * `closeFinding` above. `state` is a prop, a dismissed drafting sheet is an
+ * ordinary product state, and the film already chooses which second of the
+ * screenplay to show. `src/replica` is untouched.
+ *
+ * Only in 9:16, and only on the beat that frames past the caption: the 16:9
+ * hand-over keeps the card because there it reads.
+ */
+const hideDraftingSheet = (state: ReplicaState): ReplicaState =>
+  state.drafting.visible ? { ...state, drafting: { ...state.drafting, visible: false } } : state;
+
 export const shotFor = (
   beat: ResolvedBeat,
   localFrame: number,
@@ -772,7 +887,8 @@ export const shotFor = (
   // attached the knots; this does not decide, it reads.
   const t = replicaSecondFor(beat, p);
 
-  const state = showOpenFinding(beat.scene) ? stateAt(t) : closeFinding(stateAt(t));
+  const raw = showOpenFinding(beat.scene) ? stateAt(t) : closeFinding(stateAt(t));
+  const state = layout.aspect === "portrait" && beat.expelsCaption ? hideDraftingSheet(raw) : raw;
   const probe = mountReplica(box, layout.replicaLayout, { browserFrame: opts.browserFrame });
   const page = pickPage(PAGES, state.plan.variant, state.plan.page);
   const mount = page
@@ -840,32 +956,24 @@ export const shotFor = (
   const viewH = visibleBottom(layout, opts.clipBottom);
   const stand = fillScale(focusFilm, layout.width, viewH, beat.fill);
 
-  const push = framePush({
+  /*
+   * Everything the solver needs that is not a rectangle list, named once so the
+   * dry run below and the real push cannot drift apart.
+   *
+   * ⚠ In 9:16 the pill is bounded by the SAFE frame, not by the frame.
+   * `verify:honesty` asked whether the "AI-generated" pill's rectangle was
+   * inside the FRAME, and it was — comfortably, legibly, and inside the bottom
+   * 390 px the platforms cover with their own chrome. "Inside the frame" and
+   * "visible to a viewer on the platform the vertical master is cut for" are
+   * not the same claim, and the obligation (EU AI Act Art. 50) is about the
+   * second. Only while a rendering is on screen: bounding every portrait beat
+   * that way would pull back beats with no pill to protect.
+   */
+  const pushBase = {
     frameW: layout.width,
     frameH: layout.height,
     scale: stand * pushAt(beat.push, p) * entryScale(localSec),
     focus,
-    protect,
-    expel,
-    // A split scene CLIPS the picture at the top of its type band, and a
-    // rectangle comfortably inside the frame can be entirely below that clip.
-    // The protection is about what a viewer can see, so it is bounded by the
-    // clip; coverage still uses the whole frame.
-    /*
-     * ⚠ In 9:16 the pill is bounded by the SAFE frame, not by the frame.
-     *
-     * `verify:honesty` asks whether the "AI-generated" pill's rectangle is
-     * inside the FRAME, and it was — comfortably, legibly, and inside the
-     * bottom 390 px that Reels, TikTok and Shorts cover with their own chrome.
-     * "Inside the frame" and "visible to a viewer of the vertical master on the
-     * platform it is cut for" are not the same claim, and the obligation the
-     * pill discharges (EU AI Act Art. 50) is about the second one.
-     *
-     * Only while a rendering is actually on screen, and only in 9:16: the
-     * landscape masters have no chrome band, and bounding every portrait beat
-     * this way would pull the framing back on beats that have no pill to
-     * protect.
-     */
     protectBounds: (() => {
       const safeBottom = layout.aspect === "portrait" && pillOnScreen
         ? layout.height - layout.safe.bottom
@@ -877,7 +985,42 @@ export const shotFor = (
     // edge is technically uncropped and looks like a mistake, so the margin is
     // a visible one and the framing gives way to it.
     margin: layout.u(26),
-  });
+  };
+
+  /*
+   * ── The text rows the clip must not bisect ────────────────────────────────
+   *
+   * In 9:16 the picture stops at `pictureClipBottom` and the chapter's colour
+   * owns the band below. A row of TYPE meeting that edge is the defect this is
+   * about: eleven beats across the four vertical cuts showed the sheet's own
+   * caption row cut in half by it — `-storey Townhouse`, with "Two" outside.
+   *
+   * The direction is decided ONCE, here, from the settled framing, and passed
+   * to the solver: the cheaper move flips when the row is exactly half across,
+   * so a per-frame choice would jump by the row's own height in the middle of a
+   * beat. Deciding it per beat is the same law the framing already follows.
+   */
+  const clipEdge = opts.clipBottom;
+  const nudge: { rect: StageRect; dir: 1 | -1 }[] = [];
+  if (clipEdge !== undefined) {
+    const rows: StageRect[] = [];
+    const row = sheetCaptionRect(ctx);
+    if (row) rows.push(designRect(mount, row));
+    if (state.actProgress >= 0.5) rows.push(designRect(mount, mount.spec.commandBar));
+    if (rows.length > 0) {
+      const dry = framePush({ ...pushBase, protect, expel });
+      for (const r of rows) {
+        const top = r.y * dry.scale + dry.ty;
+        const bot = (r.y + r.h) * dry.scale + dry.ty;
+        if (top >= clipEdge || bot <= clipEdge) continue;
+        // The smaller move wins: down until the row is wholly past the edge, or
+        // up until it is wholly inside it.
+        nudge.push({ rect: r, dir: clipEdge - top <= bot - clipEdge ? 1 : -1 });
+      }
+    }
+  }
+
+  const push = framePush({ ...pushBase, protect, expel, nudge, nudgeEdge: clipEdge });
 
   return {
     t,

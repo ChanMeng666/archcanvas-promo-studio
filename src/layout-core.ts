@@ -153,6 +153,42 @@ export const deriveLayout = (width: number, height: number): Layout => {
   };
 };
 
+/**
+ * Where the PICTURE stops in this frame shape, in film pixels.
+ *
+ * ── Why 9:16 clips and 16:9 does not ───────────────────────────────────────
+ *
+ * The mount box already clears the platform furniture — `PICTURE.portrait`
+ * bottoms out at 1520 against a 1530 safe line — but the mount is not the
+ * picture. `camera.ts` scales the whole layer about its origin, so a 2.6x push
+ * carries content straight out of the box it was mounted in, and in 9:16 that
+ * content lands in the 390 px Reels, TikTok and Shorts cover with their own
+ * interface. Measured: eleven beats across the four vertical cuts put the
+ * sheet's own caption row down there, cut in half by the frame edge
+ * (`-storey Townhouse`), and the drafting card lands cropped on both sides for
+ * the hand-over half-second.
+ *
+ * So in 9:16 the picture ENDS here and the chapter's colour owns the band
+ * below — exactly what a `split` scene already does with its type band, one
+ * rule instead of two. In 16:9 there is no platform band to respect and the
+ * window's own shadow needs the room, so the picture runs to the frame.
+ *
+ * ⚠ The clip is the MOUNT's bottom, not the safe line, and the ten pixels
+ * matter: clipping at 1530 would leave a sliver in which pushed-out content
+ * could still show, which is the defect with a smaller number on it.
+ */
+export const pictureClipBottom = (l: Layout): number =>
+  l.aspect === "portrait" ? l.picture.y + l.picture.h : l.height;
+
+/**
+ * How far the picture dissolves into the band at the clip, in film pixels.
+ *
+ * A hard line across the paper reads as a crop; a short feather reads as the
+ * sheet running under the band. Kept small — past about a thirtieth of the
+ * frame it stops being an edge treatment and starts being a vignette.
+ */
+export const PICTURE_FEATHER_PX = 20;
+
 /* ── the split stage ──────────────────────────────────────────────────────── */
 
 /**
