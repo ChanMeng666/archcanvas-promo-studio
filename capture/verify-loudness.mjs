@@ -108,29 +108,37 @@ const recordedPeaks = (version, cut) => {
   const rows = Array.isArray(doc) ? doc : (doc.masters ?? doc.files ?? []);
   return rows
     .filter((r) => typeof r?.file === "string" && r.file.includes(`_${cut}s_`) && Number.isFinite(r.truePeakDb))
-    .map((r) => ({ file: r.file, truePeakDb: r.truePeakDb }));
+    .map((r) => ({ file: r.file, truePeakDb: r.truePeakDb, cueSha: typeof r.cueSha === "string" ? r.cueSha : null }));
 };
 
 /**
  * Was this cut's audio changed since that master was rendered?
  *
  * ⚠ A stale master is not a wrong model, and the two have to be told apart or
- * the check above loses its teeth to its own fixes. The discriminator wanted
- * here is a fingerprint of the resolved cue sheet at render time;
- * `package-masters.ps1` does not write one, but it DOES write the commit it
- * rendered at, and the sheet's only per-cut dial lives in a tracked file. So
- * ask git what the trim was then and compare it with what it is now.
+ * the check above loses its teeth to its own fixes — worst of all on the cuts
+ * that carry a trim, which are by definition the ones that were near the
+ * ceiling.
  *
- * Two ways that answer is unavailable — a dirty working tree at render time,
- * and a clone too shallow to hold the commit (CI checks out depth 1) — and in
- * both the fallback is the blunt rule it replaces: any cut carrying a trim is
- * treated as possibly stale. Blunt costs a skipped row; wrong costs the check.
+ * **The answer, when the render wrote one down.** `package-masters.ps1` records
+ * a `cueSha` per film: a fingerprint of the resolved cue sheet — file, start,
+ * gain, length, fades — from `tools/version-info.mjs`. Equal means the film on
+ * disk is the film this sheet describes, and the comparison is live no matter
+ * what trims it carries. Different means stale, and it is skipped.
+ *
+ * **The fallback, for manifests written before that existed.** Compare the trim
+ * now against the trim at the manifest's `renderCommit`, and if even that is
+ * unavailable — a render from a dirty tree, or a CI clone too shallow to hold
+ * the commit — treat any cut carrying a trim as possibly stale. Each step down
+ * is blunter, and each says which one it used, because a skip that does not
+ * explain itself is how this check would quietly stop checking.
  */
 const trimAtRenderCache = new Map();
-const audioChangedSince = (version, cut, trimNow) => {
+const audioChangedSince = (version, cut, trimNow, cueSha) => {
+  const now = cueSha ? cueShaNow(version, cut) : null;
+  if (cueSha && now) return { changed: cueSha !== now, precise: true, how: "sheet" };
   const doc = manifestFor(version);
   const commit = typeof doc?.renderCommit === "string" ? doc.renderCommit : null;
-  if (!commit || doc?.workingTreeDirty) return { changed: trimNow !== 0, precise: false };
+  if (!commit || doc?.workingTreeDirty) return { changed: trimNow !== 0, precise: false, how: "trim" };
   if (!trimAtRenderCache.has(commit)) {
     let then = null;
     try {
@@ -142,10 +150,34 @@ const audioChangedSince = (version, cut, trimNow) => {
     trimAtRenderCache.set(commit, then);
   }
   const then = trimAtRenderCache.get(commit);
-  if (!then) return { changed: trimNow !== 0, precise: false };
+  if (!then) return { changed: trimNow !== 0, precise: false, how: "trim" };
   const table = (then.versions ?? then)?.[version]?.openingCueTrimDb ?? {};
   const was = Number(table?.[cut] ?? 0) || 0;
-  return { changed: was !== trimNow, precise: true };
+  return { changed: was !== trimNow, precise: true, how: "commit" };
+};
+
+/**
+ * This working copy's own fingerprint for a version x cut.
+ *
+ * ⚠ Asked of `tools/version-info.mjs`, the same process the render asks, rather
+ * than recomputed here. A gate that re-implements the thing it checks
+ * eventually disagrees with it, and here the disagreement would be silent: two
+ * fingerprints that differ for no reason read as "stale master" and the check
+ * switches itself off.
+ */
+const shaCache = new Map();
+const cueShaNow = (version, cut) => {
+  if (!shaCache.has(version)) {
+    let table = null;
+    try {
+      const raw = execFileSync("node", [path.join(ROOT, "tools", "version-info.mjs"), "--version", version], {
+        cwd: ROOT, encoding: "utf8", maxBuffer: 1 << 24, stdio: ["ignore", "pipe", "ignore"],
+      });
+      table = JSON.parse(raw).cueSha ?? null;
+    } catch { table = null; }
+    shaCache.set(version, table);
+  }
+  return shaCache.get(version)?.[cut] ?? null;
 };
 
 const AS_JSON = process.argv.includes("--json");
@@ -319,11 +351,10 @@ for (const versionId of VERSIONS) {
        * an `openingCueTrimDb` entry records. Every cut without one is still
        * checked against reality, which is the ten rows that matter today.
        */
-      const stale = audioChangedSince(version, cut, vA.openingCueTrimDb(cut, version));
+      const stale = audioChangedSince(version, cut, vA.openingCueTrimDb(cut, version), rec.cueSha);
       if (stale.changed) {
-        staleRows.push(
-          `${version} ${cut}s — audio trimmed since this master was rendered${stale.precise ? "" : " (or possibly not: no render commit to compare)"}; re-render to re-check`,
-        );
+        const why = { sheet: "the cue sheet has changed", commit: "the trim has changed", trim: "it carries a trim and the render recorded no sheet fingerprint" }[stale.how];
+        staleRows.push(`${version} ${cut}s — not checked: ${why}; re-render to re-check`);
       } else if (delta < -REAL_TOLERANCE_DB - 1e-9) {
         fail(
           "model",
