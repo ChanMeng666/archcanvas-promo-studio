@@ -1,0 +1,33 @@
+{
+  "$comment": "A VERSION is {music, edit, sfxSet} — the three things that together decide what a master is. It exists because the edit snaps to the music's downbeats and the cue sheet is derived from the resulting cut, so changing any one of them changes the film. This file is WP-8's half: the two audition versions the founder will watch as finished films. The scenes agent is introducing the same model for edits; if its shape differs, that shape wins and this collapses into it — the field names below are the minimum this side needs.",
+  "$auditionNote": "Both audition versions use `elevenlabs-audition`, which was generated on a free ElevenLabs plan and carries commercialUse: false. They are rendered at FULL master quality — same codec settings, same loudness target — because the founder judges them as finished films, but `npm run verify:release` routes them to out/previews/AUDITION-not-for-release/<version>/ and refuses to let them into out/masters/. See docs/audio-provenance.md §4.",
+
+  "releasable": {
+    "A-confident-arrival": { "music": "A-confident-arrival", "edit": "A", "sfxSet": "synth" },
+    "B-daylight-forward": { "music": "B-daylight-forward", "edit": "B", "sfxSet": "synth" }
+  },
+
+  "audition": {
+    "A-confident-arrival+el": {
+      "music": "A-confident-arrival",
+      "edit": "A",
+      "sfxSet": "elevenlabs-audition",
+      "outDir": "out/previews/AUDITION-not-for-release/A-confident-arrival+el",
+      "quality": "master",
+      "$note": "Version A's picture and take, with the ElevenLabs palette. The draw cue is EQ'd for A's darker bed — see sfx-roles.json perMusic."
+    },
+    "B-daylight-forward+el": {
+      "music": "B-daylight-forward",
+      "edit": "B",
+      "sfxSet": "elevenlabs-audition",
+      "outDir": "out/previews/AUDITION-not-for-release/B-daylight-forward+el",
+      "quality": "master",
+      "$note": "Blocked until the B edit lands: `edit: \"B\"` names an edit this branch does not have. The scenes agent owns it on wp/edit-b."
+    }
+  },
+
+  "$quality": {
+    "master": "Identical to a release master: H.264, crf 18, yuv420p, AAC 192k, -16 LUFS +/-0.5, true peak <= -1.0 dBTP. An audition that looks or sounds cheaper than the real thing is not an audition of the real thing.",
+    "$loudnessNote": "verify:loudness must pass per version. Watch the first 64 ms: the 60s A master measured -1.2 dBTP there, where the bed's entry meets the opening cue. The opening cue's gain is the dial, not the bed's."
+  }
+}
