@@ -580,6 +580,13 @@ export interface HonestyWindow {
    * cut where the whole frame changes anyway, is invisible.
    */
   hardIn: boolean;
+  /**
+   * The band held off until the drafting card had gone.
+   *
+   * False means it could not: waiting would have taken the sentence under
+   * {@link HONESTY_MIN_SEC}, and the obligation outranks the composition.
+   */
+  bandWaitsForCard: boolean;
 }
 
 /**
@@ -591,7 +598,32 @@ export interface HonestyWindow {
  * jump to another chapter — so the runs are not merged across either, and the
  * longest run is what the floor is measured against.
  */
+/**
+ * ⚠ TWO derivations, and the floor picks between them.
+ *
+ * The band must not be drawn over the product's drafting card — see the
+ * `expelled` branch below — but waiting for the card costs the start of the
+ * band, and on a short money shot that is the difference between clearing the
+ * three-second floor and not. A's 15 s cut is the case: its money-shot beat is
+ * 3.30 s, the card holds the first 0.45 s of it, and waiting lands the sentence
+ * at **2.83 s**.
+ *
+ * So the priority is stated rather than tuned, and in the only order it can be:
+ * the sentence is the film's one mandatory obligation and a composition problem
+ * may not spend it. Wait where waiting is affordable — seven of the eight
+ * cut-and-edit combinations — and where it is not, the overlap stands and
+ * `bandWaitsForCard` says so out loud.
+ *
+ * It is derived, not tabled: lengthen A's money shot by a fifth of a second and
+ * the wait starts applying there too, with nothing to remember.
+ */
 export const honestyWindowFor = (resolved: ResolvedCut): HonestyWindow => {
+  const waited = deriveHonesty(resolved, true);
+  if (waited.coveredSec + 1e-9 >= HONESTY_MIN_SEC) return waited;
+  return deriveHonesty(resolved, false);
+};
+
+const deriveHonesty = (resolved: ResolvedCut, waitForCard: boolean): HonestyWindow => {
   /** Runs in which the replica's OWN caption is fully opaque and on screen. */
   const runs: { from: number; to: number; scene: SceneId }[] = [];
   /**
@@ -603,6 +635,18 @@ export const honestyWindowFor = (resolved: ResolvedCut): HonestyWindow => {
    * doubling `verify:honesty` fails on.
    */
   const expelled: { from: number; to: number }[] = [];
+  /**
+   * The band's start was pushed back to let the drafting card leave.
+   *
+   * ⚠ It implies `hardIn`, and the floor is why. The band fades in over
+   * `MOTION.enterSec` unless told not to, the floor counts only FULLY opaque
+   * frames, and a delayed band no longer abuts the product's own caption — so
+   * the fade came out of the run: B's 15 s cut derived 3.07 s and the gate,
+   * which samples what is actually drawn, measured 2.87 s. A fade in from
+   * nothing, in the middle of a beat, half a second after a card went away, is
+   * not a hand-over anyway; it is a glitch with a ramp on it.
+   */
+  let delayedForCard = false;
 
   for (const beat of resolved.beats) {
     if (beat.replicaFrom === undefined || beat.replicaTo === undefined) continue;
@@ -617,11 +661,38 @@ export const honestyWindowFor = (resolved: ResolvedCut): HonestyWindow => {
 
     if (beat.expelsCaption) {
       if (vHi > vLo) {
-        const from = mapped(vLo);
-        const to = mapped(vHi);
-        const last = expelled[expelled.length - 1];
-        if (last && Math.abs(last.to - from) < 1e-6) last.to = to;
-        else expelled.push({ from, to });
+        /*
+         * ⚠ The band starts at the beat, and the CAMERA is what keeps it off
+         * the drafting card — see `camera.ts` § cardProtect.
+         *
+         * Delaying the band until the card had gone was tried first and is the
+         * wrong lever: it is the obvious reading of "never both on screen", it
+         * costs the 15 s cuts 0.5–0.8 s, and they fell to **2.39 s and 2.57 s**
+         * against the 3.0 s floor. The sentence is the film's one mandatory
+         * obligation; a fix for a composition problem may not spend it.
+         */
+        const cardGone = waitForCard && beat.replicaFrom < DRAFTING_SPAN.to
+          ? (() => {
+              const dur = Math.max(1, beat.durationInFrames);
+              for (let f = 0; f <= dur; f += 1) {
+                if (replicaSecondFor(beat, clamp01(f / dur)) >= DRAFTING_SPAN.to) {
+                  return beat.startSec + frameToSec(f);
+                }
+              }
+              return beat.endSec;
+            })()
+          : -Infinity;
+        const from = Math.max(mapped(vLo), cardGone);
+        if (from > mapped(vLo) + 1e-6) delayedForCard = true;
+        // TO THE BEAT'S END, not to the caption beat's window: the product's
+        // caption is off frame for the WHOLE of an expelling beat, so there is
+        // nothing to double with and nothing to hand back to until the cut.
+        const to = beat.endSec;
+        if (to - from > 1e-6) {
+          const last = expelled[expelled.length - 1];
+          if (last && Math.abs(last.to - from) < 1e-6) last.to = to;
+          else expelled.push({ from, to });
+        }
       }
       continue;
     }
@@ -650,7 +721,7 @@ export const honestyWindowFor = (resolved: ResolvedCut): HonestyWindow => {
    * framed that close would land here.
    */
   if (best && naturalSec >= HONESTY_MIN_SEC && expelled.length === 0) {
-    return { ...best, sec: naturalSec, source: "replica", naturalSec, hardIn: false, coveredSec: naturalSec };
+    return { ...best, sec: naturalSec, source: "replica", naturalSec, hardIn: false, coveredSec: naturalSec, bandWaitsForCard: waitForCard };
   }
 
   const band = expelled.reduce<{ from: number; to: number } | null>(
@@ -674,8 +745,9 @@ export const honestyWindowFor = (resolved: ResolvedCut): HonestyWindow => {
       sec: band.to - band.from,
       source: "film",
       naturalSec,
-      hardIn: before !== undefined,
+      hardIn: before !== undefined || delayedForCard,
       coveredSec: covered,
+      bandWaitsForCard: waitForCard,
     };
   }
 
@@ -684,7 +756,7 @@ export const honestyWindowFor = (resolved: ResolvedCut): HonestyWindow => {
     // product's own caption, ending where it becomes visible.
     const to = best.from;
     const from = Math.max(0, to - HONESTY_OVERLAY_SEC);
-    return { from, to, sec: to - from, source: "film", naturalSec, hardIn: false, coveredSec: to - from + naturalSec };
+    return { from, to, sec: to - from, source: "film", naturalSec, hardIn: false, coveredSec: to - from + naturalSec, bandWaitsForCard: waitForCard };
   }
 
   const firstReplica = resolved.beats.find((b) => b.replicaFrom !== undefined);
@@ -693,7 +765,24 @@ export const honestyWindowFor = (resolved: ResolvedCut): HonestyWindow => {
   warn(
     `cut "${resolved.cut}" never plays the honesty caption's own beat — the film overlays the whole ${HONESTY_OVERLAY_SEC}s itself.`,
   );
-  return { from, to, sec: to - from, source: "film", naturalSec, hardIn: false, coveredSec: to - from };
+  return { from, to, sec: to - from, source: "film", naturalSec, hardIn: false, coveredSec: to - from, bandWaitsForCard: waitForCard };
+};
+
+/**
+ * Both derivations of a cut's honesty window: the one that waits for the
+ * drafting card, and the one the film actually uses.
+ *
+ * For `verify:honesty`, so the exception can be checked rather than believed.
+ * When the film did NOT wait, the gate asserts that waiting really would have
+ * taken the sentence under the floor — an exception that is earned every time
+ * it is taken, instead of a standing excuse attached to a red gate.
+ */
+export const honestyWaitDiagnostic = (
+  cut: CutId,
+  aspect: Aspect,
+): { waited: HonestyWindow; used: HonestyWindow } => {
+  const resolved = timelineFor(cut, aspect);
+  return { waited: deriveHonesty(resolved, true), used: honestyWindow(cut, aspect) };
 };
 
 const honestyBuilt = {} as Record<CutId, HonestyWindow>;

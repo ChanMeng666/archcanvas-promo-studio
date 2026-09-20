@@ -872,6 +872,20 @@ export const shotFor = (
 };
 
 /**
+ * The drafting card's box after the push, or `null` when it is not on screen.
+ *
+ * For `verify:honesty`, which has to ask whether the film's opaque band is
+ * printing over the product's own sheet. Exported rather than re-derived in the
+ * gate for the usual reason: `draftCardBox` carries a labelled workaround for a
+ * stale upstream spec (`DRAFT_CARD_SPEC_SHORTFALL`), and a gate with its own
+ * copy of that would go green on the day upstream fixed it.
+ */
+export const draftCardRectFor = (shot: Shot): StageRect | null =>
+  shot.state.drafting.visible
+    ? pushRect(shot.push, designRect(shot.mount, draftCardBox(shot.mount.spec)))
+    : null;
+
+/**
  * The scene's entrance, as a SCALE and nothing else.
  *
  * The film cuts on the beat; what carries momentum across the cut is the first

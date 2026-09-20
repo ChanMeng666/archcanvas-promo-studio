@@ -38,3 +38,23 @@ export const captionBandTop = (layout: Layout, lineCount: number): number => {
 
 /** How many lines the band sets in this frame shape. */
 export const captionLines = (aspect: Aspect): number => linesFor(HONESTY.copy, aspect).length;
+
+/**
+ * The film band's whole box, in frame pixels.
+ *
+ * ⚠ The OUTER box: the visible pill is centred inside it and sized by its own
+ * text, so an overlap test against this is conservative — it can report a
+ * collision the pill would have missed horizontally. That is the right
+ * direction to be wrong in for a check about the film's one mandatory
+ * sentence, and it is stated rather than discovered.
+ *
+ * Exported so `HonestyCaption` and `verify:honesty` cannot disagree about where
+ * the band is; the component positions itself from this.
+ */
+export const honestyBandRect = (
+  layout: Layout,
+  lineCount: number,
+): { x: number; y: number; w: number; h: number } => {
+  const h = layout.u(TYPE.caption * CAPTION_SCALE * 1.3) * lineCount + layout.u(40);
+  return { x: layout.stage.x, y: captionBandTop(layout, lineCount), w: layout.stage.w, h };
+};
