@@ -3,8 +3,10 @@
   "endpoint": "POST https://api.elevenlabs.io/v1/sound-generation",
   "modelId": "eleven_text_to_sound_v2",
   "creditsPerSecond": 40,
+  "setTrimDb": -3.0,
+  "$setTrimNote": "A trim on the WHOLE set, on top of any per-cue levelTrimDb. The vendor cues are individually matched to the synth cues they replace, but they are longer, so more of them overlap at any instant and the set sums hotter in the mix: verify:loudness measured up to +1.9 dBTP against a -1 ceiling before the per-cue trims and -0.6..+0.1 after. -1.5 dB clears the ceiling on all four cuts of both versions while keeping the relative balance between cues exactly as chosen.",
   "$seedNote": "The sound-effects API exposes no seed parameter, so generation is NOT reproducible: the same prompt returns a different take every time. That is why the audio is committed rather than treated as a build artefact, exactly as the SUNO bed is.",
-  "$aliasNote": "Canonical film cue id -> this bank's own cue id. The film's vocabulary is the synthesised set's fourteen ids, because src/cues.ts is written against them; a vendor set reduces those to six roles, so it needs a mapping rather than a rename. src/audio.ts resolves sfx(\"pencil-line\") through here, which is why switching sets never requires touching src/cues.ts. `pencil-line` points at draw-a only as a default — it is the choice the founder is auditioning, and tools/use-sfx.mjs --draw <a-e> repoints it.",
+  "$aliasNote": "Canonical film cue id -> this bank's own cue id. The film's vocabulary is the synthesised set's fourteen ids, because src/cues.ts is written against them; a vendor set reduces those to six roles, so it needs a mapping rather than a rename. src/audio.ts resolves sfx(\"pencil-line\") through here, which is why switching sets never requires touching src/cues.ts. `pencil-line` points at draw-b, chosen by measurement in docs/decisions.md D12 — draw-a was the intended pick and was disqualified by its own numbers. tools/use-sfx.mjs --draw <a-e> repoints it.",
   "aliases": {
     "key-1": "type-1",
     "key-2": "type-2",
@@ -13,7 +15,7 @@
     "tick": "tick",
     "whoosh-in": "move-in",
     "whoosh-out": "move-out",
-    "pencil-line": "draw-a",
+    "pencil-line": "draw-b",
     "paper-settle": "sheet",
     "pin-drop": "pin-drop",
     "pop": "pop",
@@ -80,7 +82,6 @@
       "promptInfluence": 0.6,
       "norm": "texture"
     },
-
     {
       "id": "type-1",
       "role": "type",
@@ -117,7 +118,6 @@
       "promptInfluence": 0.5,
       "norm": "transient"
     },
-
     {
       "id": "click",
       "role": "click",
@@ -125,7 +125,9 @@
       "text": "A single soft user interface button click. Muted, close microphone, completely dry, very short and rounded. No music, no voices, no background noise.",
       "durationSeconds": 1,
       "promptInfluence": 0.5,
-      "norm": "transient"
+      "norm": "transient",
+      "levelTrimDb": -1.6,
+      "$trimNote": "Attenuated 1.6 dB so it is no louder than the synthesised `click` it stands in for. Both sets are peak-normalised to -3 dBFS, which is the wrong equivalence for material of different density: this cue is far denser than the short synth transient, so at equal PEAK it is much louder. The cue sheet's gains were tuned against the synth levels, so a drop-in replacement has to match them or the mix runs hot — this one pushed true peak to +1.9 dBTP on the 60s cut."
     },
     {
       "id": "tick",
@@ -145,7 +147,6 @@
       "promptInfluence": 0.5,
       "norm": "transient"
     },
-
     {
       "id": "move-in",
       "role": "move",
@@ -164,7 +165,6 @@
       "promptInfluence": 0.5,
       "norm": "texture"
     },
-
     {
       "id": "pop",
       "role": "appear",
@@ -211,7 +211,6 @@
       "promptInfluence": 0.5,
       "norm": "texture"
     },
-
     {
       "id": "end-1",
       "role": "end",
@@ -219,7 +218,11 @@
       "text": "A soft warm low impact for a closing title card, with a short smooth tail. Gentle and rounded, not aggressive, no braam, no cinematic riser. No music, no voices, no background noise.",
       "durationSeconds": 3,
       "promptInfluence": 0.5,
-      "norm": "transient"
+      "norm": "transient",
+      "maxSeconds": 1.8,
+      "$maxNote": "Capped at 1.8s. The end card leaves about 2.0s of film after it on the tightest cuts (B-30: card at 27.77s of 30s), and the 3.0s take ran 0.94s past the master. The impact is at t=0 and everything after it is ring-out, so the cue loses tail, not event — and the music is still resolving underneath it anyway.",
+      "levelTrimDb": -6.9,
+      "$trimNote": "Attenuated 6.9 dB so it is no louder than the synthesised `end-hit` it stands in for. Both sets are peak-normalised to -3 dBFS, which is the wrong equivalence for material of different density: this cue is far denser than the short synth transient, so at equal PEAK it is much louder. The cue sheet's gains were tuned against the synth levels, so a drop-in replacement has to match them or the mix runs hot — this one pushed true peak to +1.9 dBTP on the 60s cut."
     },
     {
       "id": "end-2",
@@ -228,7 +231,11 @@
       "text": "A gentle warm thud with a soft air tail for an end card. Gentle and short, completely dry with a small natural decay. No braam, no music, no voices, no background noise.",
       "durationSeconds": 3,
       "promptInfluence": 0.5,
-      "norm": "transient"
+      "norm": "transient",
+      "maxSeconds": 1.8,
+      "$maxNote": "Capped at 1.8s. The end card leaves about 2.0s of film after it on the tightest cuts (B-30: card at 27.77s of 30s), and the 3.0s take ran 0.94s past the master. The impact is at t=0 and everything after it is ring-out, so the cue loses tail, not event — and the music is still resolving underneath it anyway.",
+      "levelTrimDb": -6.9,
+      "$trimNote": "Attenuated 6.9 dB so it is no louder than the synthesised `end-hit` it stands in for. Both sets are peak-normalised to -3 dBFS, which is the wrong equivalence for material of different density: this cue is far denser than the short synth transient, so at equal PEAK it is much louder. The cue sheet's gains were tuned against the synth levels, so a drop-in replacement has to match them or the mix runs hot — this one pushed true peak to +1.9 dBTP on the 60s cut."
     }
   ]
 }
