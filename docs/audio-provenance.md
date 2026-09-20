@@ -14,7 +14,8 @@ them against the filesystem.
 
 | Asset | Source | Verdict |
 |---|---|---|
-| **14 sound effects** | Synthesised offline by `tools/synth-sfx.mjs` (ffmpeg only) | **Clear.** No vendor, no account, no terms. |
+| **14 sound effects** (`synth`, active) | Synthesised offline by `tools/synth-sfx.mjs` (ffmpeg only) | **Clear.** No vendor, no account, no terms. |
+| **21 sound effects** (`elevenlabs-audition`) | ElevenLabs, 2026-09-20, **free tier** | **NOT FOR RELEASE.** Audition only — quarantined by manifest and by `npm run verify:release`. See §4. |
 | **Music bed** `confident-arrival.mp3` | SUNO, founder-generated, confirmed paid tier 2026-09-08 | **Clear**, on the strength of that dated confirmation. |
 | ~~8 drafting-room cues~~ | ElevenLabs, 2026-09-07, `../archcanvas-promo-video/audio/sfx-*.mp3` | **UNUSABLE. Not copied into this repo.** |
 | ~~`drafting-room-full.mp3`~~, ~~`ink-on-paper-full.mp3`~~ | SUNO, `../archcanvas-promo-video` | **Not used** — darkest of the candidates, and their licensing boxes are still blank. |
@@ -216,6 +217,139 @@ and their own licensing boxes are blank. Either reason alone was sufficient.
 
 ---
 
+## 4. The ElevenLabs audition set — generated 2026-09-20, NOT releasable
+
+The founder watched version A, liked it, and disliked exactly one sound: the
+synthesised `pencil-line` that plays while the floor plan draws itself. They
+asked for the whole palette to be generated with ElevenLabs instead, and put a
+key in the main checkout's `.env`.
+
+**The account is on the free tier.** Confirmed before anything was generated:
+
+```
+GET /v1/user/subscription
+  tier                   free
+  status                 free
+  character_count        0 / 10000
+  next reset             2026-10-09T06:27:12Z
+  can_extend_limit       false
+```
+
+So this round is an **audition**, not a change of sound design. Free-tier output
+carries no commercial licence, and — the clause this project has already paid
+for once — rights are withheld from content created outside a paid subscription
+*before or after*, so upgrading later would not license these files.
+
+### What stops them shipping by accident
+
+Not a note in a document. Four mechanisms, each tested:
+
+1. **Per-asset provenance.** Every row in `sets.elevenlabs-audition` carries
+   `provenance: { source: "elevenlabs", tier: "free", generatedAt, commercialUse: false }`.
+   The tier is measured at generation time by the generator, not asserted here.
+2. **`npm run verify:release`** refuses when any active audio asset has
+   `commercialUse: false`. It calls `releaseBlockers()` out of `src/audio.ts` —
+   the same module the film reads — rather than re-deriving the rule.
+3. **`render.ps1` calls that gate before it renders**, not before it ships, so a
+   refusal costs nothing. `npm run ship` calls it too, via `verify:strict`.
+4. **The generator refuses `--set elevenlabs`** (the releasable set name) on a
+   free tier, so a set that *looks* releasable cannot be produced by choosing a
+   nicer name.
+
+Audition renders are still allowed — they go to
+`out/previews/AUDITION-not-for-release/`, which carries a standing notice
+(`capture/audition-notice.txt`).
+
+**The one thing none of this defends against is somebody editing
+`src/data/sfx.json` by hand to say `commercialUse: true`.** That is deliberate:
+the manifest is generated, the gate is data-driven so that a *paid* regeneration
+flips it automatically, and there is no way to distinguish a hand-edit from a
+legitimate one. The gate stops accidents, not decisions.
+
+### What was generated
+
+21 cues, 67.5 s, in six roles. Cost **685 credits of 10,000** (6.9%) — note the
+docs say 40 credits/second but the account was actually billed about **10
+credits/second**, so the budget guard was roughly 4× conservative. Ceiling was
+70% of remaining; the plan printed before spending was 2,700 credits.
+
+| cue | role | duration | peak dBFS | RMS dB | centroid Hz | align |
+|---|---|---|---|---|---|---|
+| `draw-a` | draw | 8.00 s | -3.0 | -22.2 | 8630 | start |
+| `draw-b` | draw | 7.69 s | -3.0 | -23.9 | 8130 | start |
+| `draw-c` | draw | 7.94 s | -3.2 | -20.0 | 8146 | start |
+| `draw-d` | draw | 7.96 s | -3.0 | -23.6 | 10290 | start |
+| `draw-e` | draw | 7.79 s | -3.0 | -27.2 | 9820 | start |
+| `type-1` | type | 1.88 s | -3.4 | -31.5 | 5015 | attack +0.194s |
+| `type-2` | type | 1.36 s | -3.0 | -31.5 | 8211 | attack +0.030s |
+| `type-3` | type | 1.36 s | -3.0 | -29.4 | 4864 | attack +0.472s |
+| `type-4` | type | 1.92 s | -3.0 | -30.9 | 6198 | attack +0.078s |
+| `click` | click | 0.11 s | -3.0 | -21.9 | 2560 | attack +0.034s |
+| `tick` | click | 1.00 s | -3.0 | -30.6 | 8808 | attack |
+| `chip` | click | 1.00 s | -3.0 | -31.2 | 9727 | attack +0.060s |
+| `move-in` | move | 0.63 s | -3.5 | -20.0 | 1087 | start |
+| `move-out` | move | 0.31 s | -5.3 | -20.0 | 1357 | start |
+| `pop` | appear | 1.00 s | -3.0 | -20.2 | 955 | attack |
+| `pin-drop` | appear | 0.78 s | -3.0 | -27.9 | 5821 | attack +0.027s |
+| `confirm` | appear | 1.48 s | -3.0 | -22.7 | 871 | attack |
+| `sheet` | appear | 1.30 s | -3.0 | -27.2 | 8261 | attack +1.011s |
+| `shimmer` | appear | 2.48 s | -3.0 | -21.6 | 9883 | start |
+| `end-1` | end | 3.00 s | -3.0 | -16.9 | 133 | attack |
+| `end-2` | end | 3.00 s | -3.0 | -22.0 | 854 | attack |
+
+**Alignment** is recorded per cue because the obvious rule is wrong half the
+time. The brief said to align the on-screen action to the sound's attack
+(`cue.at = action.at − peakAtSec`), which is right for a transient and wrong for
+a texture: `draw-e`'s loudest sample is at 7.0 s of a 7.8 s file, so
+attack-aligning it would start the drawing sound seven seconds early. And for
+transients the anchor is the **first strong onset** (−12 dB from peak), not the
+global peak — `type-1`'s loudest key press is at 1.43 s of a 1.88 s cluster.
+
+### The five `draw` candidates
+
+The actual question. Five concepts, ~8 s each, judged in context rather than in
+isolation: `tools/build-draw-audition.mjs` renders **one** silent 8-second
+segment of the 30 s landscape cut (frames 120–359, 1280×720) and muxes five
+different audio mixes onto the same video stream, so the picture is byte-identical
+and any difference is the sound. Mixed at −8 dB, the level `src/cues.ts` already
+uses for this cue.
+
+`tools/build-audition-page.mjs` assembles `out/audition/index.html` — players,
+prompts, spectrograms, and the current synthesised `pencil-line` alongside for a
+fair comparison.
+
+### Known imperfections, recorded rather than hidden
+
+- **`sheet`** (the drafting-sheet landing) has its first strong onset at 1.011 s,
+  because in that take the paper rustle is louder than the slap that a viewer
+  actually sees land. It is honest to the take and probably wants regenerating.
+- **Generation is not reproducible.** The sound-effects API exposes no seed, so
+  the same prompt returns a different take. That is why the audio is committed
+  rather than treated as a build artefact — and why a paid regeneration is a
+  **re-mix, not a re-render**. Expect the takes to differ.
+- **Nobody involved can hear any of it.** Every cue was checked with ffprobe,
+  `astats` and a spectrogram, which rules out silence, clipping, DC offset,
+  wrong length, and obvious speech or music where an effect was asked for. It
+  cannot rule out "sounds wrong". That is the founder's pass, and it is the
+  entire point of the audition page.
+
+### If the answer is yes
+
+```bash
+# after upgrading the ElevenLabs plan
+node tools/generate-sfx-elevenlabs.mjs --set elevenlabs     # refuses on free
+node tools/use-sfx.mjs elevenlabs --draw <a|b|c|d|e>
+npm run verify:release                                       # must go green
+```
+
+### If the answer is no
+
+```bash
+node tools/use-sfx.mjs synth
+```
+
+---
+
 ## How to re-run any of this
 
 ```bash
@@ -225,5 +359,8 @@ npm run audio:sfx:check    # do the files on disk still match their recipes?
 npm run audio:beds         # plan -> cut -> measure -> src/data/music.json
 npm run audio:all          # sfx + beds
 npm run verify:assets      # every declared audio file exists; audio.ts self-check
+npm run verify:release     # may these assets be rendered as a master?
+node tools/use-sfx.mjs     # which sound set is active, and is it releasable?
+npm run audition           # rebuild the five draw previews + out/audition/index.html
 node tools/synth-sfx.mjs --spectrograms   # PNGs, for the next person who cannot hear either
 ```

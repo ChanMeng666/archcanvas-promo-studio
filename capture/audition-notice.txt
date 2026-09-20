@@ -1,0 +1,38 @@
+NOT FOR RELEASE
+===============
+
+Everything in this folder was rendered with the `elevenlabs-audition` sound
+set, which was generated on an ElevenLabs FREE plan.
+
+ElevenLabs' free tier carries no commercial licence, and its terms withhold
+commercial rights from content created outside a paid subscription -- BEFORE OR
+AFTER. Upgrading the account later does NOT license these files. They exist for
+one purpose: so the founder can hear the effects in context and decide whether
+to pay for a plan and regenerate them.
+
+Do not publish these. Do not cut them into anything. Do not upload them.
+
+The picture in these clips is the real film; only the sound is quarantined.
+
+WHAT TO DO IF THE ANSWER IS YES
+-------------------------------
+  1. Upgrade the ElevenLabs account to a paid plan.
+  2. node tools/generate-sfx-elevenlabs.mjs --set elevenlabs
+     (that command refuses to run on a free tier, so it cannot produce a
+     releasable-looking set by accident)
+  3. node tools/use-sfx.mjs elevenlabs --draw <a|b|c|d|e>
+  4. npm run verify:release        -> must print "masters may be rendered"
+  5. pwsh -File ./render.ps1
+
+The same prompts regenerate the same design brief -- but NOT the same audio.
+The sound-effects API exposes no seed, so a paid regeneration is a re-mix, not
+a re-render. Expect the takes to differ.
+
+WHAT TO DO IF THE ANSWER IS NO
+------------------------------
+  node tools/use-sfx.mjs synth     # back to the ffmpeg-synthesised set
+
+Masters cannot be rendered while an audition set is active: `npm run
+verify:release` refuses, and render.ps1 calls it before it starts.
+
+See docs/audio-provenance.md and docs/decisions.md D4.

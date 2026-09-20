@@ -16,9 +16,10 @@
     "audio:analyze": "node tools/analyze-music.mjs",
     "audio:sfx": "node tools/synth-sfx.mjs",
     "audio:sfx:check": "node tools/synth-sfx.mjs --check",
+    "audio:sfx:elevenlabs": "node tools/generate-sfx-elevenlabs.mjs",
+    "audition": "node tools/build-draw-audition.mjs && node tools/build-audition-page.mjs",
     "audio:beds": "node tools/plan-beds.mjs && pwsh -File ./tools/prepare-bed.ps1 && node tools/build-music.mjs",
     "audio:all": "npm run audio:sfx && npm run audio:beds",
-    "audio:use": "node tools/use-music.mjs",
     "verify": "npm run verify:assets && npm run verify:replica && npm run verify:timeline && npm run verify:copy && npm run verify:numbers && npm run verify:audio && npm run verify:honesty && npm run verify:framing && npm run verify:violet && npm run verify:loudness && npm run verify:opening",
     "verify:assets": "node capture/verify-assets.mjs",
     "verify:release": "node capture/verify-release.mjs",
@@ -39,7 +40,8 @@
     "verify:assets:strict": "node capture/verify-assets.mjs --strict",
     "verify:timeline:strict": "node capture/verify-timeline.mjs --strict",
     "verify:strict": "npm run verify:release && npm run verify:assets:strict && npm run verify:replica && npm run verify:timeline:strict && npm run verify:copy:strict && npm run verify:numbers && npm run verify:audio && npm run verify:honesty && npm run verify:framing && npm run verify:violet && npm run verify:loudness && npm run verify:opening",
-    "ship": "npm run lint && npm run verify:strict && pwsh -File ./render.ps1"
+    "ship": "npm run lint && npm run verify:strict && pwsh -File ./render.ps1",
+    "audio:use": "node tools/use-music.mjs"
   },
   "dependencies": {
     "@remotion/cli": "4.0.522",
