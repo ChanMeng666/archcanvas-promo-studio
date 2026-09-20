@@ -59,6 +59,7 @@ import {
   BAND_INTENT,
   MUSIC_VERSION,
   endCueSuppressed,
+  openingCueTrimDb,
   resolveCue,
   roleCue,
   roleView,
@@ -168,7 +169,17 @@ export const cuesFor = (cut: CutId): CueSheet => {
       out.push({ atSec: beat.startSec, role: "move", intent: beat.index % 2 === 0 ? "in" : "out" });
     }
     if (scene.kind === "card" || scene.kind === "endcard") {
-      out.push({ atSec: beat.startSec + 0.04, role: "appear", intent: "card" });
+      /*
+       * ⚠ The cut's FIRST card cue carries the version's opening trim.
+       *
+       * Every bed enters at 0 s and this lands 40 ms later, so the master's
+       * highest sample is almost always their sum in the first ~64 ms rather
+       * than anything in the middle — `B-daylight-forward+el`'s 15 s master
+       * measured -1.0 dBTP there, 0.027 dB under the ceiling. The dial is the
+       * CUE's gain, in `versions.json`, never the bed's (D33).
+       */
+      const opening = beat.index === 0 ? openingCueTrimDb(cut) : 0;
+      out.push({ atSec: beat.startSec + 0.04, role: "appear", intent: "card", gainDb: opening });
     } else if (scene.chapter) {
       // The chapter chip popping in — the same sound as a card, further back.
       out.push({ atSec: beat.startSec + 0.05, role: "appear", intent: "card", gainDb: -6 });

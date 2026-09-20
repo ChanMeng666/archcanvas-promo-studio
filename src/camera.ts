@@ -463,9 +463,46 @@ const travel = (at: number | undefined, win: { from: number; to: number }): numb
   return p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2;
 };
 
+/**
+ * One eased move between two resolved PUSHES.
+ *
+ * Scale on a LOG axis, translate linearly — the same reason `pushAt`
+ * interpolates `log(scale)`: zoom is perceived multiplicatively, and a linear
+ * ramp reads as slowing down at the wrong end.
+ */
+const lerpPush = (a: FramePush, b: FramePush, p: number): FramePush => {
+  if (p >= 1) return b;
+  if (p <= 0) return a;
+  return {
+    scale: Math.exp(Math.log(a.scale) + (Math.log(b.scale) - Math.log(a.scale)) * p),
+    tx: a.tx + (b.tx - a.tx) * p,
+    ty: a.ty + (b.ty - a.ty) * p,
+    scaleClamped: a.scaleClamped || b.scaleClamped,
+    focusClamped: a.focusClamped || b.focusClamped,
+  };
+};
+
 /** One eased move between two framings. */
 const lerpRect = (a: Rect, b: Rect, p: number): Rect =>
   p >= 1 ? b : p <= 0 ? a : { x: a.x + (b.x - a.x) * p, y: a.y + (b.y - a.y) * p, w: a.w + (b.w - a.w) * p, h: a.h + (b.h - a.h) * p };
+
+/**
+ * How far through its travel a beat is, or `null` when it does not travel.
+ *
+ * Exported so `shotFor` can interpolate the resolved PUSH rather than the focus
+ * RECT — see the note there. `receipt` and `render` are the two, and the
+ * windows are the screenplay's own.
+ */
+export const travelProgress = (
+  scene: SceneId,
+  span: { from: number; to: number } | undefined,
+  at: number | undefined,
+): number | null => {
+  if (at === undefined || !span) return null;
+  if (scene === "receipt" && overlaps(span, OPEN_PIN_TRAVEL)) return travel(at, OPEN_PIN_TRAVEL);
+  if (scene === "render" && overlaps(span, RENDERING_SPAN)) return travel(at, RENDERING_TRAVEL);
+  return null;
+};
 
 export const focusRectFor = (
   scene: SceneId,
@@ -635,6 +672,87 @@ export const buildingBox = (ctx: TargetContext): Rect | null => {
   const w = br.x - tl.x;
   const h = br.y - tl.y;
   return { x: tl.x - w * 0.09, y: tl.y - h * 0.09, w: w * 1.18, h: h * 1.18 };
+};
+
+/**
+ * Every ROOM LABEL on the drawing, as a rectangle in design space.
+ *
+ * ── Why the drawing's own type needed a rule ───────────────────────────────
+ *
+ * `verify:framing`'s bisection rule knew the studio's CHROME — the sheet's
+ * caption row, the command bar — and not the one kind of type the film is
+ * actually about. In 9:16 the render beat cropped the sheet at the right frame
+ * edge straight through `Living / Dining` and `Kitchen`, in both edits and
+ * every vertical cut that has a render beat. A room label cut in half is worse
+ * than a chrome row cut in half: it is the product's answer to the brief,
+ * unreadable, in the beat that exists to show it.
+ *
+ * ── Derived, not re-drawn ──────────────────────────────────────────────────
+ *
+ * The labels are `page.texts` — the compiler's own `<text>` leaves, with their
+ * own `x`, `y`, `font-size` and `text-anchor` — mapped through the SAME
+ * `planToWorld` → `worldToDesign` pair `PlanSvg` draws them with and
+ * `buildingBox` frames against. Nothing is re-derived, so nothing can drift.
+ *
+ * ⚠ The BOX is conservative and says so. The film cannot measure text without
+ * fonts (`CLAUDE.md`: measure layout only after `document.fonts.ready`), so the
+ * width is `characters x font-size x ADVANCE`. {@link LABEL_ADVANCE} is above
+ * the real average advance of the replica's sans on purpose: over-estimating a
+ * label's width makes the gate complain early, which is the right direction to
+ * be wrong in for type the viewer is meant to read.
+ */
+const LABEL_ADVANCE = 0.62;
+
+/** Ascent above the baseline, as a fraction of the font size. */
+const LABEL_ASCENT = 0.82;
+
+export const roomLabelRects = (ctx: TargetContext): Rect[] => {
+  const page = ctx.page;
+  if (!page || page.texts.length === 0) return [];
+  const vb = parseViewBox(page.viewBox);
+  const out: Rect[] = [];
+
+  /*
+   * ⚠ ROOM LABELS, not every `<text>` on the sheet.
+   *
+   * `page.texts` also carries the dimension chains — `7800`, `1400`, `550` —
+   * and those are a TEXTURE: they run off the edge of a punched-in shot by
+   * design, the way the drawing does, and a rule that banned it would ban the
+   * film's entire camera language. Measured before the filter: 42 beats red in
+   * edit B and 41 in A, which is nearly every replica beat and is the gate
+   * telling you it is asking the wrong question.
+   *
+   * A room's name and its area are content: they are the product's answer to
+   * the brief. They are identified by the compiler's own `archId` — the same id
+   * `rooms[]` carries and the same one selection uses — with the label text as
+   * the fallback for a page whose texts are not id-tagged.
+   */
+  const roomIds = new Set(page.rooms.map((r) => r.archId));
+  const roomLabels = new Set(page.rooms.map((r) => r.label));
+
+  for (const t of page.texts) {
+    const text = (t.text ?? "").trim();
+    if (!text) continue;
+    if (!(t.archId && roomIds.has(t.archId)) && !roomLabels.has(text)) continue;
+    const x = Number(t.attrs.x);
+    const y = Number(t.attrs.y);
+    const size = Number(t.attrs["font-size"]);
+    if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(size) || size <= 0) continue;
+
+    const w = text.length * size * LABEL_ADVANCE;
+    const anchor = t.attrs["text-anchor"];
+    // `middle` and `end` move the box, not the anchor point. The compiler emits
+    // both, and reading the attribute is cheaper than being wrong about it.
+    const left = anchor === "middle" ? x - w / 2 : anchor === "end" ? x - w : x;
+    const top = y - size * LABEL_ASCENT;
+
+    const a = planToWorld(ctx.spec, vb, left, top);
+    const b = planToWorld(ctx.spec, vb, left + w, top + size * 1.2);
+    const tl = worldToDesign(ctx.spec, ctx.state.camera, Math.min(a.x, b.x), Math.min(a.y, b.y));
+    const br = worldToDesign(ctx.spec, ctx.state.camera, Math.max(a.x, b.x), Math.max(a.y, b.y));
+    out.push({ x: tl.x, y: tl.y, w: br.x - tl.x, h: br.y - tl.y });
+  }
+  return out;
 };
 
 /**
@@ -933,8 +1051,28 @@ export const shotFor = (
    * The 0.5 line is the same one the honesty gate reads, so the two cannot
    * disagree about when the pill has to be whole.
    */
-  const pillOnScreen = overlaps(span, RENDERING_SPAN) && state.rendering.p >= 0.5;
-  if (pillOnScreen) protect.push(pad(renderingRaw, layout.u(6)));
+  /*
+   * ⚠ The pill's protection RAMPS IN, and the boolean it replaces is the same
+   * defect twice over.
+   *
+   * It used to switch on the frame `state.rendering.p` crossed 0.5. A
+   * protection that appears on one frame yanks the framing on that frame: in
+   * 9:16 the render beat's building went from inside the frame to **801-1736**
+   * in a 1080-wide frame, cut through `Powder room`, and came back. The lean
+   * check could not see it because a travelling camera is exempt from lean,
+   * which is exactly when it happened.
+   *
+   * So the framing eases into the obligation over the card's own fade, and is
+   * FULLY protective by the 0.5 line `verify:honesty` reads — the pill is whole
+   * from the instant the gate asks, and nothing moves on a single frame. Below
+   * 0.02 there is no card at all, which is where D32 started: reserving its
+   * rectangle before it exists leaves a hole in the composition.
+   */
+  const pillWeight = overlaps(span, RENDERING_SPAN)
+    ? clamp01((state.rendering.p - 0.02) / (0.5 - 0.02))
+    : 0;
+  const pillOnScreen = pillWeight > 0;
+  const pillRect = pad(renderingRaw, layout.u(6));
   /*
    * The export menu is the subject of its own beat, and in 9:16 it is a
    * full-width bottom sheet. Unprotected, the push slid it under the split
@@ -943,9 +1081,49 @@ export const shotFor = (
    */
   if (beat.scene === "export") protect.push(pad(designRect(mount, exportMenuBox(ctx)), layout.u(8)));
 
-  const focusRect = focusRectFor(beat.scene, ctx, span, t);
-  const focusFilm = focusRect ? designRect(mount, focusRect) : mount.rect;
-  const focus = centreOf(focusFilm);
+  /*
+   * ⚠ A travelling beat interpolates the resolved PUSH, not the focus RECT.
+   *
+   * Lerping the rect and solving once looks equivalent and is not. The solver
+   * clamps against the protected rectangles, so the framing it returns for an
+   * intermediate rect is not between the framings it returns for the two ends
+   * — it can swing outside both. Measured on the 9:16 render beat: the two ends
+   * put the building at 43-1064 and 490-1091 in a 1080-wide frame, and the
+   * frame half way between put it at **781-1688**, six hundred pixels off the
+   * right edge, with `focusClamped` true and the sheet cut through
+   * `Powder room`. The lean check could not see it because a moving camera is
+   * exempt from lean, which is exactly when this happens.
+   *
+   * Interpolating the two SOLVED pushes cannot do that: both ends are
+   * compositions the clamp agreed to, so every frame between them is bounded by
+   * the two. Same argument as `lerpRect`, one level further down.
+   */
+  /*
+   * ⚠ The travel is never behind the OBLIGATION.
+   *
+   * The camera's move and the pill's protection had separate clocks, and at the
+   * 9:16 render beat they disagreed: half way through the move the framing was
+   * still the drawing at 0.94 fill — scale 2.4 — while the card was already
+   * 57 % opaque and had to be kept whole. Those two cannot both be satisfied,
+   * so the solver did the only thing it could and shoved the drawing 656 px off
+   * the right edge, through `Powder room`.
+   *
+   * Tying them is the fix and it is a statement rather than a tuning: **by the
+   * time a thing must be whole, the camera must already be framing for it.**
+   */
+  const travelP = (() => {
+    const t0 = travelProgress(beat.scene, span, t);
+    if (t0 === null) return pillWeight > 0 && beat.scene === "render" ? pillWeight : null;
+    return Math.max(t0, pillWeight);
+  })();
+  const focusAt = (rect: Rect | null): { film: StageRect; focus: { x: number; y: number } } => {
+    const film = rect ? designRect(mount, rect) : mount.rect;
+    return { film, focus: centreOf(film) };
+  };
+  const settledRect = focusRectFor(beat.scene, ctx, span);
+  const focusRect = travelP === null ? focusRectFor(beat.scene, ctx, span, t) : settledRect;
+  const startRect = travelP === null ? null : focusRectFor(beat.scene, ctx, span, -Infinity);
+  const { film: focusFilm, focus } = focusAt(focusRect);
   /*
    * `fill` is a fraction of the frame the VIEWER SEES. In a full-bleed scene
    * that is the frame; in a split scene the picture stops at the type band, and
@@ -1020,7 +1198,33 @@ export const shotFor = (
     }
   }
 
-  const push = framePush({ ...pushBase, protect, expel, nudge, nudgeEdge: clipEdge });
+  const solveWith = (f: StageRect, c: { x: number; y: number }, pl: readonly StageRect[]): FramePush =>
+    framePush({
+      ...pushBase,
+      scale: fillScale(f, layout.width, viewH, beat.fill) * pushAt(beat.push, p) * entryScale(localSec),
+      focus: c,
+      protect: pl,
+      expel,
+      nudge,
+      nudgeEdge: clipEdge,
+    });
+
+  /** One framing, with the pill's protection weighted by how present it is. */
+  const solve = (f: StageRect, c: { x: number; y: number }): FramePush =>
+    pillWeight <= 0
+      ? solveWith(f, c, protect)
+      : pillWeight >= 1
+        ? solveWith(f, c, [...protect, pillRect])
+        : lerpPush(solveWith(f, c, protect), solveWith(f, c, [...protect, pillRect]), pillWeight);
+
+  const settledPush = solve(focusFilm, focus);
+  const push =
+    travelP === null
+      ? settledPush
+      : (() => {
+          const a = focusAt(startRect);
+          return lerpPush(solve(a.film, a.focus), settledPush, travelP);
+        })();
 
   return {
     t,

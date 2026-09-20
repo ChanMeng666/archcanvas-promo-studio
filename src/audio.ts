@@ -28,7 +28,7 @@
  */
 
 import musicJson from "./data/music.json";
-import { MUSIC_ID, SFX_SET } from "./version";
+import { MUSIC_ID, SFX_SET, VERSION } from "./version";
 import sfxJson from "./data/sfx.json";
 import rolesJson from "./data/sfx-roles.json";
 import versionsJson from "./data/versions.json";
@@ -470,6 +470,21 @@ export type FilmVersion = {
   readonly music: string;
   readonly edit: string;
   readonly sfxSet: string;
+  /**
+   * How far down the cut's OPENING cue is trimmed, in dB, per cut.
+   *
+   * ⚠ The one dial for the one place true peak bites. Every bed enters at 0 s
+   * and the film's first cue lands 40 ms later, so the master's highest sample
+   * is almost always their sum in the first ~64 ms rather than anything in the
+   * middle. `B-daylight-forward+el`'s 15 s master measured **-1.0 dBTP** — 0.027
+   * dB under the ceiling — and it is there.
+   *
+   * It is a CUE gain and not a bed level, which is the rule `docs/decisions.md`
+   * D33 set when the 60 s cut first came close: the bed is the thing everything
+   * else is balanced against, and moving it moves the whole mix to fix one
+   * transient.
+   */
+  readonly openingCueTrimDb?: Readonly<Record<string, number>>;
   readonly outDir?: string;
   readonly quality?: string;
   /** `master` (may ship) or `audition` (renders at master quality, never ships). */
@@ -514,6 +529,15 @@ export const allVersions = (): Readonly<Record<string, FilmVersion>> => versions
  * as finished films — but it never lands in `out/masters/`. The routing is a
  * function of the sound set's licence, not of anyone remembering.
  */
+/**
+ * The opening cue's trim for this cut, in dB. `0` when the version names none.
+ *
+ * Read by `cues.ts`, which is the only thing that knows which cue is the
+ * opening one — the first `appear`/`card` of the cut, on the hook.
+ */
+export const openingCueTrimDb = (cut: CutId, versionId: string = VERSION): number =>
+  versionsDoc.versions?.[versionId]?.openingCueTrimDb?.[cut] ?? 0;
+
 export const outDirFor = (versionId: string): string => {
   const v = versionsDoc.versions?.[versionId];
   if (!v) throw new Error(`unknown version "${versionId}"`);

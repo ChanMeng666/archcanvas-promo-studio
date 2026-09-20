@@ -78,8 +78,29 @@ const VERSIONS = A.allVersionIds();
 /** How far from the version's target a cut may land, in LU. */
 const LUFS_WINDOW = 0.5;
 
-/** The true-peak ceiling, in dBTP. */
-const TRUE_PEAK_MAX = -1;
+/**
+ * The true-peak ceiling, in dBTP — now measured on an AAC ENCODE of the mix.
+ *
+ * ⚠ -1.5, not the platform's -1.0, and the difference is a margin this gate
+ * used not to have. `B-daylight-forward+el`'s 15 s master measured -1.0 dBTP on
+ * the delivered file, 0.027 dB under the line, while this gate predicted -1.4
+ * and called it fine. The prediction was not wrong about the MIX: a lossy
+ * encoder reconstructs a waveform that is close in the ear and not identical on
+ * the sample, and the difference lands on transients, which is what a true-peak
+ * meter is about.
+ *
+ * So two changes together. `mixAndMeasure` encodes the mix to the same AAC the
+ * master is delivered in and measures THAT — B+el's 15 s cut now reads -1.1
+ * against the film's -1.0, where the float mix said -1.4. And the ceiling moves
+ * to -1.5, so a cut has half a decibel of room before it reaches the line a
+ * platform limiter actually enforces.
+ *
+ * The dial for a cut that goes over is the OPENING CUE's gain, in
+ * `versions.json` — never the bed's (D33). Every bed enters at 0 s and the
+ * film's first cue lands 40 ms later, so the highest sample in a master is
+ * almost always their sum in the first ~64 ms.
+ */
+const TRUE_PEAK_MAX = -1.5;
 
 /**
  * How much of a cut's runtime the duck may be on for.
