@@ -2103,3 +2103,142 @@ a cut came close. Two cuts needed one; all sixteen now sit at −1.8 dBTP or
 better, and integrated loudness moved by at most 0.1 LU on any of them.
 
 MUTATION: remove the trims → 1 `peak`, `B-daylight-forward+el` 15 s.
+
+---
+
+## D41. The gate was wrong by a decibel, and the fix is that it can now be told so.
+
+D40 made the loudness gate encode its mix to AAC before measuring, on the
+argument that the encoder is what moves a transient. It shipped green. Then the
+founder measured the delivered files and `A-confident-arrival`'s 60 s master
+came back at **−1.2 dBTP against a prediction of −2.3** — in both aspects, well
+over the ceiling the gate had just been tightened to, reported as fine.
+
+The standing hypothesis was bitrate: the gate encodes at `192k`, delivery is
+~317 kbps. It is a good hypothesis. It is also wrong, and finding that out
+first is the only reason the rest of this entry is worth anything.
+
+### What it is not
+
+The same offline mix for that cut, encoded four ways:
+
+| | dBTP |
+|---|---|
+| wav float | −2.4 |
+| aac 192k | −2.3 |
+| aac 317k | −2.3 |
+| aac 512k | −2.4 |
+
+Bitrate moves the number by 0.1 dB. The gap is 1.1 dB. A plausible story that
+explains a tenth of the evidence is not an explanation, and the acceptance test
+here was numeric on purpose.
+
+Delivery really is ~317 kbps, so the encoder is now **derived**: `mix.mjs` probes
+a delivered master with `ffprobe` and encodes at its codec, bitrate, sample rate
+and channel count, falling back to the measured 317375 and saying which it used.
+That is worth doing regardless — a gate that claims to encode "what is
+delivered" should not carry a number nobody has checked — but it is not the fix,
+and the round would have ended in the wrong place if it had been allowed to look
+like one.
+
+### What it is
+
+Decode the delivered film, align it against its own bed sample by sample, and
+subtract:
+
+| | A 60 s | B 15 s |
+|---|---|---|
+| film peak | −1.34 @ 0.0377 s | −3.09 @ 0.0378 s |
+| bed alone | −4.26 | −3.01 |
+| **film minus bed** | **−11.06 @ 0.0366 s** | **−10.97 @ 0.0366 s** |
+| the opening cue, resolved | −11.01 | −11.01 |
+
+Nothing is missing from the mix's content. The film is exactly the bed plus the
+opening cue, at the gain the sheet says. What differs is **when, to within a few
+milliseconds**: the film starts the cue on a frame boundary and decodes the bed's
+MP3 through Chromium, the mix starts it at the exact sample and decodes through
+ffmpeg. Where a sharp transient lands on a bed's entry, three milliseconds is
+over a decibel of sum — constructive in one film, not in the other.
+
+Frame-quantising the mix was the obvious next move and it fails its own test:
+it fits A (−1.47 vs −1.34) and breaks B (−1.45 vs −3.09). The coincidence is
+real in one bed and not the other, the residue is decoder-level, and modelling
+it means modelling two MP3 decoders. **The model cannot be made right here.**
+
+> ⚠ A trap for whoever looks next: a delivered mp4 decodes 2048 samples
+> (42.7 ms) late — the AAC priming delay. Anything comparing a film against a
+> mix has to align first, or it will confidently "find" a 43 ms offset that is
+> not there. Both of this round's first two readings were that artefact.
+
+### So the gate stops trusting itself
+
+`package-masters.ps1` already measures the true peak of every delivered file
+into `out/masters/<version>/MANIFEST.json`, and **that file is tracked even
+though the masters are not**. `verify:loudness` now reads it, reports every
+prediction against the reality beside it, and fails when the prediction is
+optimistic by more than 0.3 dB.
+
+Every other assertion in this gate is the model marking its own homework. This
+is the only one that can tell it it is wrong, and on the code that shipped D40
+it is red on exactly the cut the founder found.
+
+The asymmetry is deliberate and is the whole safety argument: a prediction BELOW
+the delivered peak is how a master ships at −1.2 under a green gate; a prediction
+above it is merely over-cautious, so it is a note, not a failure.
+
+### The margin is charged where the error is
+
+A flat ceiling wide enough for the worst case would be −2.6 everywhere. The
+evidence does not support that. The model agrees within 0.1–0.3 dB on every cut
+whose peak is in the BODY — B 15 s +0.1, B 30 s −0.3, B 60 s +0.1, A 120 s −0.2
+— and is wrong by 1.1 dB only where the peak is the opening transient. So the
+rule is **−1.5 dBTP, plus the measured 1.1 dB when the peak falls in the first
+100 ms**, and the extra margin is a number this round measured rather than a
+number chosen to make the table green.
+
+It also matters that the margin is scoped, because the dial only reaches the
+scoped case: of the five cuts a flat −2.6 would have failed, three peak at
+7.98 s, 100.5 s and 115.5 s, which `openingCueTrimDb` cannot move at all.
+
+### Two more trims
+
+| | trim | peak moves | result |
+|---|---|---|---|
+| `A-confident-arrival` 60 s | −9 dB | 0.045 s → 32.118 s | −2.6 dBTP |
+| `B-daylight-forward+el` 15 s | −16 dB | 0.041 s → 1.448 s | −2.1 dBTP |
+
+Both peaks are now in the body, where the model is accurate, so both are judged
+against −1.5 and clear it with room. Integrated loudness is unchanged on both —
+the trim is a cue gain, never a bed level, which is still D33's rule.
+
+`B-daylight-forward+el` 15 s takes a second, deeper trim: D40's −10 moved its
+peak from the opening to 0.041 s, which is still the opening. The dial had been
+turned, not far enough, and only the manifest check could say so.
+
+### Mutation evidence
+
+| mutation | what happens |
+|---|---|
+| force the encoder back to `192k` | B 30 s goes red, and **A 60 s does not move from −2.6** — the bitrate hypothesis failing its own test one more time |
+| remove both trims | 4 failures: 2 `peak`, 2 `model` |
+
+### ⚠ Interim, and the line that would close it
+
+A stale master is not a wrong model. Trimming a cut changes its audio, so the
+file on disk stops corresponding to the sheet and the new check measures that
+change rather than an error. The two have to be told apart, or the check loses
+its teeth to its own fixes.
+
+The manifest already records `renderCommit`, and the sheet's only per-cut dial
+lives in a tracked file, so the gate asks git what `openingCueTrimDb` was at
+that commit and compares it with now. A cut whose trim is unchanged is checked
+against reality even if it carries one; only a cut that was actually retuned is
+skipped, and the ⚠ says which kind of answer it is.
+
+That is not yet enough, for a reason worth writing down: **both manifests on
+this box were packaged with `workingTreeDirty: true`**, so the commit does not
+describe the data that was rendered and the gate falls back — out loud — to the
+blunt rule, any trim means possibly stale. The discriminator that closes it is a
+**fingerprint of the resolved cue sheet recorded per file in `MANIFEST.json`**,
+which `package-masters.ps1` does not write yet. A commit is a proxy for the
+data; the data is available.

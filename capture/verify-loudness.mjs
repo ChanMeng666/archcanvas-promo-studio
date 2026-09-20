@@ -62,8 +62,91 @@
  * Usage:  node capture/verify-loudness.mjs [--json]
  */
 
+import { execFileSync } from "node:child_process";
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
 import { loadFilm, loadFilmForVersion } from "./lib/load-core.mjs";
-import { mixAndMeasure } from "./lib/mix.mjs";
+import { deliverySettings, mixAndMeasure } from "./lib/mix.mjs";
+
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+
+/**
+ * How far the PREDICTION may sit from the film that was actually delivered.
+ *
+ * ⚠ This is the check that matters, and it is the only one here that compares
+ * the gate against reality rather than against itself. Every other assertion is
+ * the model marking its own homework: it mixes from the manifests, measures
+ * what it mixed, and agrees with itself. `MANIFEST.json` records the true peak
+ * MEASURED from the delivered file, so wherever a master has been rendered the
+ * gate can be told it was wrong.
+ *
+ * It is reported for every cut that has a manifest and fatal past this bound.
+ */
+const REAL_TOLERANCE_DB = 0.3;
+
+const manifestCache = new Map();
+
+/** The tracked manifest for a version, or null. */
+const manifestFor = (version) => {
+  if (!manifestCache.has(version)) {
+    const file = path.join(ROOT, "out", "masters", version, "MANIFEST.json");
+    let doc = null;
+    if (fs.existsSync(file)) {
+      try { doc = JSON.parse(fs.readFileSync(file, "utf8")); } catch { doc = null; }
+    }
+    manifestCache.set(version, doc);
+  }
+  return manifestCache.get(version);
+};
+
+/** The delivered true peak for a version x cut, from the tracked manifest. */
+const recordedPeaks = (version, cut) => {
+  const doc = manifestFor(version);
+  if (!doc) return [];
+  const rows = Array.isArray(doc) ? doc : (doc.masters ?? doc.files ?? []);
+  return rows
+    .filter((r) => typeof r?.file === "string" && r.file.includes(`_${cut}s_`) && Number.isFinite(r.truePeakDb))
+    .map((r) => ({ file: r.file, truePeakDb: r.truePeakDb }));
+};
+
+/**
+ * Was this cut's audio changed since that master was rendered?
+ *
+ * ⚠ A stale master is not a wrong model, and the two have to be told apart or
+ * the check above loses its teeth to its own fixes. The discriminator wanted
+ * here is a fingerprint of the resolved cue sheet at render time;
+ * `package-masters.ps1` does not write one, but it DOES write the commit it
+ * rendered at, and the sheet's only per-cut dial lives in a tracked file. So
+ * ask git what the trim was then and compare it with what it is now.
+ *
+ * Two ways that answer is unavailable — a dirty working tree at render time,
+ * and a clone too shallow to hold the commit (CI checks out depth 1) — and in
+ * both the fallback is the blunt rule it replaces: any cut carrying a trim is
+ * treated as possibly stale. Blunt costs a skipped row; wrong costs the check.
+ */
+const trimAtRenderCache = new Map();
+const audioChangedSince = (version, cut, trimNow) => {
+  const doc = manifestFor(version);
+  const commit = typeof doc?.renderCommit === "string" ? doc.renderCommit : null;
+  if (!commit || doc?.workingTreeDirty) return { changed: trimNow !== 0, precise: false };
+  if (!trimAtRenderCache.has(commit)) {
+    let then = null;
+    try {
+      const raw = execFileSync("git", ["show", `${commit}:src/data/versions.json`], {
+        cwd: ROOT, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], maxBuffer: 1 << 24,
+      });
+      then = JSON.parse(raw);
+    } catch { then = null; }
+    trimAtRenderCache.set(commit, then);
+  }
+  const then = trimAtRenderCache.get(commit);
+  if (!then) return { changed: trimNow !== 0, precise: false };
+  const table = (then.versions ?? then)?.[version]?.openingCueTrimDb ?? {};
+  const was = Number(table?.[cut] ?? 0) || 0;
+  return { changed: was !== trimNow, precise: true };
+};
 
 const AS_JSON = process.argv.includes("--json");
 
@@ -103,6 +186,40 @@ const LUFS_WINDOW = 0.5;
 const TRUE_PEAK_MAX = -1.5;
 
 /**
+ * The window in which the model is known to be unreliable, and the margin it
+ * costs.
+ *
+ * ⚠ Both numbers are measured, and the SCOPE is the point. The offline mix
+ * agrees with the delivered film within 0.1–0.3 dB on every cut whose peak sits
+ * in the body of the film (B 15 s +0.1, B 30 s −0.3, B 60 s +0.1, A 120 s
+ * −0.2). It is wrong by 1.1 dB on exactly one kind of moment: a cue transient
+ * landing on a bed entry in the first frames, where the film's millisecond
+ * alignment differs from the mix's and three milliseconds is over a decibel of
+ * sum.
+ *
+ * So the extra margin is charged where the error is, not everywhere. A flat
+ * −2.6 ceiling would have demanded trims on three cuts whose peaks are at
+ * 7.98 s, 100.5 s and 115.5 s — moments the model predicts well — and the
+ * `openingCueTrimDb` dial cannot move those anyway.
+ */
+const OPENING_SEC = 0.1;
+const OPENING_MODEL_ERROR_DB = 1.1;
+
+/**
+ * ⚠ -2.6, and every tenth of it is measured.
+ *
+ * -1.0 is the platform limiter's line. -1.5 was that plus half a decibel of
+ * room. The extra 1.1 dB is the **model's own worst observed error**: A's 60 s
+ * cut predicted -2.3 dBTP and the delivered film measured -1.2, and the cause
+ * is millisecond-level alignment between a cue and a bed entry that the offline
+ * mix cannot reproduce (see the commit that added the manifest check). A margin
+ * smaller than the model's error is not a margin.
+ *
+ * It tightens as the model improves: shrink the worst delta the manifest check
+ * reports and this can come back down.
+ */
+
+/**
  * How much of a cut's runtime the duck may be on for.
  *
  * ⚠ The number that names the original defect. Past about a third, the music is
@@ -112,7 +229,10 @@ const TRUE_PEAK_MAX = -1.5;
 const DUCK_MAX_FRACTION = 0.3;
 
 const rows = [];
+const realRows = [];
+const staleRows = [];
 let measured = 0;
+let realChecked = 0;
 
 for (const versionId of VERSIONS) {
   // Each version is evaluated on its own terms: its music, its edit, its sound
@@ -137,7 +257,7 @@ for (const versionId of VERSIONS) {
     measured += 1;
     rows.push(
       `${versionId.padEnd(24)} ${(cut + "s").padStart(5)}  ${r.lufs.toFixed(1)} LUFS  ` +
-        `TP ${r.truePeakDb.toFixed(1)}  LRA ${r.lra.toFixed(1)}  duck ${(r.duckedFraction * 100).toFixed(0)} %` +
+        `TP ${r.truePeakDb.toFixed(1)}${Number.isFinite(r.peakAtSec) && r.peakAtSec <= OPENING_SEC ? "*" : " "}  LRA ${r.lra.toFixed(1)}  duck ${(r.duckedFraction * 100).toFixed(0)} %` +
         `${r.masterTrimDb ? `  trim ${r.masterTrimDb > 0 ? "+" : ""}${r.masterTrimDb} dB` : ""}` +
         `   ${vA.activeSfxSetId()}`,
     );
@@ -154,7 +274,9 @@ for (const versionId of VERSIONS) {
           `${(r.lufs - target).toFixed(1)} LU out, past the ±${LUFS_WINDOW} window`,
       );
     }
-    if (r.truePeakDb > TRUE_PEAK_MAX + 1e-9) {
+    const opening = Number.isFinite(r.peakAtSec) && r.peakAtSec <= OPENING_SEC;
+    const ceiling = opening ? TRUE_PEAK_MAX - OPENING_MODEL_ERROR_DB : TRUE_PEAK_MAX;
+    if (r.truePeakDb > ceiling + 1e-9) {
       fail(
         "peak",
         `${version} ${cut}s`,
@@ -162,6 +284,71 @@ for (const versionId of VERSIONS) {
           "a platform limiter will pull it down and the mix will not be the mix that was approved",
       );
     }
+    /*
+     * ⚠ The gate against REALITY, wherever reality is on disk.
+     *
+     * Everything above is the model agreeing with itself. This is the one
+     * assertion that can tell the model it is wrong, and it earned its place:
+     * the offline mix predicted -2.3 dBTP for A's 60 s cut and the delivered
+     * film measured **-1.2** — over the ceiling, reported green, for two
+     * rounds. The manifests are tracked even though the masters are not, so
+     * this works in a fresh clone.
+     */
+    for (const rec of recordedPeaks(version, cut)) {
+      realChecked += 1;
+      const delta = r.truePeakDb - rec.truePeakDb;
+      realRows.push(
+        `${version.padEnd(24)} ${(cut + "s").padStart(5)} predicted ${r.truePeakDb.toFixed(1)}  ` +
+          `delivered ${rec.truePeakDb.toFixed(1)}  delta ${delta >= 0 ? "+" : ""}${delta.toFixed(1)}  ${rec.file}`,
+      );
+      /*
+       * ⚠ Fatal only when the model is OPTIMISTIC, and the asymmetry is the
+       * whole safety argument rather than a convenience.
+       *
+       * A prediction BELOW the delivered peak is the dangerous one: it is how a
+       * master ships at -1.2 dBTP under a green gate. A prediction ABOVE it is
+       * over-cautious — the ceiling still protects, and the only cost is a trim
+       * that was not strictly needed.
+       *
+       * It also keeps a STALE master from blocking the repo. Change a cut's
+       * audio and the film on disk no longer corresponds to the sheet; the
+       * prediction then reads as wildly pessimistic against the old file, which
+       * is reported and not fatal, and the next render settles it.
+       */
+      /*
+       * ⚠ And a STALE master is not a wrong model.
+       *
+       * Changing a cut's audio makes the film on disk stop corresponding to the
+       * sheet, and the comparison then measures the change rather than the
+       * model: trimming A's 60 s opening cue by 9 dB moved its predicted peak
+       * 0.3 dB and left the delivered film exactly where it was, which reads as
+       * the model getting *worse*.
+       *
+       * The honest discriminator is a fingerprint of the cue sheet recorded at
+       * render time, and `tools/package-masters.ps1` does not write one yet —
+       * the one line it needs is in the PR. Until it does, the interim rule is
+       * the narrowest thing that keeps the check's teeth: a disagreement is
+       * fatal unless THIS ROUND changed that cut's audio, which is exactly what
+       * an `openingCueTrimDb` entry records. Every cut without one is still
+       * checked against reality, which is the ten rows that matter today.
+       */
+      const stale = audioChangedSince(version, cut, vA.openingCueTrimDb(cut, version));
+      if (stale.changed) {
+        staleRows.push(
+          `${version} ${cut}s — audio trimmed since this master was rendered${stale.precise ? "" : " (or possibly not: no render commit to compare)"}; re-render to re-check`,
+        );
+      } else if (delta < -REAL_TOLERANCE_DB - 1e-9) {
+        fail(
+          "model",
+          `${version} ${cut}s`,
+          `the offline mix predicts ${r.truePeakDb.toFixed(1)} dBTP and the delivered film measured ` +
+            `${rec.truePeakDb.toFixed(1)} — ${Math.abs(delta).toFixed(1)} dB OPTIMISTIC, past the ` +
+            `${REAL_TOLERANCE_DB} dB tolerance. That is how a master ships over the ceiling under a green ` +
+            "gate (" + rec.file + ")",
+        );
+      }
+    }
+
     if (r.duckedFraction > DUCK_MAX_FRACTION + 1e-9) {
       fail(
         "duck",
@@ -189,6 +376,16 @@ if (AS_JSON) {
       `peak ≤ ${TRUE_PEAK_MAX} dBTP, duck ≤ ${(DUCK_MAX_FRACTION * 100).toFixed(0)} %`,
   );
   for (const r of rows) console.log(`      ${r}`);
+  const d = deliverySettings();
+  console.log(`
+    encoded as delivered: ${d.codec} ${Math.round(d.bitrate / 1000)} kbps ${d.sampleRate} Hz (${d.from})`);
+  if (realChecked === 0) {
+    console.log("    no delivered master on record yet — the model is unchecked against reality");
+  } else {
+    console.log(`    ${realChecked} cut(s) checked against the delivered film, tolerance ±${REAL_TOLERANCE_DB} dB:`);
+    for (const r of realRows) console.log(`      ${r}`);
+    for (const r of staleRows) console.log(`      ⚠ ${r}`);
+  }
   if (failures.length === 0) {
     console.log("\n  ✓ every cut lands in the window, under the peak, with the duck a duck\n");
   } else {

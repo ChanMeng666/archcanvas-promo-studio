@@ -108,14 +108,25 @@ master is never the answer.
 
 Targets: **−16 LUFS integrated, −1.5 dBTP** for a bed (`audio/bed-plan.json`); the gate
 allows ±0.5 LU and **≤ −1.5 dBTP** for the mix (`capture/verify-loudness.mjs`), measured on
-an **AAC encode** of the offline mix rather than on the float.
+an AAC encode at the **delivery's own settings — probed with `ffprobe` off a delivered
+master, never typed** — plus **1.1 dB of extra margin when the cut's peak falls in the
+first 100 ms**, where the model is known to be wrong by that much.
 
-⚠ **The float mix is optimistic about true peak.** A lossy encoder reconstructs a waveform
-that is close in the ear and not identical on the sample, and the difference lands on
-transients. Measured on B+el's 15 s cut: float −1.4, AAC −1.1, delivered master −1.0. The
-dial for a cut that goes over is `versions.<id>.openingCueTrimDb` — the OPENING cue's gain,
-never the bed's — because every bed enters at 0 s and the first cue lands 40 ms later, so
-the highest sample in a master is almost always their sum in the first ~64 ms (D40).
+⚠ **The model cannot predict an opening transient and no encoder setting fixes that.**
+A 60 s predicted −2.3 and delivered −1.2; the same mix encoded at 192k / 317k / 512k
+measures −2.3 / −2.3 / −2.4, so bitrate is 0.1 dB of a 1.1 dB gap. Aligned sample by
+sample the delivered film is exactly bed + opening cue at the gain the sheet says — the
+difference is *when*, by a few milliseconds: the film quantises the cue to a frame and
+decodes the bed's MP3 through Chromium, the mix places it at the exact sample and decodes
+through ffmpeg. On a transient meeting a bed entry that is over a decibel of sum,
+constructive in one bed and not another (frame-quantising the mix fits A and breaks B).
+**Do not try to model it** (D41).
+
+The dial for a cut that goes over is `versions.<id>.openingCueTrimDb` — the OPENING cue's
+gain, never the bed's — because every bed enters at 0 s and the first cue lands 40 ms
+later, so the highest sample in a master is almost always their sum in the first ~64 ms
+(D40). Trim until the peak moves **out of** the first 100 ms; then the model is accurate
+again and the plain −1.5 applies. Check `peakAtSec`, not just the number.
 
 Beds are made two-pass (`tools/prepare-bed.ps1`): `loudnorm` measures, then re-runs with
 the measured `I`/`TP`/`LRA`/`thresh`/`offset` **and `linear=true`** so it cannot fall into
@@ -125,15 +136,29 @@ ending is spliced, not faded: the take's own ending is crossfaded onto the body 
 line with an equal-power `qsin`, which is why a take that fades has nothing to splice.
 
 **True peak bites at the bed's entry meeting the opening cue**, in the first ~64 ms, not
-a loud middle. The 60 s cut's model predicted −2.4 dBTP and the master measured −1.2,
-clearing the ceiling by 0.2 dB — no margin left. If a new take goes over, expect it there,
-and **fix it with a cue gain in the data, not a bed level**.
+a loud middle. If a new take goes over, expect it there, and **fix it with a cue gain in
+the data, not a bed level**.
 
 `verify:loudness` does not read a rendered file — it rebuilds the mix offline from the
-bed, the cue sheet and the film's own `duckGainAt`; `package-masters.ps1` then measures
-the delivered master. They agreed within 0.1 LU on version A. **If a re-render disagrees
-by more than about 0.5 LU, the gate's model is wrong and that is the finding** — do not
-just accept the file.
+bed, the cue sheet and the film's own `duckGainAt`. **The one assertion that is not the
+model marking its own homework** is the comparison against
+`out/masters/<version>/MANIFEST.json`, which `package-masters.ps1` writes from the
+delivered files and which is **tracked even though the masters are not**: every prediction
+is reported beside the reality, and an **optimistic** one (predicted more than 0.3 dB
+below the measured peak) is fatal. Pessimistic is a note — a prediction under the real
+peak is how a master ships at −1.2 under a green gate; over it is only over-cautious.
+
+⚠ A cut whose audio changed since its master was rendered is skipped there with a ⚠ note,
+because a stale master would otherwise fail the check for having been fixed. "Changed" is
+answered by comparing `openingCueTrimDb` now against its value at the manifest's
+`renderCommit` — **unless that render was packaged from a dirty tree**, which both current
+manifests were, in which case the gate says so and falls back to treating any trimmed cut
+as possibly stale. The line that closes it for good is a fingerprint of the resolved cue
+sheet recorded per file in `MANIFEST.json`; `package-masters.ps1` does not write one yet,
+and **a render from a clean tree is worth more than it looks** for exactly this reason.
+**If a re-render disagrees by more than
+about 0.5 LU, the gate's model is wrong and that is the finding** — do not just accept
+the file.
 
 ## Traps
 
@@ -157,6 +182,10 @@ just accept the file.
 - **ffmpeg `ebur128` writes to stderr and exits 0** — reading the wrong stream measured
   NaN on every working file. And **cues are WAV, beds are MP3**: MP3 prepends ~1152
   samples (~24 ms) of encoder delay, so a cue shipped as MP3 is late by that much.
+- **A delivered mp4 decodes 2048 samples (42.7 ms) late** — the AAC priming delay.
+  Anything comparing a film against an offline mix has to align by correlation first or
+  it will confidently "find" a 43 ms offset that is not in the film. Two readings in a
+  row were that artefact before it was caught.
 - **Downbeats are measured on the delivered mp3**, decoded as the browser will, never
   extrapolated — and the grid step comes from the plan's bar length, not a median of the
   bed's own onsets (medians returned 1.88–2.24 s against a true 2.36 s, because

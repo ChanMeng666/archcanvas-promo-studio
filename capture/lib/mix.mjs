@@ -141,10 +141,21 @@ export const mixCut = async (cut, opts = {}) => {
     }
   }
 
+  // Where the loudest sample is. The gate needs it: the model's error is a
+  // property of an OPENING transient, so the margin it carries depends on
+  // whether this cut's peak is one.
+  let peak = 0;
+  let peakAt = 0;
+  for (let i = 0; i < out.length; i += 1) {
+    const a = Math.abs(out[i]);
+    if (a > peak) { peak = a; peakAt = i; }
+  }
+
   return {
     cut,
     durationSec,
     pcm: out,
+    peakAtSec: peakAt / CHANNELS / SAMPLE_RATE,
     events,
     duckedFraction: ducked / frames,
     cueCount: sheet.length,
@@ -218,10 +229,50 @@ export const measure = (wavAbs) => {
  * average and the encode moves it by hundredths; true peak is the one the
  * encoder changes.
  */
-const AAC_BITRATE = "192k";
+/**
+ * The delivery's real audio settings, PROBED from a master rather than typed.
+ *
+ * ⚠ 192k was a guess and it was wrong: Remotion's own AAC settings deliver
+ * ~317 kbps. It was also not the cause of the gap it was blamed for — see the
+ * note on `deliverySettings` below — but a gate that claims to encode "what is
+ * delivered" may not carry a number nobody checked.
+ *
+ * Falls back to the recorded default when no master is on disk, and says which
+ * it used.
+ */
+const FALLBACK_BITRATE = 317375;
+
+let cachedDelivery = null;
+
+export const deliverySettings = () => {
+  if (cachedDelivery) return cachedDelivery;
+  const root = path.resolve(path.dirname(new URL(import.meta.url).pathname).replace(/^\//, ""), "..", "..");
+  const masters = path.join(root, "out", "masters");
+  let probed = null;
+  if (fs.existsSync(masters)) {
+    for (const version of fs.readdirSync(masters)) {
+      const dir = path.join(masters, version);
+      if (!fs.statSync(dir).isDirectory()) continue;
+      const file = fs.readdirSync(dir).find((n) => n.endsWith(".mp4"));
+      if (!file) continue;
+      const r = spawnSync("ffprobe", ["-v", "error", "-select_streams", "a:0", "-show_entries",
+        "stream=codec_name,bit_rate,sample_rate,channels", "-of", "default=noprint_wrappers=1", path.join(dir, file)],
+        { encoding: "utf8" });
+      const get = (k) => (String(r.stdout ?? "").match(new RegExp(`${k}=(\S+)`)) ?? [])[1];
+      const br = Number(get("bit_rate"));
+      if (Number.isFinite(br) && br > 0) {
+        probed = { codec: get("codec_name"), bitrate: br, sampleRate: Number(get("sample_rate")), channels: Number(get("channels")), from: `${version}/${file}` };
+        break;
+      }
+    }
+  }
+  cachedDelivery = probed ?? { codec: "aac", bitrate: FALLBACK_BITRATE, sampleRate: SAMPLE_RATE, channels: CHANNELS, from: "no master on disk — recorded default" };
+  return cachedDelivery;
+};
 
 const encodeAac = (wavAbs, outAbs) => {
-  ffmpeg(["-y", "-i", wavAbs, "-c:a", "aac", "-b:a", AAC_BITRATE, "-ar", String(SAMPLE_RATE), "-ac", String(CHANNELS), outAbs]);
+  const d = deliverySettings();
+  ffmpeg(["-y", "-i", wavAbs, "-c:a", d.codec === "aac" ? "aac" : d.codec, "-b:a", String(d.bitrate), "-ar", String(d.sampleRate), "-ac", String(d.channels), outAbs]);
   return outAbs;
 };
 
