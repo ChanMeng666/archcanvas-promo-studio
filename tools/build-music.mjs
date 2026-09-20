@@ -180,6 +180,21 @@ const entry = {
  * grid its masters were cut against, and this file is the one place it lives.
  */
 const previous = fs.existsSync(OUT) ? JSON.parse(fs.readFileSync(OUT, "utf8")) : {};
+
+/*
+ * Carry the licensing record forward.
+ *
+ * Everything else in `entry` is re-measured from the audio, but `provenance`
+ * cannot be: whether the SUNO plan was paid when a take was generated is not
+ * written into an mp3, and this file is the only place the answer lives. The
+ * other versions survive a rebuild because they are spread in untouched; the
+ * one being REBUILT is replaced wholesale, so without this line re-cutting a
+ * take would silently drop its clearance and `npm run verify:release` would
+ * start reporting it as unconfirmed.
+ */
+const carried = previous.versions?.[version]?.provenance;
+if (carried) entry.provenance = carried;
+
 const versions = { ...(previous.versions ?? {}), [version]: entry };
 
 const music = {

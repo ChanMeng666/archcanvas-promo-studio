@@ -1,0 +1,234 @@
+{
+  "$comment": "The prompt bank for every vendor-generated sound-effect set. This file is the SOURCE, the audio is the output: tools/generate-sfx-elevenlabs.mjs --set <name> regenerates a whole set from here. That is the point of keeping it — when the account moves to a paid plan, the same prompts produce a releasable set under `elevenlabs` with one command, and nothing has to be remembered or re-invented. Durations are in seconds and bill at 40 credits each; promptInfluence 0..1, higher = more literal.",
+  "endpoint": "POST https://api.elevenlabs.io/v1/sound-generation",
+  "modelId": "eleven_text_to_sound_v2",
+  "creditsPerSecond": 40,
+  "$seedNote": "The sound-effects API exposes no seed parameter, so generation is NOT reproducible: the same prompt returns a different take every time. That is why the audio is committed rather than treated as a build artefact, exactly as the SUNO bed is.",
+  "$aliasNote": "Canonical film cue id -> this bank's own cue id. The film's vocabulary is the synthesised set's fourteen ids, because src/cues.ts is written against them; a vendor set reduces those to six roles, so it needs a mapping rather than a rename. src/audio.ts resolves sfx(\"pencil-line\") through here, which is why switching sets never requires touching src/cues.ts. `pencil-line` points at draw-a only as a default — it is the choice the founder is auditioning, and tools/use-sfx.mjs --draw <a-e> repoints it.",
+  "aliases": {
+    "key-1": "type-1",
+    "key-2": "type-2",
+    "key-3": "type-3",
+    "click": "click",
+    "tick": "tick",
+    "whoosh-in": "move-in",
+    "whoosh-out": "move-out",
+    "pencil-line": "draw-a",
+    "paper-settle": "sheet",
+    "pin-drop": "pin-drop",
+    "pop": "pop",
+    "stamp": "confirm",
+    "shimmer": "shimmer",
+    "end-hit": "end-1"
+  },
+  "$roles": {
+    "draw": "The plan drawing itself out, stroke by stroke. The one the founder rejected the synthesised version of. Five competing concepts, judged in context.",
+    "type": "The brief being typed into the composer. Clusters, so a run of keys does not machine-gun.",
+    "click": "A control being used — button, chip, slider step.",
+    "move": "A panel, card or menu arriving or leaving.",
+    "appear": "Something landing: a card, a review pin, a saved toast, a rendering resolving.",
+    "end": "The end card. May go unused if it fights the music's own cadence."
+  },
+  "cues": [
+    {
+      "id": "draw-a",
+      "role": "draw",
+      "concept": "A — technical pen and ruler",
+      "desc": "Long confident ruled ink lines. The most literally architectural of the five.",
+      "text": "A technical drafting pen drawing long straight ink lines against a metal ruler on heavy drafting paper. Close microphone, completely dry, no room reverb. A steady confident rhythm of six or seven long strokes, each with a clean start and a crisp lift at the end. Precise, fine and satisfying. No music, no voices, no background noise.",
+      "durationSeconds": 8,
+      "promptInfluence": 0.6,
+      "norm": "texture"
+    },
+    {
+      "id": "draw-b",
+      "role": "draw",
+      "concept": "B — sharp pencil, quick strokes",
+      "desc": "Light and fast. Sketching rather than drafting.",
+      "text": "A sharp graphite pencil sketching quick short architectural strokes on drafting paper. Light, fast and rhythmic, close microphone, completely dry. About ten strokes with small pauses between them. Fine and precise, never scratchy or harsh. No music, no voices, no background noise.",
+      "durationSeconds": 8,
+      "promptInfluence": 0.6,
+      "norm": "texture"
+    },
+    {
+      "id": "draw-c",
+      "role": "draw",
+      "concept": "C — felt-tip marker",
+      "desc": "Smooth and soft. The quietest option; may sit best under music.",
+      "text": "A fine felt-tip marker drawing smooth continuous lines on smooth paper. Soft, muted, close microphone, completely dry. Long even strokes with gentle starts and stops. Quiet, clean and unhurried. No music, no voices, no background noise.",
+      "durationSeconds": 8,
+      "promptInfluence": 0.6,
+      "norm": "texture"
+    },
+    {
+      "id": "draw-d",
+      "role": "draw",
+      "concept": "D — modern UI drawing texture",
+      "desc": "Synthetic rather than physical. Closest to what a design tool would actually ship.",
+      "text": "A clean minimal user interface drawing sound: soft synthetic brushed strokes with tiny precise digital ticks as each line connects. Dry, close, modern technology product feel. Subtle and uncluttered. No melody, no music, no voices, no background noise.",
+      "durationSeconds": 8,
+      "promptInfluence": 0.6,
+      "norm": "texture"
+    },
+    {
+      "id": "draw-e",
+      "role": "draw",
+      "concept": "E — hybrid pen plus digital ticks",
+      "desc": "Physical strokes with a software layer on top. The brief's own suggested hybrid.",
+      "text": "A technical pen drawing crisp straight lines on drafting paper, layered with subtle soft digital ticks each time a line completes. Close microphone, completely dry, precise and rhythmic. Modern architectural software feel, restrained and clean. No music, no voices, no background noise.",
+      "durationSeconds": 8,
+      "promptInfluence": 0.6,
+      "norm": "texture"
+    },
+
+    {
+      "id": "type-1",
+      "role": "type",
+      "desc": "Typing cluster, variant 1 of 4.",
+      "text": "Soft muted typing on a low profile laptop keyboard. A short cluster of six key presses, close microphone, completely dry. Gentle and quiet, not clacky, not mechanical, no spring noise. No music, no voices, no background noise.",
+      "durationSeconds": 2,
+      "promptInfluence": 0.5,
+      "norm": "transient"
+    },
+    {
+      "id": "type-2",
+      "role": "type",
+      "desc": "Typing cluster, variant 2 of 4.",
+      "text": "Soft muted typing on a low profile laptop keyboard. Four unhurried key presses, close microphone, completely dry. Quiet, rounded and soft, not clacky or mechanical. No music, no voices, no background noise.",
+      "durationSeconds": 2,
+      "promptInfluence": 0.5,
+      "norm": "transient"
+    },
+    {
+      "id": "type-3",
+      "role": "type",
+      "desc": "Typing cluster, variant 3 of 4.",
+      "text": "Soft muted typing on a low profile laptop keyboard. Seven quick light key presses in a short burst, close microphone, completely dry. Gentle, not clacky or mechanical. No music, no voices, no background noise.",
+      "durationSeconds": 2,
+      "promptInfluence": 0.5,
+      "norm": "transient"
+    },
+    {
+      "id": "type-4",
+      "role": "type",
+      "desc": "Typing cluster, variant 4 of 4 — with a pause, so a long run can breathe.",
+      "text": "Soft muted typing on a low profile laptop keyboard: three light key presses, a brief pause, then two more. Close microphone, completely dry, quiet and gentle, not clacky or mechanical. No music, no voices, no background noise.",
+      "durationSeconds": 2,
+      "promptInfluence": 0.5,
+      "norm": "transient"
+    },
+
+    {
+      "id": "click",
+      "role": "click",
+      "desc": "A button press.",
+      "text": "A single soft user interface button click. Muted, close microphone, completely dry, very short and rounded. No music, no voices, no background noise.",
+      "durationSeconds": 1,
+      "promptInfluence": 0.5,
+      "norm": "transient"
+    },
+    {
+      "id": "tick",
+      "role": "click",
+      "desc": "A slider stepping one notch — the smallest sound in the set.",
+      "text": "One light tick of a slider stepping to the next value. Tiny, crisp, completely dry, very short. No music, no voices, no background noise.",
+      "durationSeconds": 1,
+      "promptInfluence": 0.5,
+      "norm": "transient"
+    },
+    {
+      "id": "chip",
+      "role": "click",
+      "desc": "A chip or option being selected.",
+      "text": "A small soft tack as an option chip is selected in a user interface. Very short, completely dry, close microphone, gentle. No music, no voices, no background noise.",
+      "durationSeconds": 1,
+      "promptInfluence": 0.5,
+      "norm": "transient"
+    },
+
+    {
+      "id": "move-in",
+      "role": "move",
+      "desc": "A panel arriving.",
+      "text": "A short airy whoosh as a panel slides into view. Soft, gentle, breathy air only, completely dry and close. Not science fiction, no metallic tone, no pitch sweep. No music, no voices, no background noise.",
+      "durationSeconds": 1.5,
+      "promptInfluence": 0.5,
+      "norm": "texture"
+    },
+    {
+      "id": "move-out",
+      "role": "move",
+      "desc": "A panel leaving.",
+      "text": "A short airy whoosh as a panel slides away and fades. Soft, gentle, breathy air only, completely dry and close. Not science fiction, no metallic tone. No music, no voices, no background noise.",
+      "durationSeconds": 1.5,
+      "promptInfluence": 0.5,
+      "norm": "texture"
+    },
+
+    {
+      "id": "pop",
+      "role": "appear",
+      "desc": "A card arriving on the canvas.",
+      "text": "A soft rounded pop as a card appears on screen. Gentle, warm, very short, completely dry. Not cartoonish, not bubbly. No music, no voices, no background noise.",
+      "durationSeconds": 1,
+      "promptInfluence": 0.5,
+      "norm": "transient"
+    },
+    {
+      "id": "pin-drop",
+      "role": "appear",
+      "desc": "A review pin landing on the plan.",
+      "text": "A gentle tack as a small pin is placed onto paper. Light, precise, close microphone, completely dry, very short. No music, no voices, no background noise.",
+      "durationSeconds": 1,
+      "promptInfluence": 0.5,
+      "norm": "transient"
+    },
+    {
+      "id": "confirm",
+      "role": "appear",
+      "desc": "The saved toast. Lightly tonal on purpose.",
+      "text": "A warm gentle confirmation sound for a saved notification. Soft, brief, rounded and pleasant, minimal and tasteful, a single short soft chime with no melody. No music, no voices, no background noise.",
+      "durationSeconds": 1.5,
+      "promptInfluence": 0.5,
+      "norm": "transient"
+    },
+    {
+      "id": "sheet",
+      "role": "appear",
+      "desc": "The drafting sheet landing on the desk. Not in the commander's six roles; added so every canonical cue id has a mapping in this set rather than borrowing a whoosh for it.",
+      "$retake": "First take put its loudest moment in the rustle at 1.011s, well after the slap a viewer sees land, so the measured attack was a second late. Reworded to make the impact the loud event and the rustle a quiet tail, and shortened to 1.2s so there is less room for the tail to grow into.",
+      "text": "A single sheet of heavy drafting paper dropped flat onto a wooden desk. The impact is the loudest moment and it happens immediately, right at the start: one firm papery slap, then a much quieter, shorter rustle settling away behind it. Close microphone, completely dry, no reverb. No music, no voices, no background noise.",
+      "durationSeconds": 1.2,
+      "promptInfluence": 0.65,
+      "norm": "transient"
+    },
+    {
+      "id": "shimmer",
+      "role": "appear",
+      "desc": "The rendering resolving into view.",
+      "text": "A soft brief shimmer as an image resolves into view. Gentle airy sparkle, tasteful and short, fading smoothly away. No melody, no music, no voices, no background noise.",
+      "durationSeconds": 2.5,
+      "promptInfluence": 0.5,
+      "norm": "texture"
+    },
+
+    {
+      "id": "end-1",
+      "role": "end",
+      "desc": "End card impact, variant 1 of 2.",
+      "text": "A soft warm low impact for a closing title card, with a short smooth tail. Gentle and rounded, not aggressive, no braam, no cinematic riser. No music, no voices, no background noise.",
+      "durationSeconds": 3,
+      "promptInfluence": 0.5,
+      "norm": "transient"
+    },
+    {
+      "id": "end-2",
+      "role": "end",
+      "desc": "End card impact, variant 2 of 2 — softer, more air.",
+      "text": "A gentle warm thud with a soft air tail for an end card. Gentle and short, completely dry with a small natural decay. No braam, no music, no voices, no background noise.",
+      "durationSeconds": 3,
+      "promptInfluence": 0.5,
+      "norm": "transient"
+    }
+  ]
+}
