@@ -11,7 +11,10 @@
       "edit": "A",
       "sfxSet": "synth",
       "release": "master",
-      "note": "Rendered, approved, and re-renderable byte for byte. Its resolved timeline is locked in edit-a-timeline.lock.json."
+      "note": "Rendered, approved, and re-renderable byte for byte. Its resolved timeline is locked in edit-a-timeline.lock.json.",
+      "openingCueTrimDb": {
+        "60": -3
+      }
     },
     "B-daylight-forward": {
       "music": "B-daylight-forward",
@@ -39,7 +42,10 @@
       "release": "audition",
       "outDir": "out/previews/AUDITION-not-for-release/B-daylight-forward+el",
       "quality": "master",
-      "note": "The B edit with the ElevenLabs palette. Unblocked: edit B exists now, and this entry resolves through the same map as every other version."
+      "note": "The B edit with the ElevenLabs palette. Unblocked: edit B exists now, and this entry resolves through the same map as every other version.",
+      "openingCueTrimDb": {
+        "15": -8
+      }
     }
   }
 }
