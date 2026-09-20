@@ -41,8 +41,8 @@ node scripts/sync-replica.mjs --from <path>   # or any checkout / worktree
 
 npm run dev        # Remotion Studio
 npm run lint       # tsc --noEmit
-npm run verify     # ten gates: assets, replica, timeline, copy, numbers, audio,
-                   #   honesty, framing, violet, opening
+npm run verify     # eleven gates: assets, replica, timeline, copy, numbers,
+                   #   audio, honesty, framing, violet, loudness, opening
 ```
 
 Render a still before rendering anything long:

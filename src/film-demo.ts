@@ -214,6 +214,47 @@ export const RENDERING_SPAN = {
 const openPinBeat = SCREENPLAY.beats.find((b) => b.action.k === "openPin");
 export const OPEN_PIN_SEC: number = openPinBeat ? openPinBeat.at + openPinBeat.dur * 0.5 : Infinity;
 
+/**
+ * The window the receipt beat TRAVELS across, in screenplay seconds.
+ *
+ * ⚠ The camera used to be framed for "the pin and its open card" from the
+ * beat's first frame, on the rule that a framing must not change because its
+ * subject arrived. That rule is right about lurches and wrong about this: the
+ * card does not fade, it appears, and until it does the shot is half bare canvas
+ * with the drawing cropped off the far edge. A rendered master showed it at
+ * 19.5 s in the 30 s cut.
+ *
+ * So the beat starts on what is there — the pins landing on the drawing — and
+ * makes ONE eased move to the card composition. Both ends are read off the
+ * screenplay: it leaves when the last pin has landed (there is nothing more to
+ * watch on the wide shot) and lands when the CLICK lands, `at + dur`. A typed
+ * duration would have been wrong in three cuts out of four, because the time
+ * warp runs this 35 s screenplay at 2.50x in the 15 s cut and 0.46x in the
+ * 120 s one.
+ *
+ * ⚠ It ends at the click, not at `OPEN_PIN_SEC` — which is the midpoint, the
+ * frame the card actually appears on. Landing exactly there looked right and was
+ * not: an ease-in-out has a flat tail, so the camera was already parked in the
+ * card's composition for the last few frames before the card existed, which is
+ * the original defect in miniature. Overrunning the card's arrival by the
+ * second half of the click keeps the shot moving until the card is there.
+ */
+const dropPinsBeat = SCREENPLAY.beats.find((b) => b.action.k === "dropPins");
+export const OPEN_PIN_TRAVEL = {
+  from: dropPinsBeat ? dropPinsBeat.at + dropPinsBeat.dur : 0,
+  to: openPinBeat ? openPinBeat.at + openPinBeat.dur : OPEN_PIN_SEC,
+} as const;
+
+/**
+ * The window the render beat travels across. Same shape, same reason: the
+ * rendering card is a hole in the top-right of the frame until it fades in, and
+ * `RENDERING_SPAN.from` is already the second the film counts it as present.
+ */
+export const RENDERING_TRAVEL = {
+  from: renderBeat ? renderBeat.at : 0,
+  to: renderBeat ? renderBeat.at + renderBeat.dur * 0.7 : RENDERING_SPAN.from,
+} as const;
+
 /** Which finding the review chapter opens. The screenplay's, not a guess. */
 export const OPEN_PIN_INDEX: number =
   openPinBeat && openPinBeat.action.k === "openPin" ? openPinBeat.action.index : 0;

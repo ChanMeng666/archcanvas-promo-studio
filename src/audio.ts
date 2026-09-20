@@ -147,6 +147,17 @@ export const music: Music =
   doc.versions?.[doc.active] ??
   ({ track: "", bpm: 0, barSec: 0, beatSec: 0, beds: {} } as unknown as Music);
 
+/**
+ * One version's measurements, by name. `undefined` for a name that is not in
+ * the manifest.
+ *
+ * Exported so `verify:loudness` can measure EVERY take on disk rather than only
+ * the one the film is cut to — a second SUNO track lands as a new version, and
+ * a gate that only ever looks at `active` would certify it the day it became
+ * active and not before.
+ */
+export const musicFor = (version: string): Music | undefined => doc.versions?.[version];
+
 export const bedFor = (cut: CutId): Bed => {
   const bed = music.beds[cut];
   if (!bed) throw new Error(`no music bed for the ${cut}s cut — run \`npm run audio:beds\``);
@@ -251,14 +262,57 @@ export type DuckSpec = {
   readonly attackSec: number;
   readonly releaseSec: number;
   readonly holdSec: number;
+  /** The fewest cues a window must hold before it counts as a dense passage. */
+  readonly minCues: number;
+  /** And how many per second, so a slow trickle of cues is not a "passage". */
+  readonly minCuesPerSec: number;
 };
 
+/**
+ * ⚠ The density thresholds are the fix for a measured defect, not a taste.
+ *
+ * Every run of cues used to duck, and the eight rendered masters came back at
+ * **-17.3 to -17.9 LUFS** against a -16 target: the windows covered 36-59 % of
+ * the runtime before the attack and release tails, 51-74 % with them. A duck
+ * that is on for two thirds of a film is not a duck, it is a trim — the bed is
+ * quiet throughout and nothing is emphasised by it.
+ *
+ * At four cues and four per second only the genuinely dense passages qualify,
+ * which in this film means the typing runs. Coverage falls to 11-20 %. An
+ * isolated pin drop or a single tick no longer pulls the music down for a third
+ * of a second, which is also the right answer musically: those cues are meant to
+ * be felt over the bed, not to clear a space in it.
+ */
 export const DUCK: DuckSpec = {
   amountDb: -4,
   attackSec: 0.08,
   releaseSec: 0.35,
   holdSec: 0.25,
+  minCues: 4,
+  minCuesPerSec: 4,
 };
+
+/**
+ * A master trim on the whole mix, in dB.
+ *
+ * Nothing mysterious: the bed is delivered at -15.9 LUFS, the duck takes some
+ * of that away wherever it is on, and the masters landed 1.3-1.9 LU under the
+ * -16 target. This is what closes the gap, measured offline from the same cue
+ * sheet the film plays (`capture/verify-loudness.mjs`) rather than guessed.
+ *
+ * It applies to the BED, not to the effects: the effects are already placed
+ * against the bed by ear-free arithmetic in `sfx.json`, and moving both would
+ * leave their balance where it was while making the keys louder in absolute
+ * terms than anything in the film needs them to be.
+ *
+ * ⚠ **It measures zero, and that is the finding.** The gap was not a missing
+ * gain, it was the duck being on for two thirds of the film; with the duck
+ * selective the four cuts land at -15.7 / -16.3 / -16.3 / -16.3 LUFS, all inside
+ * -16 ± 0.5, with nothing added. The knob stays because the next track will not
+ * necessarily be delivered at the same loudness as this one — and because a zero
+ * that was measured is worth more than a number that was not needed.
+ */
+export const MASTER_TRIM_DB = 0;
 
 /**
  * The windows the music should duck under, derived from a cue sheet rather than
@@ -268,14 +322,45 @@ export const DUCK: DuckSpec = {
 export const duckWindows = (cues: CueSheet, spec: DuckSpec = DUCK): readonly { fromSec: number; toSec: number }[] => {
   if (cues.length === 0) return [];
   const sorted = cues.slice().sort((a, b) => a.atSec - b.atSec);
-  const windows: { fromSec: number; toSec: number }[] = [];
+  const windows: { fromSec: number; toSec: number; cues: number }[] = [];
   for (const cue of sorted) {
     const end = cue.atSec + sfx(cue.sfx).durationSec + spec.holdSec;
     const last = windows[windows.length - 1];
-    if (last && cue.atSec <= last.toSec) last.toSec = Math.max(last.toSec, end);
-    else windows.push({ fromSec: cue.atSec, toSec: end });
+    if (last && cue.atSec <= last.toSec) {
+      last.toSec = Math.max(last.toSec, end);
+      last.cues += 1;
+    } else {
+      windows.push({ fromSec: cue.atSec, toSec: end, cues: 1 });
+    }
   }
-  return windows;
+  // Only the DENSE ones duck. See `DUCK`.
+  return windows
+    .filter((w) => w.cues >= spec.minCues && w.cues / Math.max(spec.holdSec, w.toSec - w.fromSec) >= spec.minCuesPerSec)
+    .map((w) => ({ fromSec: w.fromSec, toSec: w.toSec }));
+};
+
+/**
+ * The music's gain at one second, 1 (open) down to the duck's floor.
+ *
+ * Here rather than in `FilmAudio.tsx` because two things play the same envelope
+ * and they must not disagree: the component, and the offline mix that
+ * `verify:loudness` measures. A gate that re-implements the thing it is checking
+ * is a gate that eventually certifies a film nobody rendered.
+ */
+export const duckGainAt = (
+  sec: number,
+  windows: readonly { fromSec: number; toSec: number }[],
+  spec: DuckSpec = DUCK,
+): number => {
+  const floor = Math.pow(10, spec.amountDb / 20);
+  let deepest = 1;
+  for (const w of windows) {
+    if (sec < w.fromSec - spec.attackSec || sec > w.toSec + spec.releaseSec) continue;
+    const inP = Math.min(1, Math.max(0, (sec - (w.fromSec - spec.attackSec)) / spec.attackSec));
+    const outP = Math.min(1, Math.max(0, (w.toSec + spec.releaseSec - sec) / spec.releaseSec));
+    deepest = Math.min(deepest, 1 - (1 - floor) * Math.min(inP, outP));
+  }
+  return deepest;
 };
 
 /* ── self-check ─────────────────────────────────────────────────────────────── */

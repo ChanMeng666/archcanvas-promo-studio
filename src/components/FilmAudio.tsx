@@ -1,10 +1,10 @@
 import React, { useMemo } from "react";
 import { Audio, Sequence, staticFile } from "remotion";
 
-import { DUCK, bedFor, duckWindows, sfx, type Cue } from "../audio";
+import { MASTER_TRIM_DB, bedFor, duckGainAt, duckWindows, sfx, type Cue } from "../audio";
 import { cuesFor } from "../cues";
 import type { CutId } from "../layout";
-import { FPS, clamp01, secToFrame } from "../timeline";
+import { FPS, secToFrame } from "../timeline";
 
 /**
  * The film's sound: one bed, and every cue the picture earned.
@@ -40,7 +40,7 @@ export const FilmAudio: React.FC<{ cut: CutId }> = ({ cut }) => {
     <>
       <Audio
         src={staticFile(bed.file)}
-        volume={(frame) => duck(frame / FPS)}
+        volume={(frame) => duck(frame / FPS) * dbToGain(MASTER_TRIM_DB)}
         // The bed is cut to the cut: `audio:beds` splices a body and an ending
         // to within 0.25 s of the composition, and `verify:audio` checks it.
         loop={false}
@@ -80,24 +80,12 @@ export const dbToGain = (db: number): number => {
 /**
  * The music's gain at a film second, given the windows it has to give way under.
  *
- * Attack and release are linear ramps in GAIN rather than in decibels, because a
- * decibel ramp is audible as a curve at these lengths and a gain ramp is not.
- * The windows already absorb runs of cues closer together than the hold, so this
- * only has to handle one window at a time.
+ * ⚠ A thin wrapper on purpose. The envelope itself lives in `audio.ts`, because
+ * the offline mix that `verify:loudness` measures plays the same one — and a
+ * gate that re-implements the thing it checks is a gate that eventually
+ * certifies a film nobody rendered.
  */
-const duckEnvelope = (
-  windows: readonly { fromSec: number; toSec: number }[],
-): ((sec: number) => number) => {
-  const floor = dbToGain(DUCK.amountDb);
-  return (sec: number): number => {
-    let deepest = 1;
-    for (const w of windows) {
-      if (sec < w.fromSec - DUCK.attackSec || sec > w.toSec + DUCK.releaseSec) continue;
-      const inP = clamp01((sec - (w.fromSec - DUCK.attackSec)) / DUCK.attackSec);
-      const outP = clamp01((w.toSec + DUCK.releaseSec - sec) / DUCK.releaseSec);
-      const depth = Math.min(inP, outP);
-      deepest = Math.min(deepest, 1 - (1 - floor) * depth);
-    }
-    return deepest;
-  };
-};
+const duckEnvelope =
+  (windows: readonly { fromSec: number; toSec: number }[]) =>
+  (sec: number): number =>
+    duckGainAt(sec, windows);
