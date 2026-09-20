@@ -29,6 +29,7 @@
  *   node tools/version-info.mjs --list               # every version, one per line
  */
 
+import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { createRequire } from "node:module";
@@ -52,8 +53,10 @@ if (wanted) {
 const esbuild = createRequire(import.meta.url)("esbuild");
 const built = await esbuild.build({
   stdin: {
-    contents: `export { outDirFor, sfxSet, activeSfxSetId } from "./audio";
-               export { VERSION, VERSION_IDS, specFor, EDIT_ID, SFX_SET, MUSIC_ID } from "./version";`,
+    contents: `export { outDirFor, sfxSet, activeSfxSetId, resolveCue } from "./audio";
+               export { VERSION, VERSION_IDS, specFor, EDIT_ID, SFX_SET, MUSIC_ID } from "./version";
+               export { cuesFor } from "./cues";
+               export { CUT_IDS } from "./layout-core";`,
     resolveDir: SRC, sourcefile: "version-info.ts", loader: "ts",
   },
   bundle: true, write: false, format: "esm", platform: "node", target: "node22", logLevel: "silent",
@@ -61,6 +64,30 @@ const built = await esbuild.build({
 const mod = await import(`data:text/javascript;base64,${Buffer.from(built.outputFiles[0].text).toString("base64")}`);
 
 const musicDoc = JSON.parse(fs.readFileSync(path.join(SRC, "data", "music.json"), "utf8"));
+
+/**
+ * A fingerprint of what a cut will SOUND like, per cut.
+ *
+ * ⚠ This is what tells a stale master from a wrong model. `verify:loudness`
+ * compares its prediction against the true peak measured from the delivered
+ * file, and that comparison is only meaningful while the film on disk still
+ * corresponds to the sheet. Trim a cue and the check would otherwise read the
+ * fix as the model getting worse — so the gate used to skip any cut carrying a
+ * trim, which quietly excused exactly the cuts most likely to be near the
+ * ceiling.
+ *
+ * So the render writes down what it rendered. Every resolved field that can
+ * change a sample goes in: the file, when it starts, how loud, how long, its
+ * fades. Nothing about the picture, so a framing fix does not invalidate a
+ * sound comparison.
+ */
+const cueSha = (cut) => {
+  const parts = mod.cuesFor(cut).map((c) => {
+    const rc = mod.resolveCue(c);
+    return [rc.file, rc.startSec.toFixed(4), rc.gainDb, rc.playSec.toFixed(4), rc.fadeInSec, rc.fadeOutSec].join("|");
+  });
+  return crypto.createHash("sha256").update(parts.join("\n")).digest("hex").slice(0, 16);
+};
 
 const describe = (id) => {
   const spec = mod.specFor(id);
@@ -86,6 +113,9 @@ const describe = (id) => {
       musicCommercialUse: music?.provenance?.commercialUse ?? null,
       musicNote: music?.provenance?.note ?? null,
     },
+    // Only for the ACTIVE version: the modules were bundled with its data, so
+    // another version's sheet is not this process's to resolve.
+    cueSha: id === mod.VERSION ? Object.fromEntries(mod.CUT_IDS.map((c) => [c, cueSha(c)])) : null,
     note: spec.note ?? null,
   };
 };

@@ -314,18 +314,17 @@ Two things it reports that are **not** faults:
   −16.3 / −16.3 / −16.3. **If a re-render disagrees by more than about 0.5 LU,
   the gate's model is wrong and that is the finding** — do not just accept the
   file.
-- **True peak is predicted less reliably than loudness, and the manifest is how
-  the gate finds out.** The model is accurate within ~0.3 dB wherever a cut's
-  peak is in the body, and wrong by ~1.1 dB where it is the opening transient —
-  a matter of milliseconds between the bed's entry and the first cue, not of
-  encoder settings (bitrate accounts for 0.1 dB of it; D41). So
-  `verify:loudness` now reads the true peaks `package-masters.ps1` wrote into
-  `MANIFEST.json` and **fails when its own prediction was optimistic by more
-  than 0.3 dB**. That means **the manifest must be committed after a packaging
-  run** — it is tracked although the masters are not, and it is the only thing
-  in the gate that can contradict the model. If a cut goes over, fix it with
-  `openingCueTrimDb` in the data rather than a bed level, and trim until the
-  peak moves out of the first 100 ms.
+- **True peak is predicted to 0.1 dB, and the manifest is what keeps it that
+  way.** `verify:loudness` places cues exactly where the composition does, and
+  agrees with all 32 delivered films within 0.1 dB (D42). It stays true only
+  while reality can answer back: the gate compares its prediction against the
+  true peaks `package-masters.ps1` wrote into `MANIFEST.json` and **fails when
+  it was optimistic by more than 0.3 dB**. So **commit `MANIFEST.json` after a
+  packaging run** — it is tracked although the masters are not. Each film
+  carries a `cueSha` fingerprint of the resolved cue sheet, which is what lets
+  a cut that was retuned be skipped as stale while every other cut stays
+  checked. If a cut goes over, fix it with `openingCueTrimDb` in the data
+  rather than a bed level, a decibel at a time.
 
 ### 6. Screen every master
 

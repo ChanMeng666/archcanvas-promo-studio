@@ -213,6 +213,13 @@ foreach ($t in $targets) {
     audioBitrate = if ($a -and $a[0].bit_rate) { [int]$a[0].bit_rate } else { $null }
     audioProfile = if ($a) { $a[0].profile } else { $null }
     bitrate = [int]$f.bit_rate
+    # What this film SOUNDS like, fingerprinted from the resolved cue sheet by
+    # `tools/version-info.mjs`. `verify:loudness` compares its prediction with
+    # the true peak below, and that only means anything while the film on disk
+    # still corresponds to the sheet -- a trim would otherwise read as the model
+    # getting worse. With this it can tell a stale master from a wrong model,
+    # instead of excusing every cut that carries a trim.
+    cueSha = if ($info.cueSha) { $info.cueSha."$($t.cut)" } else { $null }
     modified = $item.LastWriteTime.ToString("s")
     # The resolved cue sheet this film was rendered from, as a hash — so a
     # later run can tell "this master is old" from "the model is wrong" without

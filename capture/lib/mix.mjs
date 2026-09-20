@@ -36,6 +36,50 @@ import { loadFilm } from "./load-core.mjs";
 
 export const SAMPLE_RATE = 48000;
 const CHANNELS = 2;
+const FPS = 30;
+
+/**
+ * Where a cue actually lands in the delivered film, in samples.
+ *
+ * ⚠ The mix used to put a cue at its own second. The film cannot: the
+ * composition mounts every cue in a `<Sequence from={secToFrame(rc.startSec)}>`,
+ * so a cue starts on a FRAME — up to 16.7 ms from where the mix had it. That
+ * sounds like nothing and decides everything a true-peak meter reports:
+ * `A-confident-arrival`'s 60 s cut opens with a cue about 7 ms from the bed's
+ * own entry, and 7 ms is the difference between two transients summing and
+ * merely following each other. The mix predicted -2.4 dBTP; the film delivered
+ * -1.2, and the gate called it fine for two rounds.
+ *
+ * ── The 16 ────────────────────────────────────────────────────────────────
+ *
+ * Landing on the frame is most of it. The remainder is a constant 16 samples
+ * (0.33 ms), and it is EMPIRICAL: fitted by sliding bed+cue against the
+ * delivered film's own samples, on four cues across three films and two
+ * versions, where each fit is 3-200x sharper than any neighbouring offset. The
+ * direction is the odd part and it is what the fits say — the cue sits 16
+ * samples FURTHER along whichever way the frame rounding already moved it, and
+ * a cue whose second is already on a frame is not moved at all.
+ *
+ * No explanation is offered for that, because none was found and a plausible
+ * one would be worse than none. What licenses shipping it is the end-to-end
+ * test rather than the story: with this rule the offline mix predicts the true
+ * peak of ALL EIGHT delivered cuts within 0.1 dB, and names the sample each
+ * peak happens on. Without it, two cuts are out by 0.4 dB in the dangerous
+ * direction. The previous round charged a flat 1.1 dB "model error" margin for
+ * this and trimmed two films that did not need it.
+ *
+ * ⚠ If Remotion's audio path changes, this number is wrong and nothing here
+ * will notice. `verify:loudness` compares every prediction against the true
+ * peak `package-masters.ps1` measured from the delivered file, which is what
+ * will notice; re-fit with `tp-offset` (the probe in the round's scratch) if a
+ * re-render starts disagreeing.
+ */
+const CUE_NUDGE_SAMPLES = 16;
+export const cueStartSample = (startSec) => {
+  const onFrame = Math.round(startSec * FPS) * (SAMPLE_RATE / FPS);
+  const exact = Math.round(startSec * SAMPLE_RATE);
+  return onFrame + CUE_NUDGE_SAMPLES * Math.sign(onFrame - exact);
+};
 
 const ffmpeg = (args) =>
   execFileSync("ffmpeg", ["-hide_banner", "-loglevel", "error", ...args], {
@@ -128,7 +172,7 @@ export const mixCut = async (cut, opts = {}) => {
     const rc = A.resolveCue(cue);
     if (!cache.has(rc.file)) cache.set(rc.file, decode(path.join(ROOT, "public", rc.file)));
     const pcm = cache.get(rc.file);
-    const start = Math.round(rc.startSec * SAMPLE_RATE);
+    const start = cueStartSample(rc.startSec);
     const playFrames = Math.round(rc.playSec * SAMPLE_RATE);
     for (let j = 0; j + 1 < pcm.length; j += CHANNELS) {
       const n = j / CHANNELS;

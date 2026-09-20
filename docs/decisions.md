@@ -2242,3 +2242,99 @@ blunt rule, any trim means possibly stale. The discriminator that closes it is a
 **fingerprint of the resolved cue sheet recorded per file in `MANIFEST.json`**,
 which `package-masters.ps1` does not write yet. A commit is a proxy for the
 data; the data is available.
+
+---
+
+## D42. The correction: it was milliseconds, and it *was* modellable.
+
+D41 measured the right thing and drew the wrong conclusion. It established that
+the bitrate story was dead and that the gap between the offline mix and the
+delivered film was a few milliseconds of alignment at the opening — and then it
+declared that unmodellable, charged a flat 1.1 dB margin for it, and trimmed two
+films to fit. This round found the mechanism in the composition, where it had
+been written down all along.
+
+### `<Sequence from={secToFrame(startSec)}>`
+
+`FilmAudio.tsx` mounts every cue in a sequence, so **the film starts a cue on a
+FRAME.** The offline mix started it at the cue's own second — up to 16.7 ms
+away. That is the entire specimen: `A-confident-arrival`'s 60 s cut opens with a
+cue about 7 ms from its bed's entry, and 7 ms is the difference between two
+transients summing and merely following each other. The mix said −2.4 dBTP; the
+film delivered −1.2.
+
+D41 even tested frame-quantisation, saw it fit A and miss B, and stopped. It
+missed because of the second term.
+
+### The 16 samples, and saying plainly that it is empirical
+
+Landing on the frame is most of it. The remainder is a constant 16 samples
+(0.33 ms), measured by sliding bed+cue against the delivered film's own samples
+on four cues across three films and two versions, each fit 3–200× sharper than
+its neighbours. The direction is the odd part, and it is what the fits say: the
+cue sits 16 samples **further along whichever way the frame rounding already
+moved it**, and a cue already on a frame is not moved at all.
+
+No mechanism is offered, because none was found and **a plausible mechanism
+would be worse than none** — this round began by inheriting one. What licenses
+shipping it is the end-to-end number rather than the story:
+
+| | worst error vs the delivered film |
+|---|---|
+| the mix as it shipped in D41 | 1.1 dB, optimistic |
+| + cues on frames | 0.4 dB, optimistic |
+| + the 16 samples | **0.1 dB, over all 32 films** |
+
+Every one of the 32 delivered masters is now predicted within 0.1 dB, and the
+model names the sample each peak happens on. Three ways to be wrong were ruled
+out by measurement first: the encoder's bitrate (0.1 dB), the bed's alignment
+(exactly 2048 samples of AAC priming in every film, so nothing there), and
+evaluating gains per frame as Remotion does (identical to the tenth of a dB on
+every cut, so it is not in the code).
+
+### So the margin goes, and both trims are re-derived
+
+A margin for an error that has been fixed is not caution, it is a trim on the
+film nobody asked for: D41's demanded −2.6 dBTP of any cut whose peak was early.
+The ceiling is one number again, −1.5, and the two cuts that genuinely exceed it
+were re-measured a decibel at a time against a model that is right:
+
+| | D41 | now | result |
+|---|---|---|---|
+| `A-confident-arrival` 60 s | −9 dB | **−3 dB** | −2.0 dBTP |
+| `B-daylight-forward+el` 15 s | −16 dB | **−8 dB** | −1.9 dBTP |
+
+Both were wrong in both directions — calibrated against a mix in the wrong
+millisecond, against a ceiling inflated by the same error. All sixteen cuts now
+sit at −1.9 dBTP or better with integrated loudness unchanged to the tenth.
+
+### The guard was excusing the cuts that needed it
+
+D41's stale-master rule skipped the comparison-against-reality for any cut
+carrying a trim — which is to say for exactly the cuts near the ceiling. Revert
+the placement fix with A 60 s trimmed and its row reads 1.4 dB optimistic under
+a green gate: the original defect with extra steps.
+
+So the render writes down what it rendered. `package-masters.ps1` records a
+**`cueSha` per film** — a fingerprint of the resolved sheet (file, start, gain,
+length, fades) from `tools/version-info.mjs`, the process the render already
+asks and the gate does not reimplement. Equal means the film on disk is the film
+this sheet describes and the comparison is live whatever trims it carries.
+The trim and render-commit heuristics stay as fallbacks for older manifests,
+and each says which one it used, because **a skip that does not explain itself
+is how a check stops checking.**
+
+MUTATION: revert `cueStartSample` with A 60 s's data as that master was
+rendered → ✗ predicts −2.3 dBTP, delivered −1.2, 1.1 dB OPTIMISTIC. The
+founder's finding, reproduced as a red gate. Inject the current sha into B 120 s,
+skipped until now, and its row goes live and passes at +0.0; inject a wrong one
+and it reads "not checked: the cue sheet has changed".
+
+### What this round is really about
+
+Two hypotheses arrived with the work, both plausible, both wrong: the bitrate,
+and then "the mix is missing something on that bed entry". The mix was missing
+nothing — it had every sample, at the right gain, in the wrong millisecond. The
+thing that kept the round honest was refusing to accept a story that explained
+a tenth of the evidence, and the only assertion in this gate that can contradict
+the model is the one that measures a film.
