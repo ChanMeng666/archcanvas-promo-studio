@@ -258,7 +258,12 @@ const CUT_60: readonly Edit[] = [
  *   115.83       the lift: the end card, URL locking on the cadence
  */
 const CUT_120: readonly Edit[] = [
-  { scene: "hook", sec: 5.76, why: "Three bars — the long cut can afford to arrive." },
+  {
+    scene: "hook",
+    sec: 5.76,
+    push: 1.07,
+    why: "Three bars — the long cut can afford to arrive, and a slow push is what keeps three bars alive.",
+  },
   {
     scene: "brief",
     sec: 9.12,
@@ -276,7 +281,12 @@ const CUT_120: readonly Edit[] = [
     push: 1.02,
     why: "0.69x over the sheet. @14.88",
   },
-  { scene: "claim-what", sec: 5.5, why: "Three bars. The promise, held. @20.39" },
+  {
+    scene: "claim-what",
+    sec: 5.5,
+    push: 1.07,
+    why: "Three bars. The promise, held — on a push, because a parked card for three bars is a slide.",
+  },
   {
     scene: "draw",
     sec: 13.32,
