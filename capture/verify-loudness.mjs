@@ -178,6 +178,12 @@ const LUFS_WINDOW = 0.5;
  * to -1.5, so a cut has half a decibel of room before it reaches the line a
  * platform limiter actually enforces.
  *
+ * ⚠ The encode is worth 0.1-0.2 dB and was never the big number. The gap that
+ * made this gate certify a master at -1.2 was the MIX, which placed cues at
+ * their own second while the film places them on a frame; `mix.mjs` now does
+ * what the film does. The encode stays because it is honest and free, and its
+ * settings are probed off a delivered master rather than typed.
+ *
  * The dial for a cut that goes over is the OPENING CUE's gain, in
  * `versions.json` — never the bed's (D33). Every bed enters at 0 s and the
  * film's first cue lands 40 ms later, so the highest sample in a master is
@@ -186,38 +192,21 @@ const LUFS_WINDOW = 0.5;
 const TRUE_PEAK_MAX = -1.5;
 
 /**
- * The window in which the model is known to be unreliable, and the margin it
- * costs.
+ * The window a peak has to be in to be called an OPENING peak.
  *
- * ⚠ Both numbers are measured, and the SCOPE is the point. The offline mix
- * agrees with the delivered film within 0.1–0.3 dB on every cut whose peak sits
- * in the body of the film (B 15 s +0.1, B 30 s −0.3, B 60 s +0.1, A 120 s
- * −0.2). It is wrong by 1.1 dB on exactly one kind of moment: a cue transient
- * landing on a bed entry in the first frames, where the film's millisecond
- * alignment differs from the mix's and three milliseconds is over a decibel of
- * sum.
+ * ⚠ This used to carry a 1.1 dB margin with it, because the model was wrong by
+ * that much whenever a cue transient met the bed's entry. It is not wrong any
+ * more: `mix.mjs` now places cues where the composition does — on the frame,
+ * less the 16 samples the delivered file is measured to run early — and the
+ * prediction lands within 0.1 dB of the delivered film on every cut with a
+ * master, naming the sample the peak happens on.
  *
- * So the extra margin is charged where the error is, not everywhere. A flat
- * −2.6 ceiling would have demanded trims on three cuts whose peaks are at
- * 7.98 s, 100.5 s and 115.5 s — moments the model predicts well — and the
- * `openingCueTrimDb` dial cannot move those anyway.
+ * A margin covering a modelling error that has been fixed is not caution, it is
+ * a trim on the film nobody asked for: it demanded -2.6 dBTP on cuts whose only
+ * crime was to peak early. So the ceiling is one number again, and what keeps
+ * it honest is the comparison against reality below.
  */
 const OPENING_SEC = 0.1;
-const OPENING_MODEL_ERROR_DB = 1.1;
-
-/**
- * ⚠ -2.6, and every tenth of it is measured.
- *
- * -1.0 is the platform limiter's line. -1.5 was that plus half a decibel of
- * room. The extra 1.1 dB is the **model's own worst observed error**: A's 60 s
- * cut predicted -2.3 dBTP and the delivered film measured -1.2, and the cause
- * is millisecond-level alignment between a cue and a bed entry that the offline
- * mix cannot reproduce (see the commit that added the manifest check). A margin
- * smaller than the model's error is not a margin.
- *
- * It tightens as the model improves: shrink the worst delta the manifest check
- * reports and this can come back down.
- */
 
 /**
  * How much of a cut's runtime the duck may be on for.
@@ -274,9 +263,7 @@ for (const versionId of VERSIONS) {
           `${(r.lufs - target).toFixed(1)} LU out, past the ±${LUFS_WINDOW} window`,
       );
     }
-    const opening = Number.isFinite(r.peakAtSec) && r.peakAtSec <= OPENING_SEC;
-    const ceiling = opening ? TRUE_PEAK_MAX - OPENING_MODEL_ERROR_DB : TRUE_PEAK_MAX;
-    if (r.truePeakDb > ceiling + 1e-9) {
+    if (r.truePeakDb > TRUE_PEAK_MAX + 1e-9) {
       fail(
         "peak",
         `${version} ${cut}s`,
