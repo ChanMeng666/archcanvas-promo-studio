@@ -49,6 +49,21 @@ the replica's state at that frame, and emits on a change at
 `atSec = beat.startSec + frameToSec(f)`. The same 35 s of screenplay runs at 2.50× in the
 15 s cut and 0.46× in the 120 s cut, and the sheet follows.
 
+**A cue names a ROLE and an intent, never a file.** `{atSec, role, intent?, nth?,
+gainDb?, playSec?, fades}`; the manifest maps role → file and level **per sound set**
+(`perSet` blocks) and per take, so one sheet plays with `synth` and with
+`elevenlabs-audition`. A `gainDb` in the sheet is a **trim on top of** the role's level,
+for one instance sitting further back than its siblings — not a place to set a palette.
+⚠ A `perSet` block's material-calibrated fields (`perMusic`, `perFile`, `loop`,
+`bandTick`, `minGapSec`) **do not fall through** to the role; `verify:audio`'s
+`fallthrough` check asserts it, because nothing else can see that bug.
+
+**The drawing beat gets ONE base**, anchored on the first stroke's film second, looped
+with an equal-power crossfade if the beat outlasts the sample, faded out at the beat's
+end — never a retrigger. Edit B adds a light `tick` on each band's downbeat, placed from
+`beat.warpKnots.slice(1, -1)` so the punctuation cannot drift from the bars the bands
+were pinned to.
+
 **Alignment is per cue and stored as data**, `alignBy` + `alignOffsetSec`
 (`src/audio.ts:87-97`): a transient is `"attack"`, so
 `cue.at = action.at − alignOffsetSec`; a texture is `"start"`, so `cue.at = action.at`.
@@ -66,16 +81,28 @@ zero once produced six pin drops for three pins.
 
 ## Ducking
 
-`DUCK` (`src/audio.ts:304-311`): `amountDb -4`, `attackSec 0.08`, `holdSec 0.25`,
-`releaseSec 0.35`, plus thresholds `minCues 4` and `minCuesPerSec 4`. **Flat, on the bed
-only**; per-cue level is that cue's own `gainDb` trim.
+**Per role, deepest wins, never summed.** `src/data/sfx-roles.json` carries a `duckDb`
+and an `attack`/`hold`/`release` for each role — typing −2.5 dB, a click −3, a chapter
+`move` −4, a `confirm` and the `end` card −5, the `draw` bed **0** (its space is carved
+with EQ instead). `duckEvents()` turns the sheet into one claim per cue and
+`duckGainAt()` takes the deepest at every instant, so two clicks 80 ms apart cannot dig
+a 6 dB hole. `DUCK` keeps only what is about the SHEET rather than about a sound:
+`holdSec`, `minCues 4`, `minCuesPerSec 4`.
 
-The thresholds are the lesson. Ducking on *every* run of cues covered 50–74 % of runtime
-and pulled masters to −17.3…−17.9 LUFS against −16. The fix was not master gain —
-`MASTER_TRIM_DB` is **0**, measured — but ducking only for dense passages: coverage fell
-to 11–20 % and the cuts landed −15.7 / −16.3 / −16.3 / −16.3, capped by
-`DUCK_MAX_FRACTION = 0.3`. If a key cue is inaudible, look in order — cue gain, the bed's
-level in that section, the duck. Raising the master is never the answer.
+The density thresholds are the lesson and they survive the per-role rewrite. Ducking on
+*every* run of cues covered 50–74 % of runtime and pulled masters to −17.3…−17.9 LUFS
+against −16. Per-role *depths* do not fix that — a shallower duck that is always on is
+still a trim — so only dense passages duck, coverage sits at 0–23 % across sixteen cuts,
+and `DUCK_MAX_FRACTION = 0.3` is the ceiling.
+
+⚠ **`SOLO_DUCK_DB = −5`** is the one depth that ducks outside a dense passage, and −5 is
+measured rather than chosen: at −4 the `move` role qualified, `move` fires on every beat
+boundary, and coverage went 17 % → **31 %**, through the ceiling. A cue that fires at
+every cut is not a solo event, whatever its depth says (`docs/decisions.md` D35).
+
+`MASTER_TRIM_DB` is **0** for all four versions, measured. If a key cue is inaudible,
+look in order — the role's gain, the bed's level in that section, the duck. Raising the
+master is never the answer.
 
 ## Loudness
 
@@ -102,6 +129,12 @@ just accept the file.
 
 ## Traps
 
+- **Remotion's `<Audio>` takes a gain and NOTHING else.** The role manifest's per-music
+  EQ was a string nothing the film mounts could apply, and the drawing texture ran 0.4 to
+  3.7 dB *over* the music at 6.3–10 kHz on the money shot for as long as that was true.
+  `node tools/bake-eq.mjs` renders each recipe into real bytes, `roleCue` plays the baked
+  file and returns `eq: null` with it, and `verify:audio` fails on a stale recipe hash.
+  **Anything the manifest can say that `<Audio>` cannot do has to be baked.**
 - **`amix` silently drops ragged inputs.** Swept cues came out the right duration with
   only the first grain audible, about one build in six, from byte-identical inputs;
   `silenceremove` was blamed first and replacing it fixed nothing. Fix: place grains with

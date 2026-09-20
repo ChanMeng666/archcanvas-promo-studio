@@ -46,6 +46,8 @@ const { VERSION, EDIT_ID } = film.version;
 const A = film.audio;
 const { DRAW_HANDOFF_SEC } = film.honesty;
 const { linesFor } = film.copy;
+const { stateAt } = film.film;
+const { replicaSecondFor } = film.timeline;
 
 /** How far a major boundary may sit from a downbeat. One frame. */
 const MAJOR_TOL_FRAMES = 1;
@@ -71,6 +73,7 @@ const readingSec = (scene) => {
 
 const rows = [];
 let checkedBoundaries = 0;
+let bandsChecked = 0;
 
 if (EDIT_ID === "A") {
   const lock = JSON.parse(
@@ -166,6 +169,48 @@ if (EDIT_ID === "A") {
     }
 
     /*
+     * ── The drawing's bands start on bars ──────────────────────────────────
+     *
+     * `warp.ts` pins each band's first stroke to a measured downbeat, and this
+     * checks the pin by asking the REPLICA where the band actually is at that
+     * film second rather than by re-reading the knot. A knot is what the warp
+     * intended; `state.plan.bands` is what the product draws. The two agree only
+     * if the copy of BAND_WINDOWS in `film-demo.ts` still matches the synced
+     * table — which is exactly the drift this cannot otherwise see.
+     */
+    for (const beat of resolved.beats) {
+      const knots = beat.warpKnots ?? [];
+      if (knots.length < 3) continue;
+      bandsChecked += 1;
+      // The knots between the endpoints are the band pins.
+      for (const knot of knots.slice(1, -1)) {
+        const offFrames = Math.abs(knot.film - nearest(knot.film)) * FPS;
+        if (!Number.isFinite(offFrames) || offFrames > MAJOR_TOL_FRAMES + 1e-6) {
+          fail(
+            "band",
+            `cut ${cut}s "${beat.scene}" @${knot.film.toFixed(2)}s`,
+            `a drawing band is pinned ${offFrames.toFixed(1)} frames from the nearest measured downbeat`,
+          );
+          continue;
+        }
+        // And the band really does open there: the fraction the product has
+        // drawn of that band must be just leaving zero at the pin.
+        const p = (knot.film - beat.startSec) / Math.max(1e-6, beat.endSec - beat.startSec);
+        const before = stateAt(replicaSecondFor(beat, Math.max(0, p - 1.5 / FPS / (beat.endSec - beat.startSec))));
+        const after = stateAt(replicaSecondFor(beat, Math.min(1, p + 3 / FPS / (beat.endSec - beat.startSec))));
+        const opened = before.plan.bands.some((v, i) => v < 0.02 && (after.plan.bands[i] ?? 0) > 0.02);
+        if (!opened) {
+          fail(
+            "band",
+            `cut ${cut}s "${beat.scene}" @${knot.film.toFixed(2)}s`,
+            "nothing starts being drawn at this pin — the band table in film-demo.ts has drifted from the " +
+              "synced one in replica/at.ts, and the warp is pinning bars to nothing",
+          );
+        }
+      }
+    }
+
+    /*
      * Reading time is measured over the RUN, not the beat. A scene split into
      * three camera setups keeps its line on screen across all three — the
      * receipt's sentence does not restart when the camera punches in — so
@@ -212,6 +257,7 @@ if (AS_JSON) {
   console.log(`\n  verify-bars — ${VERSION} (edit ${EDIT_ID})`);
   for (const r of rows) console.log(`      ${r}`);
   if (failures.length === 0) {
+    if (EDIT_ID === "B") console.log(`      ${bandsChecked} drawing beat(s) with their bands pinned to bars`);
     console.log(
       EDIT_ID === "A"
         ? "\n  ✓ A's resolved timeline is identical to the lock, to the frame\n"

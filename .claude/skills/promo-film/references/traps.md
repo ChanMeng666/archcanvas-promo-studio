@@ -72,6 +72,17 @@ while cutting, rendering and reviewing a version. Every one cost real time once.
 - **Screenshots shot and never opened are not a look pass.** Every finding in the three
   look-fix passes was invisible to a green gate, and a look pass run against a build that
   is not the shipping one misses the thing it was for.
+- **The version selector must be `REMOTION_FILM_VERSION`.** `src/version.ts` runs in Node
+  for every gate and in a BROWSER inside the Remotion bundle, and Remotion injects only
+  `REMOTION_`-prefixed variables into the second one. Unprefixed, `FILM_VERSION` selected
+  the version for every gate and for **nothing that renders** — every still and every
+  master silently fell back to `music.json`'s `active`, and the two `+el` versions were
+  unrenderable. Set **both** variables, and prove it with a frame rather than a claim:
+  `REMOTION_FILM_VERSION=A-confident-arrival npx remotion still
+  Studio-15-Landscape-16x9 out/env-check.png --frame=120` must show edit A's drafting
+  sheet, not edit B's aubergine card (`docs/decisions.md` D36).
+- **`--scale` must produce integer dimensions.** 1080 × 0.667 = 720.36 and Remotion
+  refuses it, after bundling and rendering every frame. 0.5 and 0.75 are safe.
 - **A gate whose input set can go empty reports success by doing nothing** — four times in
   one day in a sibling repo. Every gate here prints how many things it looked at;
   `verify:assets` prints a VACUOUS banner at zero `staticFile()` calls. **Before trusting

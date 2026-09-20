@@ -951,6 +951,58 @@
           "sampleRate": 48000,
           "channels": 2,
           "bytes": 345678
+        },
+        {
+          "id": "draw-b.A-confident-arrival",
+          "file": "audio/sfx/elevenlabs-audition/draw-b.A-confident-arrival.wav",
+          "desc": "Light and fast. Sketching rather than drafting. with the A-confident-arrival shelf baked in",
+          "durationSec": 7.6888,
+          "peakDb": -11.938,
+          "rmsDb": -33.752,
+          "dcOffset": 0.000001,
+          "sampleRate": 48000,
+          "channels": 2,
+          "bytes": 1476326,
+          "role": "draw",
+          "alignBy": "start",
+          "alignOffsetSec": 0,
+          "peakAtSec": 0.6593,
+          "recipeHash": "c7f940eefbfc9b3f",
+          "derivedFrom": "draw-b",
+          "eq": "highshelf=f=3500:g=-14,equalizer=f=10000:t=q:w=1.2:g=-6",
+          "provenance": {
+            "source": "elevenlabs",
+            "tier": "free",
+            "generatedAt": "2026-09-20T03:45:05.645Z",
+            "commercialUse": false,
+            "reconstructed": "manifest row rebuilt from the audio on disk; the audio itself was never regenerated"
+          }
+        },
+        {
+          "id": "draw-b.B-daylight-forward",
+          "file": "audio/sfx/elevenlabs-audition/draw-b.B-daylight-forward.wav",
+          "desc": "Light and fast. Sketching rather than drafting. with the B-daylight-forward shelf baked in",
+          "durationSec": 7.6888,
+          "peakDb": -10.492,
+          "rmsDb": -32.121,
+          "dcOffset": 0.000001,
+          "sampleRate": 48000,
+          "channels": 2,
+          "bytes": 1476326,
+          "role": "draw",
+          "alignBy": "start",
+          "alignOffsetSec": 0,
+          "peakAtSec": 0.6593,
+          "recipeHash": "c4f00ac6ba7ff08b",
+          "derivedFrom": "draw-b",
+          "eq": "highshelf=f=5000:g=-9,equalizer=f=10000:t=q:w=1.2:g=-4",
+          "provenance": {
+            "source": "elevenlabs",
+            "tier": "free",
+            "generatedAt": "2026-09-20T03:45:05.645Z",
+            "commercialUse": false,
+            "reconstructed": "manifest row rebuilt from the audio on disk; the audio itself was never regenerated"
+          }
         }
       ]
     }

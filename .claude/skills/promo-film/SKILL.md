@@ -72,7 +72,14 @@ the peak. `references/audio.md` has the six roles, ducking, loudness, and where 
 true-peak ceiling bites (a bed's entry meeting the opening cue, not a loud middle).
 
 **7. The LOOK loop — render stills and open every one.**
+
+⚠ **Set `REMOTION_FILM_VERSION` as well as `FILM_VERSION`, or you are looking at
+`music.json`'s active version.** Remotion injects only `REMOTION_`-prefixed variables
+into the bundle's `process.env`, so an unprefixed selector reaches every gate and no
+frame. `references/traps.md` has the one-command proof.
+
 ```powershell
+node tools/beat-strip.mjs --cut 30                           # the cut's whole clock
 node capture/stills.mjs --comp Studio-30-Landscape-16x9      # six named beats
 node capture/stills.mjs --sheet --comp <id>                  # contact frames
 npm run stills:sheet                                         # tile them, both aspects

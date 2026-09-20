@@ -222,18 +222,67 @@ export const releaseBlockers = (setId: string = activeSfxSetId()): readonly stri
 
 export type RoleDuck = { readonly attack: number; readonly hold: number; readonly release: number };
 
-export type SfxRole = {
-  readonly desc: string;
+/** A looped role's seam. `draw` is the only one that loops. */
+export type RoleLoop = { readonly crossfadeSec: number };
+
+/** The `draw` role's punctuation: one light hit on each band's downbeat. */
+export type RoleBandTick = {
+  readonly file: string;
+  readonly gainDb: number;
+  readonly anchor: "start" | "attack";
+  readonly duckDb: number;
+};
+
+/**
+ * The half of a role that can differ between sound sets.
+ *
+ * ⚠ Which FILES and at what LEVEL, and nothing else. The duck, the budget and
+ * the suppression rules stay on the role, because how far the music gives way
+ * under a gesture is a property of the gesture rather than of the library the
+ * sound was bought from.
+ */
+export type RoleView = {
   readonly files: readonly string[];
-  readonly rotate?: boolean;
   readonly byIntent?: Readonly<Record<string, string>>;
   readonly anchor: "start" | "attack";
   readonly gainDb: number;
-  readonly perMusic?: Readonly<Record<string, { gainDb?: number; eq?: string }>>;
+  /**
+   * Per music take: a level, an EQ recipe, and the file that recipe was BAKED
+   * into.
+   *
+   * ⚠ `eq` alone never reached the film. Remotion's `<Audio>` takes a gain and
+   * nothing else, so for as long as the EQ was only a string the one thing that
+   * ever played it was `tools/mix-preview.mjs`. Measured on version B's 30 s
+   * draw window, the unshelved texture sat 0.4–3.7 dB OVER the music at 6.3, 8
+   * and 10 kHz — the bands the hats and shaker live in, on the money shot, and
+   * the reason the drawing role is not ducked at all is that its space was
+   * supposed to be carved here. `tools/bake-eq.mjs` renders the recipe into
+   * `file` and this plays that. The recipe stays as the record of how.
+   */
+  readonly perMusic?: Readonly<Record<string, { gainDb?: number; eq?: string; file?: string }>>;
   readonly perFile?: Readonly<Record<string, { gainDb?: number; anchor?: "start" | "attack"; duckDb?: number }>>;
+  readonly loop?: RoleLoop;
+  readonly bandTick?: RoleBandTick;
+  readonly fadeOutSec?: number;
+  /**
+   * How close two cues of this role may sit, as a musical preference.
+   *
+   * Per set, because it is a property of the MATERIAL: 1.3 s is right for a
+   * 1.4–1.9 s typing cluster and absurd for a 70 ms single press.
+   */
+  readonly minGapSec?: number;
+};
+
+export type SfxRole = RoleView & {
+  readonly desc: string;
+  readonly rotate?: boolean;
   readonly duckDb: number;
   readonly duck: RoleDuck | null;
   readonly suppressIfNearBedFinalHitSec?: number;
+  /** How many keystrokes each typing cluster stands in for. */
+  readonly coversKeystrokes?: Readonly<Record<string, number>>;
+  /** Field-by-field overrides for one sound set. See `$perSetNote`. */
+  readonly perSet?: Readonly<Record<string, Partial<RoleView>>>;
 };
 
 type RolesDoc = {
@@ -260,21 +309,6 @@ const ROLE_BUDGET_SEC: Readonly<Record<string, number | null>> = {
   end: 3.5,
 };
 
-/** The budget for whichever role currently maps to this canonical cue id. */
-export const roleBudgetSec = (canonicalId: string): number | null => {
-  for (const [rid, r] of Object.entries(rolesDoc.roles)) {
-    const mapped = sfxSet().aliases?.[canonicalId] ?? canonicalId;
-    if (r.files.includes(mapped) || Object.values(r.byIntent ?? {}).includes(mapped)) {
-      // `in`, not `??`. `draw`'s budget is an explicit `null` meaning "no
-      // limit", and `??` treats null as absent — so the nullish default
-      // silently reimposed 1.2 s on the one role that must not have one, and
-      // the gate went on failing the drawing bed for being 7.7 s long.
-      return rid in ROLE_BUDGET_SEC ? ROLE_BUDGET_SEC[rid] : 1.2;
-    }
-  }
-  return 1.2;
-};
-
 export const ROLE_IDS: readonly string[] = Object.keys(rolesDoc.roles);
 export type RoleId = string;
 
@@ -285,42 +319,127 @@ export const role = (id: RoleId): SfxRole => {
 };
 
 /**
+ * A role as ONE sound set sees it.
+ *
+ * Field by field, not all-or-nothing: `perSet.synth` names that set's own files
+ * and its own levels, and an all-or-nothing override would have meant restating
+ * a whole role to change two filenames — a restated block is a block that
+ * drifts.
+ *
+ * ⚠ **But the material-calibrated fields do not fall through**, and that is not
+ * tidiness. A `perSet` block exists precisely because this set's material is
+ * different, so a number measured against the other set's material is wrong
+ * here by construction — and wrong silently, which is the expensive kind. Both
+ * halves of that were live bugs within minutes of this function existing:
+ *
+ *   - `perMusic` fell through, so version A's **synthesised** 0.65 s stroke
+ *     inherited the −14 dB that was measured for a 7.69 s ElevenLabs texture
+ *     under A's darker bed. Five decibels quieter than the approved master, on
+ *     the money shot, with every gate green.
+ *   - `minGapSec` fell through, so the 1.3 s floor written for 1.4–1.9 s typing
+ *     CLUSTERS was applied to 70 ms single presses, and the 15 s cut's typing
+ *     went from twelve key cues to **one**.
+ *
+ * So `perMusic`, `perFile`, `loop`, `bandTick` and `minGapSec` come from the
+ * block or from nowhere. `anchor` and `fadeOutSec` still fall through: how a
+ * sound is lined up with a gesture, and that a texture is faded out rather than
+ * cut, are properties of the role.
+ */
+export const roleView = (id: RoleId, setId: string = activeSfxSetId()): RoleView => {
+  const r = role(id);
+  const o = r.perSet?.[setId];
+  const scoped = o !== undefined;
+  return {
+    files: o?.files ?? r.files,
+    byIntent: o?.byIntent ?? r.byIntent,
+    anchor: o?.anchor ?? r.anchor,
+    gainDb: o?.gainDb ?? r.gainDb,
+    perMusic: scoped ? o.perMusic : r.perMusic,
+    perFile: scoped ? o.perFile : r.perFile,
+    loop: scoped ? o.loop : r.loop,
+    bandTick: scoped ? o.bandTick : r.bandTick,
+    minGapSec: scoped ? o.minGapSec : r.minGapSec,
+    fadeOutSec: o?.fadeOutSec ?? r.fadeOutSec,
+  };
+};
+
+/** Which role owns a file, in a given set. `null` when nothing claims it. */
+const roleOfFile = (fileId: string, setId: string): RoleId | null => {
+  for (const rid of ROLE_IDS) {
+    const v = roleView(rid, setId);
+    if (v.files.includes(fileId)) return rid;
+    if (Object.values(v.byIntent ?? {}).includes(fileId)) return rid;
+    if (v.bandTick?.file === fileId) return rid;
+  }
+  return null;
+};
+
+/** The budget for whichever role currently maps to this canonical cue id. */
+export const roleBudgetSec = (canonicalId: string): number | null => {
+  const setId = activeSfxSetId();
+  const mapped = sfxSet(setId).aliases?.[canonicalId] ?? canonicalId;
+  const rid = roleOfFile(mapped, setId);
+  if (rid === null) return 1.2;
+  // `in`, not `??`. `draw`'s budget is an explicit `null` meaning "no limit",
+  // and `??` treats null as absent — so the nullish default silently reimposed
+  // 1.2 s on the one role that must not have one, and the gate went on failing
+  // the drawing bed for being 7.7 s long.
+  return rid in ROLE_BUDGET_SEC ? ROLE_BUDGET_SEC[rid] : 1.2;
+};
+
+/** The `band` intent is the drawing bed's punctuation, not a file of its own. */
+export const BAND_INTENT = "band";
+
+/**
  * Resolve a role (and optionally an intent, e.g. `click`/`button`) to the file
- * and the numbers the mixer needs, for a given music version.
+ * and the numbers the mixer needs, for a given music version and sound set.
  *
  * `nth` rotates through a role's variants — the typing role exists in four
  * clusters precisely so a long run of keys never repeats one back to back.
  */
 export const roleCue = (
   id: RoleId,
-  { intent, nth = 0, music }: { intent?: string; nth?: number; music?: string } = {},
+  { intent, nth = 0, music, set }: { intent?: string; nth?: number; music?: string; set?: string } = {},
 ): {
-  cueId: string; file: string; gainDb: number; eq: string | null;
+  cueId: string; file: string; durationSec: number; gainDb: number; eq: string | null;
   anchor: "start" | "attack"; offsetSec: number; duckDb: number; duck: RoleDuck | null;
 } => {
   const r = role(id);
-  const cueId = (intent && r.byIntent?.[intent])
-    || (r.rotate ? r.files[nth % r.files.length] : r.files[0]);
-  const perFile = r.perFile?.[cueId];
-  const perMusic = music ? r.perMusic?.[music] : undefined;
-  const cue = sfxSet().cues.find((c) => c.id === cueId);
+  const setId = set ?? activeSfxSetId();
+  const v = roleView(id, setId);
+  const tick = intent === BAND_INTENT ? v.bandTick : undefined;
+  const perMusic = tick || !music ? undefined : v.perMusic?.[music];
+  /*
+   * The BAKED file wins, when the manifest names one. `eq` is then already in
+   * the bytes, so it is not returned — an offline mixer that applied both would
+   * shelve the same texture twice.
+   */
+  const cueId = tick?.file
+    ?? perMusic?.file
+    ?? (intent && v.byIntent?.[intent])
+    ?? (r.rotate ? v.files[nth % Math.max(1, v.files.length)] : v.files[0]);
+  const perFile = v.perFile?.[cueId];
+  const cue = sfxSet(setId).cues.find((c) => c.id === cueId);
   if (!cue) {
     throw new Error(
-      `role "${id}" wants cue "${cueId}", which the active set "${activeSfxSetId()}" does not have — ` +
+      `role "${id}"${intent ? ` (${intent})` : ""} wants cue "${cueId}", which the set "${setId}" does not have — ` +
       `switch sets with \`node tools/use-sfx.mjs\` or fix src/data/sfx-roles.json`,
     );
   }
-  const anchor = perFile?.anchor ?? r.anchor;
+  const anchor = tick?.anchor ?? perFile?.anchor ?? v.anchor;
   return {
     cueId,
     file: cue.file,
-    gainDb: perMusic?.gainDb ?? perFile?.gainDb ?? r.gainDb,
-    eq: perMusic?.eq ?? null,
+    durationSec: cue.durationSec,
+    gainDb: tick?.gainDb ?? perMusic?.gainDb ?? perFile?.gainDb ?? v.gainDb,
+    // Null once it is baked: the filter is in the file, and a mixer that
+    // applied it again would shelve the same texture twice.
+    eq: tick || perMusic?.file ? null : (perMusic?.eq ?? null),
     anchor,
     // `start` schedules at the action; `attack` pulls back so the sound's first
     // strong onset lands ON it. The offset is measured, never typed.
     offsetSec: anchor === "attack" ? (cue.alignOffsetSec ?? 0) : 0,
-    duckDb: perFile?.duckDb ?? r.duckDb,
+    duckDb: tick?.duckDb ?? perFile?.duckDb ?? r.duckDb,
     duck: r.duck,
   };
 };
@@ -539,76 +658,126 @@ export const snapToDownbeat = (cut: CutId, t: number, toleranceSec = 0.15): numb
  * One scheduled sound. `atSec` is FILM time — the same clock as `cuts.ts` — so
  * a cue sheet can be read next to an EDL without conversion.
  *
- * `gainDb` is a trim relative to the cue as built. Every cue is normalised to
- * -3 dBFS peak, so the default of 0 already gives a consistent palette; a trim
- * is for when one gesture should sit further back, not for fixing a cue that is
- * too loud in general. Fix that in `tools/synth-sfx.mjs`, where it stays fixed.
+ * ── It names a ROLE, not a file ────────────────────────────────────────────
+ *
+ * The sheet owns **WHEN**; `src/data/sfx-roles.json` owns **WHAT** plays there
+ * and **HOW LOUD**, per sound set and per music take. So one sheet plays with
+ * `synth` and with `elevenlabs-audition` without a line of `cues.ts` knowing
+ * which is loaded — and re-choosing the sound design cannot move a cue, while
+ * re-cutting the film cannot un-decide a gain.
+ *
+ * ⚠ `atSec` is the **action's** time, not the sample's start. Anchoring is
+ * applied once, in `resolveCue`: `start = atSec − offsetSec`, where the offset
+ * is the cue's measured first strong onset for an `attack`-anchored sound and
+ * zero for a texture. Before this, nothing applied it at all and the ElevenLabs
+ * typing clusters landed 157 ms behind the characters they were for.
+ *
+ * `gainDb` is a **trim on top of the role's level**, not a replacement — for
+ * when one instance sits further back than its siblings. The chapter chip is
+ * the same `appear`/`card` sound as a full-bleed card, six decibels down.
  */
 export type Cue = {
   readonly atSec: number;
-  readonly sfx: SfxId;
+  readonly role: RoleId;
+  readonly intent?: string;
+  /** Which variant, for a rotating role. */
+  readonly nth?: number;
   readonly gainDb?: number;
+  /** How long this cue sounds. Defaults to the sample's own length. */
+  readonly playSec?: number;
+  readonly fadeInSec?: number;
+  readonly fadeOutSec?: number;
+  /** Why this cue exists, for a gate's output. Never affects the sound. */
+  readonly note?: string;
 };
 
 export type CueSheet = readonly Cue[];
 
-/**
- * Turn per-character typing timestamps into key cues, cycling the three `key`
- * variants.
- *
- * **The cycling is the whole point.** One key sample fired forty times is a
- * machine gun: the ear locks onto an identical transient repeating at an even
- * interval within about three or four hits, and what should read as someone
- * typing reads as a sound effect looping. Three variants is enough to break it.
- *
- * The replica core exposes deterministic per-character typing times; this
- * deliberately does NOT import it and takes the array instead, so the audio
- * layer has no dependency on the synced replica and this stays testable with a
- * literal.
- *
- * `everyNth` exists because a cue per character is usually too dense to read as
- * typing at all — at the replica's typing speed, every second or third
- * character is closer to how a keyboard actually sounds under music. Spaces and
- * other characters are the caller's business: pass the timestamps you want
- * heard.
- */
-export const typingCues = (
-  charTimesSec: readonly number[],
-  { everyNth = 2, gainDb = -6 }: { everyNth?: number; gainDb?: number } = {},
-): CueSheet => {
-  const keys: SfxId[] = ["key-1", "key-2", "key-3"];
-  const out: Cue[] = [];
-  for (let i = 0; i < charTimesSec.length; i += Math.max(1, everyNth)) {
-    out.push({ atSec: charTimesSec[i], sfx: keys[out.length % keys.length], gainDb });
-  }
-  return out;
+/** One cue with its file, its level and its scheduled start all resolved. */
+export type ResolvedCue = {
+  readonly cue: Cue;
+  readonly cueId: string;
+  readonly file: string;
+  /** When the FILE starts, once the anchor has been applied. */
+  readonly startSec: number;
+  /** When the ACTION is — what the picture does. `cue.atSec`. */
+  readonly actionSec: number;
+  readonly offsetSec: number;
+  readonly durationSec: number;
+  readonly playSec: number;
+  readonly gainDb: number;
+  readonly fadeInSec: number;
+  readonly fadeOutSec: number;
+  readonly duckDb: number;
+  readonly duck: RoleDuck | null;
 };
 
-/** Merge cue sheets and put them in playing order. */
-export const mergeCues = (...sheets: readonly CueSheet[]): CueSheet =>
-  sheets.flat().slice().sort((a, b) => a.atSec - b.atSec);
+/**
+ * The one place a cue becomes a sound. The component, the offline mix and the
+ * gates all call it, so none of them can disagree about a level or a frame.
+ */
+export const resolveCue = (cue: Cue, opts: { set?: string; music?: string } = {}): ResolvedCue => {
+  const r = roleCue(cue.role, { intent: cue.intent, nth: cue.nth, music: opts.music ?? MUSIC_VERSION, set: opts.set });
+  const playSec = Math.min(cue.playSec ?? r.durationSec, r.durationSec);
+  return {
+    cue,
+    cueId: r.cueId,
+    file: r.file,
+    startSec: cue.atSec - r.offsetSec,
+    actionSec: cue.atSec,
+    offsetSec: r.offsetSec,
+    durationSec: r.durationSec,
+    playSec,
+    gainDb: r.gainDb + (cue.gainDb ?? 0),
+    fadeInSec: cue.fadeInSec ?? 0,
+    fadeOutSec: cue.fadeOutSec ?? 0,
+    duckDb: r.duckDb,
+    duck: r.duck,
+  };
+};
+
+/** The gain a resolved cue plays at, `secIntoFile` seconds in. Linear, 0..1. */
+export const cueGainAt = (rc: ResolvedCue, secIntoFile: number): number => {
+  if (secIntoFile < 0 || secIntoFile > rc.playSec) return 0;
+  const base = Math.pow(10, rc.gainDb / 20);
+  const inP = rc.fadeInSec > 0 ? Math.min(1, secIntoFile / rc.fadeInSec) : 1;
+  const outP = rc.fadeOutSec > 0 ? Math.min(1, (rc.playSec - secIntoFile) / rc.fadeOutSec) : 1;
+  // Equal power, so two crossfading copies of one texture sum to one texture
+  // rather than to a dip at the seam.
+  return base * Math.sqrt(Math.max(0, Math.min(1, inP))) * Math.sqrt(Math.max(0, Math.min(1, outP)));
+};
 
 /* ── ducking ────────────────────────────────────────────────────────────────── */
 
 /**
- * How far to pull the music down under a dense passage of effects, as DATA.
+ * WHEN a passage counts as dense enough to duck under, as DATA.
  *
  * Declarative for the same reason the sibling film's duck was: a duck that is
  * hand-placed in the bed cannot be moved once the picture changes, and a bed
  * that arrives pre-ducked can only be un-ducked by re-cutting it. The bed
- * `prepare-bed.ps1` delivers is flat; WP-9 applies this at mount time from
- * wherever the cues actually are.
+ * `prepare-bed.ps1` delivers is flat; `FilmAudio` applies the envelope at mount
+ * time from wherever the cues actually are.
  *
- * -4 dB is chosen to be heard as space rather than as an effect: past about
- * 6 dB on a bed this dense the movement itself becomes audible, and audible
- * pumping is on the exclude list in `docs/suno-prompt.md`.
+ * How FAR the music gives way is no longer here. It is per role, in
+ * `src/data/sfx-roles.json`: −2.5 dB under typing, −3 under a click, −4 under a
+ * chapter move, −5 under a confirmation or the end card, and nothing at all
+ * under the drawing bed, whose space is carved with EQ instead. Every one of
+ * those is under the 6 dB past which the movement itself becomes audible on a
+ * bed this dense, and audible pumping is on the exclude list in
+ * `docs/suno-prompt.md`.
  */
 export type DuckSpec = {
-  readonly amountDb: number;
-  readonly attackSec: number;
-  readonly releaseSec: number;
+  /**
+   * How far apart two cues may be and still be one passage — and nothing else.
+   *
+   * ⚠ Depth, attack and release used to live here as three flat constants and
+   * are now per ROLE (`src/data/sfx-roles.json`), because −4 dB over 0.63 s is
+   * the right shape for a chapter transition and the wrong one for a click.
+   * What stayed here is the only part of the old spec that was about the SHEET
+   * rather than about a sound: what counts as a dense passage.
+   */
   readonly holdSec: number;
-  /** The fewest cues a window must hold before it counts as a dense passage. */
+  /** The fewest cues a passage must hold before it counts as a dense one. */
   readonly minCues: number;
   /** And how many per second, so a slow trickle of cues is not a "passage". */
   readonly minCuesPerSec: number;
@@ -630,9 +799,6 @@ export type DuckSpec = {
  * be felt over the bed, not to clear a space in it.
  */
 export const DUCK: DuckSpec = {
-  amountDb: -4,
-  attackSec: 0.08,
-  releaseSec: 0.35,
   holdSec: 0.25,
   minCues: 4,
   minCuesPerSec: 4,
@@ -659,104 +825,143 @@ export const DUCK: DuckSpec = {
  * that was measured is worth more than a number that was not needed.
  */
 /**
- * ⚠ Zero for the releasable versions — see above — and **−1.0 dB for the
- * audition ones**, which is a different mix rather than the same mix played
- * quieter.
+ * ⚠ **Zero again, for every version, and the −0.5 dB the audition versions used
+ * to carry is gone because its cause is.**
  *
- * The ElevenLabs palette replaces short synthesised one-shots with longer
- * vendor material: a 7.7 s drawing bed where there was a 0.65 s cue, typing
- * clusters where there were single keys. More of it is sounding at any instant,
- * so the sum sits higher even after every cue has been matched individually to
- * the synth cue it stands in for. Measured on the 15 s cut — the densest, and
- * the only one that failed — the audition mix landed at −15.3 LUFS and −0.3
- * dBTP against a −16 ± 0.5 target and a −1 dBTP ceiling.
+ * That trim was measured when the ElevenLabs palette was playing at the
+ * SYNTHESISED palette's levels: the cue sheet hard-coded absolute gains — a pop
+ * at −5, an end hit at −1 — and applied them to whichever set was loaded, while
+ * the role manifest's own calibration for that set (−10 and −6) was never read
+ * by anything the film mounts. Four to six decibels hot across the board, on
+ * longer material, summed higher; −15.3 LUFS on the 15 s cut; hence −0.5 at the
+ * master.
  *
- * Trimming the CUES further was tried first and is the wrong lever: 1.5 dB off
- * the whole set moved the mix only 0.1 LU, because the bed dominates the
+ * The cue sheet now resolves through the roles, so the palette plays at the
+ * level it was calibrated to, and the audition mixes landed at −16.6 to −16.9
+ * WITH the old trim still applied. Removing it puts all eight inside the window
+ * and gives the 15 s cut's true peak 0.3 dB of margin it did not have before.
+ *
+ * Trimming the CUES is still the wrong lever and the note it earned stands:
+ * 1.5 dB off the whole set moved the mix 0.1 LU, because the bed dominates the
  * integrated figure. One decibel at the master moves the master by one decibel.
  *
- * It is scoped to the audition versions so the approved masters keep the
- * measured zero above, byte for byte.
+ * The knob stays at a measured zero for the same reason it did before: the next
+ * track will not necessarily be delivered at this one's loudness, and a zero
+ * that was measured is worth more than a number that was not needed.
  */
-export const MASTER_TRIM_DB: number = SFX_SET === "synth" ? 0 : -0.5;
+export const MASTER_TRIM_DB: number = 0;
 
 /**
- * The windows the music should duck under, derived from a cue sheet rather than
- * typed: any run of cues closer together than `holdSec` becomes one window.
- * Returned in film-time seconds.
+ * One cue's claim on the music: how deep, from when, with what shape.
+ *
+ * Not a "window" any more. A window is a span with one depth, which is what a
+ * single flat duck needs; the role table gives a click −3 dB over 0.30 s and the
+ * end card −5 dB over 0.77 s, and merging those into one span can only be done
+ * by losing one of them. So each cue keeps its own envelope and `duckGainAt`
+ * takes the DEEPEST at every instant — never the sum, because two clicks 80 ms
+ * apart must not dig a 6 dB hole.
  */
-/**
- * How deep the music ducks under a given canonical cue, per the role manifest.
- * `0` means this cue does not duck at all.
- */
-export const roleDuckDbForCue = (canonicalId: string): number => {
-  const mapped = sfxSet().aliases?.[canonicalId] ?? canonicalId;
-  for (const [, r] of Object.entries(rolesDoc.roles)) {
-    if (r.files.includes(mapped) || Object.values(r.byIntent ?? {}).includes(mapped)) {
-      const perFile = r.perFile?.[mapped];
-      return perFile?.duckDb ?? r.duckDb;
-    }
-  }
-  return DUCK.amountDb;
+export type DuckEvent = {
+  /** When the music is fully down — the action's own instant. */
+  readonly atSec: number;
+  /** How long it stays down after that. */
+  readonly holdSec: number;
+  readonly amountDb: number;
+  readonly attackSec: number;
+  readonly releaseSec: number;
 };
 
-export const duckWindows = (cues: CueSheet, spec: DuckSpec = DUCK): readonly { fromSec: number; toSec: number }[] => {
+/**
+ * ⚠ The density thresholds still gate which cues duck, and the reason is
+ * measured rather than inherited.
+ *
+ * D33 is the record: a duck that fires on every cue covered 50–73 % of the
+ * runtime and cost 1.5 LU everywhere. Per-role DEPTHS do not fix that — a
+ * shallower duck that is always on is still a trim — so the rule that survived
+ * is "a duck is for a dense passage", and what the role table adds is how deep
+ * and how fast, per gesture, inside one.
+ *
+ * `SOLO_DUCK_DB` is the exception, and it is the only thing about this that is
+ * new: −5 dB is what the role table reserves for a **confirmation and the end
+ * card**, and those two are the events the film is allowed to clear a space
+ * for. They fire once each per cut, so they cost coverage in tenths of a per
+ * cent.
+ *
+ * ⚠ It was −4 for one measurement, which let the `move` role duck alone too.
+ * `move` fires on every beat boundary — five times in the 15 s cut, twenty in
+ * the 120 s — at 0.44 s each, and coverage went from 17 % to **31 %**, straight
+ * through the ceiling the gate exists to hold. A cue that fires at every cut is
+ * not a solo event, whatever its depth says; that is D33's finding arriving
+ * again wearing a per-role hat. See D35.
+ */
+export const SOLO_DUCK_DB = -5;
+
+/** Every claim a sheet makes on the music, in playing order. */
+export const duckEvents = (
+  cues: CueSheet,
+  opts: { set?: string; music?: string; spec?: DuckSpec } = {},
+): readonly DuckEvent[] => {
+  const spec = opts.spec ?? DUCK;
   if (cues.length === 0) return [];
-  const sorted = cues.slice().sort((a, b) => a.atSec - b.atSec);
-  const windows: { fromSec: number; toSec: number; cues: number }[] = [];
-  for (const cue of sorted) {
-    /*
-     * A cue ducks for its GESTURE, not for its whole sample.
-     *
-     * The window used to run to the end of the file, which is right for the
-     * synthesised palette where every cue is a sub-second one-shot. The
-     * ElevenLabs set maps the same ids onto long material — a 7.7 s drawing bed,
-     * 1.9 s typing clusters — and taking their full length merged every window
-     * into one: the gate measured the duck ON for 100 % of all four cuts, which
-     * is the failure its own header names, "a duck that is always on is a trim".
-     *
-     * `src/data/sfx-roles.json` already says what each role's duck should be,
-     * including that the drawing bed is NOT ducked at all (it runs for seconds,
-     * so a duck that long is a hole rather than a gesture). Honouring that here
-     * is what makes the duck a duck again for any set.
-     */
-    const duckDb = roleDuckDbForCue(cue.sfx);
-    if (duckDb === 0) continue;
-    const gestureSec = Math.min(sfx(cue.sfx).durationSec, spec.attackSec + spec.holdSec + spec.releaseSec);
-    const end = cue.atSec + gestureSec + spec.holdSec;
-    const last = windows[windows.length - 1];
-    if (last && cue.atSec <= last.toSec) {
-      last.toSec = Math.max(last.toSec, end);
-      last.cues += 1;
+  const resolved = cues
+    .map((c) => resolveCue(c, opts))
+    .filter((rc) => rc.duckDb !== 0 && rc.duck !== null)
+    .sort((a, b) => a.actionSec - b.actionSec);
+
+  /*
+   * Dense runs first: a run is cues no further apart than the hold, and it
+   * qualifies at `minCues` and `minCuesPerSec`. Everything in a qualifying run
+   * ducks; a cue outside one ducks only if its role is structural.
+   */
+  const runs: { cues: ResolvedCue[]; from: number; to: number }[] = [];
+  for (const rc of resolved) {
+    const last = runs[runs.length - 1];
+    if (last && rc.actionSec - last.to <= spec.holdSec) {
+      last.cues.push(rc);
+      last.to = rc.actionSec;
     } else {
-      windows.push({ fromSec: cue.atSec, toSec: end, cues: 1 });
+      runs.push({ cues: [rc], from: rc.actionSec, to: rc.actionSec });
     }
   }
-  // Only the DENSE ones duck. See `DUCK`.
-  return windows
-    .filter((w) => w.cues >= spec.minCues && w.cues / Math.max(spec.holdSec, w.toSec - w.fromSec) >= spec.minCuesPerSec)
-    .map((w) => ({ fromSec: w.fromSec, toSec: w.toSec }));
+
+  const out: DuckEvent[] = [];
+  for (const run of runs) {
+    const span = Math.max(spec.holdSec, run.to - run.from);
+    const dense = run.cues.length >= spec.minCues && run.cues.length / span >= spec.minCuesPerSec;
+    for (const rc of run.cues) {
+      if (!dense && rc.duckDb > SOLO_DUCK_DB + 1e-9) continue;
+      const d = rc.duck!;
+      out.push({
+        atSec: rc.actionSec,
+        // The music gives way for the GESTURE, capped at the role's hold: a
+        // 7.7 s sample does not buy a 7.7 s hole.
+        holdSec: Math.min(rc.playSec, d.hold),
+        amountDb: rc.duckDb,
+        attackSec: d.attack,
+        releaseSec: d.release,
+      });
+    }
+  }
+  return out.sort((a, b) => a.atSec - b.atSec);
 };
 
 /**
- * The music's gain at one second, 1 (open) down to the duck's floor.
+ * The music's gain at one second, 1 (open) down to the deepest claim on it.
  *
  * Here rather than in `FilmAudio.tsx` because two things play the same envelope
  * and they must not disagree: the component, and the offline mix that
  * `verify:loudness` measures. A gate that re-implements the thing it is checking
  * is a gate that eventually certifies a film nobody rendered.
  */
-export const duckGainAt = (
-  sec: number,
-  windows: readonly { fromSec: number; toSec: number }[],
-  spec: DuckSpec = DUCK,
-): number => {
-  const floor = Math.pow(10, spec.amountDb / 20);
+export const duckGainAt = (sec: number, events: readonly DuckEvent[]): number => {
   let deepest = 1;
-  for (const w of windows) {
-    if (sec < w.fromSec - spec.attackSec || sec > w.toSec + spec.releaseSec) continue;
-    const inP = Math.min(1, Math.max(0, (sec - (w.fromSec - spec.attackSec)) / spec.attackSec));
-    const outP = Math.min(1, Math.max(0, (w.toSec + spec.releaseSec - sec) / spec.releaseSec));
+  for (const e of events) {
+    const from = e.atSec - e.attackSec;
+    const to = e.atSec + e.holdSec;
+    if (sec < from || sec > to + e.releaseSec) continue;
+    const floor = Math.pow(10, e.amountDb / 20);
+    const inP = e.attackSec > 0 ? Math.min(1, Math.max(0, (sec - from) / e.attackSec)) : 1;
+    const outP = e.releaseSec > 0 ? Math.min(1, Math.max(0, (to + e.releaseSec - sec) / e.releaseSec)) : 1;
     deepest = Math.min(deepest, 1 - (1 - floor) * Math.min(inP, outP));
   }
   return deepest;

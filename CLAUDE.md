@@ -158,7 +158,12 @@ npm run lint                                  # tsc --noEmit
 npm run verify                                # assets -> replica -> timeline -> copy -> numbers
                                               #   -> audio -> honesty -> framing -> violet
                                               #   -> loudness -> opening
+export REMOTION_FILM_VERSION=B-daylight-forward+el   # picture AND sound; set
+export FILM_VERSION=$REMOTION_FILM_VERSION           #   BOTH -- see the traps
 npm run stills --  --comp Studio-30-Landscape-16x9   # six beats of one master
+node tools/beat-strip.mjs --cut 30            # bars, boundaries, cues, the duck
+node tools/bake-eq.mjs            # render the manifest's per-music EQ into files
+node tools/bake-eq.mjs --check    # ...and fail if a baked file is stale
 for c in ...; do node capture/stills.mjs --comp $c; done   # a full sweep, per comp
 node capture/stills.mjs --sheet --comp <id>   # contact FRAMES for one cut
 npm run stills:sheet                          # tile them, once, from disk —
@@ -261,6 +266,18 @@ rediscover them.**
   part-written. `capture/stills.mjs` is therefore run **per composition**
   (`--comp`) for a full sweep, not once over all eight. The tell is the same as
   the memory one: the failure names the network, and the cause is the count.
+- **The version selector has to reach the BROWSER, and only `REMOTION_`-prefixed
+  variables do.** `src/version.ts` runs in Node for every gate and inside the Remotion
+  bundle for every frame, and Remotion injects only `REMOTION_*` into the latter's
+  `process.env`. Unprefixed, `FILM_VERSION` selected the version for every gate and for
+  **nothing that renders**: every still, every contact sheet and every master silently
+  fell back to `music.json`'s `active`, and the two audition versions could not be
+  rendered at all. Set `REMOTION_FILM_VERSION` **and** `FILM_VERSION`, and prove it with
+  a frame — `docs/decisions.md` D36 has the one-command check.
+- **Remotion's `<Audio>` takes a gain and nothing else.** Anything a manifest says that
+  `<Audio>` cannot do — an EQ, a filter — reaches nothing unless it is baked into the
+  file (`tools/bake-eq.mjs`). The drawing texture sat 0.4–3.7 dB over the music at
+  6.3–10 kHz on the money shot for as long as that went unnoticed.
 - **A gate whose input set can go empty reports success by doing nothing.** The sibling
   project produced that failure four times in one day. Every gate here says out loud how
   many things it looked at, `verify:assets` prints a VACUOUS banner at zero

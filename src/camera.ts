@@ -80,7 +80,7 @@ import {
 import { DRAFTING_SPAN } from "./honesty";
 import type { Layout, StageRect } from "./layout-core";
 import type { SceneId } from "./scenes";
-import { clamp01, easeOutCubic, frameToSec, type ResolvedBeat } from "./timeline";
+import { clamp01, easeOutCubic, frameToSec, replicaSecondFor, type ResolvedBeat } from "./timeline";
 
 /* ── the mount ────────────────────────────────────────────────────────────── */
 
@@ -768,7 +768,9 @@ export const shotFor = (
 
   const from = beat.replicaFrom ?? 0;
   const to = beat.replicaTo ?? from;
-  const t = from + (to - from) * p;
+  // Piecewise inside a drawing beat, constant everywhere else. `timeline.ts`
+  // attached the knots; this does not decide, it reads.
+  const t = replicaSecondFor(beat, p);
 
   const state = showOpenFinding(beat.scene) ? stateAt(t) : closeFinding(stateAt(t));
   const probe = mountReplica(box, layout.replicaLayout, { browserFrame: opts.browserFrame });

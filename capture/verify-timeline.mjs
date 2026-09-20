@@ -253,6 +253,44 @@ if (!/DELIVERABLES\.map/.test(rootSrc)) {
   fail("src/Root.tsx no longer maps over DELIVERABLES — the eight sizes can now drift apart");
 }
 
+/* ── the version selector has to REACH the picture ────────────────────────── */
+
+/*
+ * ⚠ It did not, for the whole life of the version model, and nothing said so.
+ *
+ * `src/version.ts` runs in two places. In Node — every gate, through
+ * `capture/lib/load-core.mjs` — `process.env` is the real environment. Inside
+ * the Remotion bundle it runs in a BROWSER, where `process.env` is a small
+ * object the bundler injects and Remotion injects only `REMOTION_`-prefixed
+ * variables. So `FILM_VERSION` selected the version for every gate and for
+ * nothing that renders: stills, contact sheets and masters all silently fell
+ * back to `music.json`'s `active`.
+ *
+ * Proven, not reasoned: with `FILM_VERSION=A-confident-arrival`, a still of
+ * `Studio-15-Landscape-16x9` at 4.0 s came back as edit B's claim card, which
+ * edit A does not have at that second. It made the `+el` audition versions
+ * unrenderable — a run would have filed the `synth` mix in the audition folder
+ * as though it were the ElevenLabs one.
+ *
+ * This is a TEXT check for the same reason the frame-literal scan above is one:
+ * the end-to-end proof needs a render, and a gate that needs a render is a gate
+ * nobody runs. `docs/release.md` carries the render-side recipe.
+ */
+const versionSrc = fs.readFileSync(path.join(SRC, "version.ts"), "utf8");
+if (!/REMOTION_FILM_VERSION/.test(versionSrc)) {
+  fail(
+    "src/version.ts no longer reads REMOTION_FILM_VERSION — an unprefixed variable reaches the gates and " +
+      "NOT the browser bundle, so every still and every master would silently be music.json's active version",
+  );
+}
+const stillsSrc = fs.readFileSync(path.join(ROOT, "capture", "stills.mjs"), "utf8");
+if (!/envVariables/.test(stillsSrc) || !/REMOTION_FILM_VERSION/.test(stillsSrc)) {
+  fail(
+    "capture/stills.mjs no longer passes REMOTION_FILM_VERSION through `envVariables` — a still is then a " +
+      "still of whichever version is active, whatever the shell asked for",
+  );
+}
+
 /* ── report ───────────────────────────────────────────────────────────────── */
 
 console.log(`\nverify:timeline  ${sourceFiles.length} source file(s) scanned\n`);

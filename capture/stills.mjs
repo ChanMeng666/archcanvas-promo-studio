@@ -180,6 +180,18 @@ for (const d of comps) {
       output,
       frame: Math.min(shot.frame, composition.durationInFrames - 1),
       imageFormat: "png",
+      /*
+       * ⚠ Passed EXPLICITLY, and this is the belt to `REMOTION_FILM_VERSION`'s
+       * braces. `src/version.ts` runs in a browser here, where `process.env` is
+       * whatever the bundler injected; `envVariables` is the supported way to
+       * put something in it. Without one of the two, a still is a still of
+       * `music.json`'s active version whatever the shell was asked for — which
+       * is what every still in this repo was until 2026-09-20.
+       */
+      envVariables: {
+        REMOTION_FILM_VERSION:
+          process.env.REMOTION_FILM_VERSION || process.env.FILM_VERSION || "",
+      },
       // A contact sheet is looked at as a strip, so half size is plenty and it
       // is the difference between a minute and four.
       scale: SHEETS ? 0.25 : 1,

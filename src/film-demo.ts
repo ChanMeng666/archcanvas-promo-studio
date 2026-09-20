@@ -255,6 +255,35 @@ export const RENDERING_TRAVEL = {
   to: renderBeat ? renderBeat.at + renderBeat.dur * 0.7 : RENDERING_SPAN.from,
 } as const;
 
+/**
+ * The `drawPlan` beat itself, for the warp.
+ *
+ * `warp.ts` needs where the drawing starts and how long it runs in SCREENPLAY
+ * seconds to work out where each band begins. Exported from here because this is
+ * the module that already reads the synced screenplay; a second `find` somewhere
+ * else is a second thing to be wrong.
+ */
+export const DRAW_PLAN_BEAT: { at: number; dur: number } | null = drawBeat
+  ? { at: drawBeat.at, dur: drawBeat.dur }
+  : null;
+
+/**
+ * Where each layer band starts, as a fraction of the drawing beat.
+ *
+ * ⚠ A COPY of `replica/at.ts` § BAND_WINDOWS' start values, and it is a copy
+ * because that table is inside a one-way synced file with no export. If the
+ * product re-phases its bands this drifts silently — which is why
+ * `verify:bars` asserts each pinned band actually starts where it was pinned,
+ * rather than trusting this list.
+ */
+export const BAND_WINDOWS_FOR_WARP: readonly (readonly [number, number])[] = [
+  [0.0, 0.4],
+  [0.18, 0.56],
+  [0.4, 0.74],
+  [0.6, 0.9],
+  [0.78, 1.0],
+];
+
 /** Which finding the review chapter opens. The screenplay's, not a guess. */
 export const OPEN_PIN_INDEX: number =
   openPinBeat && openPinBeat.action.k === "openPin" ? openPinBeat.action.index : 0;
