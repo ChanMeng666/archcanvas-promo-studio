@@ -87,8 +87,25 @@ export const mixCut = async (cut, opts = {}) => {
   let ducked = 0;
   for (let i = 0; i < frames; i += 1) {
     const sec = i / SAMPLE_RATE;
-    const g = A.duckGainAt(sec, windows) * trim;
-    if (g < 0.999) ducked += 1;
+    /*
+     * The duck and the master trim are measured apart, and conflating them was
+     * a real bug.
+     *
+     * This counted a frame as ducked whenever the COMBINED gain fell below
+     * unity. That was indistinguishable from the truth for as long as
+     * `MASTER_TRIM_DB` was exactly 0 — which it was, for every version that
+     * existed when this was written. The audition versions carry a -0.5 dB
+     * master trim, so the combined gain is 0.944 on every sample of the film,
+     * and the gate reported the duck as ON for 100 % of the runtime and failed
+     * the "a duck that is always on is a trim" check. The duck was in fact
+     * never on at all: 0 windows.
+     *
+     * A trim is not a duck. The metric is about the envelope, so it reads the
+     * envelope.
+     */
+    const duckG = A.duckGainAt(sec, windows);
+    const g = duckG * trim;
+    if (duckG < 0.999) ducked += 1;
     const src = (i + Math.round((bed.offsetSec ?? 0) * SAMPLE_RATE)) * CHANNELS;
     if (src < 0 || src + 1 >= bedPcm.length) continue;
     out[i * CHANNELS] = bedPcm[src] * g;
