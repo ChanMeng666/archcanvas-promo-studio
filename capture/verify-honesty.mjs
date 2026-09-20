@@ -224,11 +224,23 @@ for (const d of DELIVERABLES) {
       // 3 — the rendering card carries the always-visible "AI-generated" pill.
       if (shot.renderingOpacity >= 0.5) {
         pillSamples += 1;
-        if (!insideFrame(shot.renderingRect, layout.width, layout.height, MARGIN)) {
+        /*
+         * ⚠ In 9:16 the bar is the SAFE frame, not the frame.
+         *
+         * This asked whether the pill's rectangle was inside the FRAME, and it
+         * was — comfortably, legibly, and sitting in the bottom 390 px that
+         * Reels, TikTok and Shorts cover with their own chrome. The obligation
+         * the pill discharges (EU AI Act Art. 50) is about what a viewer
+         * actually sees, so on the masters cut FOR those platforms the pill has
+         * to clear their furniture.
+         */
+        const bottomBar = layout.aspect === "portrait" ? layout.safe.bottom : 0;
+        const inside = insideFrame(shot.renderingRect, layout.width, layout.height - bottomBar, MARGIN);
+        if (!inside) {
           fail(
             "pill",
             d.id,
-            `the rendering card — and its "AI-generated" pill — is cropped at ` +
+            `the rendering card — and its "AI-generated" pill — is ${bottomBar ? "inside the platform chrome band" : "cropped"} at ` +
               `${(beat.startSec + f / FPS).toFixed(2)}s (push ${shot.push.scale.toFixed(3)}): ` +
               `box ${fmt(shot.renderingRect)} in ${layout.width}x${layout.height}`,
           );

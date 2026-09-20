@@ -75,7 +75,7 @@ const { CUT_IDS, FPS } = film.layout;
 const { TIMELINES } = film.timeline;
 const { cuesFor, cueProblems, drawBeatsFor, MAX_SIMULTANEOUS, MAX_KEYS_PER_SEC } = film.cues;
 const { allSfx, audioProblems, bedFor, MUSIC_VERSION, resolveCue, role, roleCue, roleView, ROLE_IDS, SFX_SET_IDS } = film.audio;
-const { VERSION, EDIT_ID, versionProblems } = film.version;
+const { VERSION, EDIT_ID } = film.version;
 
 /** How far a derived cue may sit from the moment it is derived FROM. */
 const TOL_FRAMES = 1;
@@ -103,15 +103,15 @@ for (const cut of CUT_IDS) {
 for (const problem of audioProblems()) fail("manifest", "src/data", problem);
 
 /*
- * ⚠ And the VERSION map, here, because nothing else was reading it.
+ * ⚠ The VERSION map is checked by `verify:version`, which is now FIRST in the
+ * chain — not here.
  *
- * `versionProblems()` has been correctly reporting that the two `+el` versions
- * name an unknown sound set since the day they landed — `version.ts` held a
- * hand-written union naming `elevenlabs`, and the set on disk is
- * `elevenlabs-audition`. Reported, never enforced, so it said so to nobody for
- * a fortnight. Which set a version loads is an audio fact, so it fails here.
+ * It lived here for one round because `versionProblems()` was being read by
+ * nothing at all and an audio gate was the nearest honest home. It is the wrong
+ * home: a map that names a sound set nobody has does not make ONE gate red, it
+ * makes every gate measure the fallback and report it under the wrong name, so
+ * it has to fail before any of them run.
  */
-for (const problem of versionProblems()) fail("version", "src/data/versions.json", problem);
 
 /*
  * Every role, and every intent the sheets use, resolves in EVERY set — not just
