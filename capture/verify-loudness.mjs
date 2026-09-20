@@ -62,6 +62,7 @@
  * Usage:  node capture/verify-loudness.mjs [--json]
  */
 
+import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -85,16 +86,66 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
  */
 const REAL_TOLERANCE_DB = 0.3;
 
+const manifestCache = new Map();
+
+/** The tracked manifest for a version, or null. */
+const manifestFor = (version) => {
+  if (!manifestCache.has(version)) {
+    const file = path.join(ROOT, "out", "masters", version, "MANIFEST.json");
+    let doc = null;
+    if (fs.existsSync(file)) {
+      try { doc = JSON.parse(fs.readFileSync(file, "utf8")); } catch { doc = null; }
+    }
+    manifestCache.set(version, doc);
+  }
+  return manifestCache.get(version);
+};
+
 /** The delivered true peak for a version x cut, from the tracked manifest. */
 const recordedPeaks = (version, cut) => {
-  const file = path.join(ROOT, "out", "masters", version, "MANIFEST.json");
-  if (!fs.existsSync(file)) return [];
-  let doc;
-  try { doc = JSON.parse(fs.readFileSync(file, "utf8")); } catch { return []; }
+  const doc = manifestFor(version);
+  if (!doc) return [];
   const rows = Array.isArray(doc) ? doc : (doc.masters ?? doc.files ?? []);
   return rows
     .filter((r) => typeof r?.file === "string" && r.file.includes(`_${cut}s_`) && Number.isFinite(r.truePeakDb))
     .map((r) => ({ file: r.file, truePeakDb: r.truePeakDb }));
+};
+
+/**
+ * Was this cut's audio changed since that master was rendered?
+ *
+ * ⚠ A stale master is not a wrong model, and the two have to be told apart or
+ * the check above loses its teeth to its own fixes. The discriminator wanted
+ * here is a fingerprint of the resolved cue sheet at render time;
+ * `package-masters.ps1` does not write one, but it DOES write the commit it
+ * rendered at, and the sheet's only per-cut dial lives in a tracked file. So
+ * ask git what the trim was then and compare it with what it is now.
+ *
+ * Two ways that answer is unavailable — a dirty working tree at render time,
+ * and a clone too shallow to hold the commit (CI checks out depth 1) — and in
+ * both the fallback is the blunt rule it replaces: any cut carrying a trim is
+ * treated as possibly stale. Blunt costs a skipped row; wrong costs the check.
+ */
+const trimAtRenderCache = new Map();
+const audioChangedSince = (version, cut, trimNow) => {
+  const doc = manifestFor(version);
+  const commit = typeof doc?.renderCommit === "string" ? doc.renderCommit : null;
+  if (!commit || doc?.workingTreeDirty) return { changed: trimNow !== 0, precise: false };
+  if (!trimAtRenderCache.has(commit)) {
+    let then = null;
+    try {
+      const raw = execFileSync("git", ["show", `${commit}:src/data/versions.json`], {
+        cwd: ROOT, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], maxBuffer: 1 << 24,
+      });
+      then = JSON.parse(raw);
+    } catch { then = null; }
+    trimAtRenderCache.set(commit, then);
+  }
+  const then = trimAtRenderCache.get(commit);
+  if (!then) return { changed: trimNow !== 0, precise: false };
+  const table = (then.versions ?? then)?.[version]?.openingCueTrimDb ?? {};
+  const was = Number(table?.[cut] ?? 0) || 0;
+  return { changed: was !== trimNow, precise: true };
 };
 
 const AS_JSON = process.argv.includes("--json");
@@ -281,9 +332,11 @@ for (const versionId of VERSIONS) {
        * an `openingCueTrimDb` entry records. Every cut without one is still
        * checked against reality, which is the ten rows that matter today.
        */
-      const audioChangedHere = vA.openingCueTrimDb(cut, version) !== 0;
-      if (audioChangedHere) {
-        staleRows.push(`${version} ${cut}s — audio trimmed since this master was rendered; re-render to re-check`);
+      const stale = audioChangedSince(version, cut, vA.openingCueTrimDb(cut, version));
+      if (stale.changed) {
+        staleRows.push(
+          `${version} ${cut}s — audio trimmed since this master was rendered${stale.precise ? "" : " (or possibly not: no render commit to compare)"}; re-render to re-check`,
+        );
       } else if (delta < -REAL_TOLERANCE_DB - 1e-9) {
         fail(
           "model",

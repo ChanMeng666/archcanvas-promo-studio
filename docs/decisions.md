@@ -2226,10 +2226,19 @@ turned, not far enough, and only the manifest check could say so.
 
 A stale master is not a wrong model. Trimming a cut changes its audio, so the
 file on disk stops corresponding to the sheet and the new check measures that
-change rather than an error. Until the master is re-rendered, the comparison is
-skipped with a ⚠ note for exactly the cuts this round retuned — ten of the
-twelve recorded cuts are still checked against reality.
+change rather than an error. The two have to be told apart, or the check loses
+its teeth to its own fixes.
 
-The honest discriminator is a **fingerprint of the resolved cue sheet recorded
-per file in `MANIFEST.json`**; `package-masters.ps1` does not write one yet.
-When it does, the skip can go and the check becomes unconditional.
+The manifest already records `renderCommit`, and the sheet's only per-cut dial
+lives in a tracked file, so the gate asks git what `openingCueTrimDb` was at
+that commit and compares it with now. A cut whose trim is unchanged is checked
+against reality even if it carries one; only a cut that was actually retuned is
+skipped, and the ⚠ says which kind of answer it is.
+
+That is not yet enough, for a reason worth writing down: **both manifests on
+this box were packaged with `workingTreeDirty: true`**, so the commit does not
+describe the data that was rendered and the gate falls back — out loud — to the
+blunt rule, any trim means possibly stale. The discriminator that closes it is a
+**fingerprint of the resolved cue sheet recorded per file in `MANIFEST.json`**,
+which `package-masters.ps1` does not write yet. A commit is a proxy for the
+data; the data is available.

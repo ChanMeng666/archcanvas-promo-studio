@@ -148,10 +148,15 @@ is reported beside the reality, and an **optimistic** one (predicted more than 0
 below the measured peak) is fatal. Pessimistic is a note — a prediction under the real
 peak is how a master ships at −1.2 under a green gate; over it is only over-cautious.
 
-⚠ A cut whose audio this round retuned is skipped there with a ⚠ note, because a stale
-master would fail the check for having been fixed. The line that closes that hole is a
-fingerprint of the resolved cue sheet recorded per file in `MANIFEST.json`;
-`package-masters.ps1` does not write one yet. **If a re-render disagrees by more than
+⚠ A cut whose audio changed since its master was rendered is skipped there with a ⚠ note,
+because a stale master would otherwise fail the check for having been fixed. "Changed" is
+answered by comparing `openingCueTrimDb` now against its value at the manifest's
+`renderCommit` — **unless that render was packaged from a dirty tree**, which both current
+manifests were, in which case the gate says so and falls back to treating any trimmed cut
+as possibly stale. The line that closes it for good is a fingerprint of the resolved cue
+sheet recorded per file in `MANIFEST.json`; `package-masters.ps1` does not write one yet,
+and **a render from a clean tree is worth more than it looks** for exactly this reason.
+**If a re-render disagrees by more than
 about 0.5 LU, the gate's model is wrong and that is the finding** — do not just accept
 the file.
 
