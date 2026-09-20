@@ -1365,3 +1365,39 @@ second SUNO take is measured the day it lands, not the day it becomes active:
 |---|---|
 | `minCues` / `minCuesPerSec` → 0 (the always-on duck) | 8 failures: 4 `loudness` at -17.3…-17.8, 4 `duck` at 50-73 % |
 | `MASTER_TRIM_DB` → +3 | 7 failures, `loudness` over the top of the window |
+
+### Confirmed against the real masters, 2026-09-20
+
+The offline mix was licensed above by reproducing the defect. Re-rendering
+version A at `8181e86` gives the stronger test — does it predict a film that
+was not broken?
+
+| cut | predicted | measured | Δ | predicted TP | measured TP | Δ |
+|---|---|---|---|---|---|---|
+| 15 s | −15.7 | **−15.8** | 0.1 | −3.0 | −3.0 | 0.0 |
+| 30 s | −16.3 | **−16.4** | 0.1 | −4.2 | −4.1 | 0.1 |
+| 60 s | −16.3 | **−16.4** | 0.1 | −2.4 | **−1.2** | **1.2** |
+| 120 s | −16.3 | **−16.3** | 0.0 | −3.2 | −3.0 | 0.2 |
+
+**Loudness is exact** — every cut within 0.1 LU, in both frame shapes (landscape
+and portrait measure identically, as they must: same cut, same sound). The model
+is trustworthy for the number the gate's first assertion is about, and a version
+B can be judged on it before a frame is rendered.
+
+**True peak is not, and the 60 s cut is the case that shows it.** The offline mix
+says −2.4 dBTP; the master measures **−1.2**, confirmed two ways (ebur128 true
+peak and `astats` sample peak at −1.23 dBFS). It is reached in the **first 64 ms**
+and never beaten — the 60 s bed enters on a different point of the take than the
+other three, and its entry coincides with the opening cue.
+
+So the gate's second assertion has about **1.2 dB of unmodelled headroom against
+it**, and the 60 s cut currently clears the −1.0 ceiling by 0.2 dB rather than the
+1.4 the gate believes. Nothing is wrong with the master. What is worth knowing is
+that **the peak check is the one with no margin left**, and a louder take, a hotter
+cue or a `MASTER_TRIM_DB` above zero would be caught by the ear and the render
+before the gate saw it coming. Two plausible causes, neither investigated because
+neither changes today's answer: the AAC encode raising inter-sample peaks, and
+coincident cues summing differently in the browser's mixer than in the model.
+
+**If version B's 60 s cut is the one that goes over**, this is why, and the fix is
+a cue gain in the data rather than a bed level.
