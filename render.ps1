@@ -6,25 +6,30 @@
 #        .\render.ps1 -Scale 0.5          half-size proof renders, for looking at
 #        .\render.ps1 -Concurrency 1      one browser tab; slower, least memory
 #        .\render.ps1 -ListOnly           print the plan and the orphan scan, render nothing
-#        .\render.ps1 -MusicVersion B-x   assert the music version and file the masters under it
+#        .\render.ps1 -FilmVersion B-x    render THAT version, into the folder it routes to
 #        .\render.ps1 -Bundle <dir>       render from a bundle built once (see -ListOnly output)
 #
 # Masters are NOT committed -- tens of MB each, eight of them, and git keeps every
 # version forever. They ship as GitHub Release assets. Only the MANIFEST.json
 # beside them is committed. See .gitignore.
 #
-# ── The masters are filed by MUSIC VERSION ───────────────────────────────────
+# ── The films are filed by VERSION ───────────────────────────────────────────
 #
-#   out/masters/<version>/archcanvas-studio-...mp4
+#   out/masters/<version>/archcanvas-studio-...mp4                  releasable
+#   out/previews/AUDITION-not-for-release/<version>/...             audition
 #
-# The film's edit is snapped to the music: `timeline.ts` pulls every scene
-# boundary onto the nearest downbeat of the cut's own bed, so a master is the
-# picture AND the take, and two takes are two sets of eight. `-MusicVersion` is
-# NOT a switch -- `src/data/music.json`'s `active` field decides which take the
-# film is cut to, and this only says which one you BELIEVE is active. If the two
-# disagree the run stops, because a master filed under the wrong music is worse
-# than no master: it looks like a deliverable. Change the active version with
-# `node tools/use-music.mjs <version>`, and read docs/release.md.
+# A version is {music, edit, sfxSet} -- `src/data/versions.json` -- and all three
+# change what the film IS: the edit snaps to the music's own downbeats and the
+# cue sheet is derived from the resulting cut. `-FilmVersion` SELECTS one, and
+# unlike the old `-MusicVersion` it is a switch rather than an assertion,
+# because `REMOTION_FILM_VERSION` is what the renderer reads and this script is
+# what sets it. Where the output lands is not decided here either: it comes from
+# `src/audio.ts` § outDirFor, through `tools/version-info.mjs`.
+#
+# ⚠ Setting FILM_VERSION alone renders `music.json`'s active version instead,
+# silently, because Remotion injects only REMOTION_-prefixed variables into the
+# bundle. That bug made both `+el` versions unrenderable. See docs/decisions.md
+# D36 and the skill's references/traps.md.
 #
 # SEQUENTIAL, ALWAYS. Eight renders on a 16 GB box that is also running the
 # founder's browser is not a place to be clever. Each finishes before the next
@@ -36,10 +41,14 @@ param(
 
   [double] $Scale = 1.0,
 
-  # Defaults to whatever `src/data/music.json` says is active, so the ordinary
-  # run needs no argument and still files its output correctly. Passing it is an
-  # ASSERTION, checked below.
-  [string] $MusicVersion,
+  # WHICH VERSION of the film to render -- {music, edit, sfxSet}, an id out of
+  # `src/data/versions.json`. Defaults to whatever the environment or
+  # `music.json`'s `active` already selects, so an ordinary run needs no
+  # argument. `-MusicVersion` is the old name and still works: every version id
+  # IS a music version id or derived from one, which is why they were ever the
+  # same parameter.
+  [Alias("MusicVersion")]
+  [string] $FilmVersion,
 
   # A pre-built bundle directory (`npx remotion bundle`). Eight renders bundle
   # the same sources eight times otherwise -- about a minute each, on the box
@@ -65,30 +74,41 @@ $repo = $PSScriptRoot
 $stamp = "2026-09"
 $base  = "archcanvas-studio-$stamp"
 
-# --- which take is this film cut to? ----------------------------------------
+# --- which VERSION is this? -------------------------------------------------
 #
-# Read, never assumed, and read from the one field `src/audio.ts` reads. A
-# second copy of "which version is active" is how a master ends up in the wrong
-# folder with nothing going red.
-$musicPath = Join-Path $repo "src\data\music.json"
-if (-not (Test-Path $musicPath)) { Write-Host "no src/data/music.json -- run ``npm run audio:beds``" -ForegroundColor Red; exit 1 }
-$musicDoc = Get-Content $musicPath -Raw | ConvertFrom-Json
-$activeVersion = $musicDoc.active
-if (-not $activeVersion) { Write-Host "src/data/music.json names no active version -- run ``npm run audio:beds``" -ForegroundColor Red; exit 1 }
-$activeEntry = $musicDoc.versions.$activeVersion
-if (-not $activeEntry) { Write-Host "src/data/music.json names '$activeVersion' as active, which is not one of its versions" -ForegroundColor Red; exit 1 }
-
-if ($MusicVersion -and $MusicVersion -ne $activeVersion) {
-  Write-Host ""
-  Write-Host "-MusicVersion $MusicVersion, but the film is cut to $activeVersion." -ForegroundColor Red
-  Write-Host "  The edit snaps to the ACTIVE take's downbeats, so rendering now would produce"
-  Write-Host "  $activeVersion masters in a $MusicVersion folder. Pick one:"
-  Write-Host "    node tools/use-music.mjs $MusicVersion   # switch, then re-run ``npm run verify``"
-  Write-Host "    ./render.ps1 -MusicVersion $activeVersion"
-  Write-Host ""
-  exit 1
+# A version is {music, edit, sfxSet}, and where it writes follows from it:
+# `out/masters/<id>` for a releasable one, the quarantine folder for an
+# audition. Both answers come from `tools/version-info.mjs`, which bundles
+# `src/version.ts` and `src/audio.ts` § outDirFor and prints what THEY say.
+#
+# Re-deriving the routing here in four lines of PowerShell is the obvious
+# shortcut and the dangerous one: a second copy of that rule drifts, and the
+# drift puts an AUDITION render into out/masters/, which is the single outcome
+# `verify:release` exists to prevent.
+if (-not $FilmVersion) {
+  $FilmVersion = if ($env:REMOTION_FILM_VERSION) { $env:REMOTION_FILM_VERSION }
+                 elseif ($env:FILM_VERSION) { $env:FILM_VERSION }
+                 else { $null }
 }
-$MusicVersion = $activeVersion
+
+$infoArgs = @((Join-Path $repo "tools\version-info.mjs"))
+if ($FilmVersion) { $infoArgs += @("--version", $FilmVersion) }
+$infoJson = & node @infoArgs
+if ($LASTEXITCODE -ne 0) { Write-Host ($infoJson | Out-String) -ForegroundColor Red; exit 1 }
+$info = $infoJson | ConvertFrom-Json
+$FilmVersion = $info.version
+
+# ⚠ BOTH variables, and this is the whole reason the +el versions were once
+# unrenderable. `src/version.ts` runs in Node for every gate and in a BROWSER
+# inside the Remotion bundle, and Remotion injects only REMOTION_-prefixed
+# variables into the second one. Unprefixed, FILM_VERSION selected the version
+# for every gate and for NOTHING THAT RENDERS -- every still and every master
+# silently fell back to music.json's `active`. Setting them here, in the script
+# that launches the renderer, is what makes the two agree.
+$env:REMOTION_FILM_VERSION = $FilmVersion
+$env:FILM_VERSION = $FilmVersion
+
+$isAudition = $info.release -eq "audition"
 
 # ── The release gate ────────────────────────────────────────────────────────
 #
@@ -100,19 +120,36 @@ $MusicVersion = $activeVersion
 # renderer: same manifest, same paths.
 #
 # `verify-release.mjs` reads `releaseBlockers()` out of `src/audio.ts`, so this
-# check and the film cannot disagree. It runs HERE, before a two-hour render,
+# check and the film cannot disagree. It runs HERE, before a long render,
 # rather than at ship time -- finding out afterwards costs the render.
 #
-# An audition render is still allowed; it just does not go in this folder.
+# An AUDITION render is expected to be refused as a master, and is still
+# allowed: it renders at full master quality into the quarantine folder,
+# because the founder judges finished films and an audition that looks cheaper
+# than the real thing is not an audition of the real thing. What is NOT allowed
+# is a refusal on a version that claims to be releasable.
 Write-Host ""
 & node (Join-Path $repo "capture\verify-release.mjs")
-if ($LASTEXITCODE -ne 0) {
+$releaseOk = $LASTEXITCODE -eq 0
+if (-not $releaseOk -and -not $isAudition) {
   Write-Host "Refusing to render masters. Audition previews belong in out/previews/AUDITION-not-for-release/." -ForegroundColor Red
   Write-Host ""
   exit 1
 }
+if ($releaseOk -and $isAudition) {
+  # The gate did not refuse a version that says it is an audition. Either the
+  # set became licensed (in which case promote it in versions.json) or the
+  # version resolved to something other than what it names -- and the second is
+  # how an audition mix could be filed as a master.
+  Write-Host ""
+  Write-Host "'$FilmVersion' is declared an audition, but verify:release found nothing to refuse." -ForegroundColor Red
+  Write-Host "  Either its sound set is now licensed -- promote it in versions.json -- or the" -ForegroundColor Red
+  Write-Host "  version did not resolve to the set it names. Not rendering until that agrees." -ForegroundColor Red
+  Write-Host ""
+  exit 1
+}
 
-$outDir = Join-Path $repo "out\masters\$MusicVersion"
+$outDir = Join-Path $repo ($info.outDir -replace '/', '\')
 $reviewDir = Join-Path $outDir "review"
 
 $targets = @(
@@ -191,7 +228,13 @@ function Show-Orphans {
 
 Write-Host ""
 Write-Host "plan: $($targets.Count) master(s), sequential, concurrency $Concurrency, scale $Scale"
-Write-Host ("  music   {0}  --  {1}, {2} BPM, bar {3}s" -f $MusicVersion, $activeEntry.track, $activeEntry.bpm, $activeEntry.barSec)
+Write-Host ("  version {0}  --  edit {1} · sfx {2} · {3}" -f $FilmVersion, $info.edit, $info.sfxSet, $info.release)
+Write-Host ("  music   {0}  --  {1}, {2} BPM, bar {3}s" -f $info.music, $info.track, $info.bpm, $info.barSec)
+Write-Host ("  env     REMOTION_FILM_VERSION={0}" -f $env:REMOTION_FILM_VERSION)
+if ($isAudition) {
+  Write-Host "  AUDITION -- full master quality, quarantined. NOT FOR RELEASE." -ForegroundColor Yellow
+  Write-Host ("             sfx {0}, tier {1}, commercialUse {2}" -f $info.provenance.sfxSource, $info.provenance.sfxTier, $info.provenance.sfxCommercialUse) -ForegroundColor Yellow
+}
 Write-Host ("  out     {0}" -f (Resolve-Path -Relative $outDir))
 if ($Bundle) { Write-Host ("  bundle  {0}" -f $Bundle) }
 foreach ($t in $targets) { Write-Host ("  {0,-6} {1,-26} {2}" -f $t.tag, $t.comp, $t.note) }

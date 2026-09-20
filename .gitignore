@@ -27,6 +27,16 @@ out/*
 out/masters/*/*
 !out/masters/*/MANIFEST.json
 
+# An AUDITION renders at full master quality into the quarantine folder, so it
+# needs the same treatment: the mp4s stay out, the manifest comes in. Its
+# manifest is the more important of the two, because it is the document that
+# records `commercialUse: false` -- the reason those files may not ship.
+!out/previews/
+out/previews/*
+!out/previews/AUDITION-not-for-release/
+out/previews/AUDITION-not-for-release/*/*
+!out/previews/AUDITION-not-for-release/*/MANIFEST.json
+
 # ── What IS tracked, and why it is the opposite of the sibling film ─────────
 #
 # `../archcanvas-promo-remotion` gitignores `public/` because everything in it
