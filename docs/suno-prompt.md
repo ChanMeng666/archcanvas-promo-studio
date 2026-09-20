@@ -10,7 +10,8 @@ prompt below on 2026-09-19 and is version `B-daylight-forward`: 127.6 BPM, a
 1.894 s bar, eleven fills, five crashes, a fifteen-second breakdown and a real
 ending — measurably faster, brighter, busier and flatter than the placeholder it
 replaces. The measurement is `docs/music/daylight-forward.md`. **One thing is
-still open: the SUNO plan tier on the day it was generated** (see *Licensing*).
+closed as of 2026-09-20: the SUNO plan was paid on the day it was generated**
+(see *Licensing*).
 
 The prompt is kept because it worked, and because a third take may be wanted. It
 is also the record of what to ask for.
@@ -215,15 +216,21 @@ covered by the same entitlement, but **check the plan is still active before
 generating**, not after.
 
 - [x] SUNO plan tier for `confident-arrival.mp3` · confirmed **2026-09-08**
-- [ ] SUNO plan tier for `daylight-forward.mp3` (created **2026-09-19**) ·
-      confirmed on: ____________
+- [x] SUNO plan tier for `daylight-forward.mp3` (created **2026-09-19**) ·
+      confirmed **2026-09-20** — paid subscription active on the day it was
+      generated, commercial use permitted. Founder's statement, in session.
 
-⚠ **The second box is open, and the take is already generated.** Nothing in a
-SUNO export records the account's plan, so this cannot be closed by measurement
-— only the founder can close it. Until it is closed, version B's beds are not to
-be rendered. That is the same open box the first film shipped with
-(`docs/audio-provenance.md` § 1), and the sibling repo's own phrase for it is
-worth repeating: *that is how an open gate stops being noticed.*
+Both boxes are closed, and the second one was closed the way this kind of box
+has to be: nothing in a SUNO export records the account's plan, so no
+measurement could have settled it — only the account holder. It is recorded
+here as a dated statement rather than dressed up as a fact this repo checked.
+`src/data/music.json` carries `provenance.commercialUse: true` on both takes and
+`npm run verify:release` reads it, so the claim is enforced rather than
+remembered. If it is ever challenged, the thing to produce is the SUNO billing
+record for 2026-09-19.
+
+⚠ The ordering is what matters for the NEXT take: **check the plan before
+generating, not after.**
 
 That ordering is not pedantry. It is the single most expensive lesson in this
 project's history: twelve ElevenLabs assets were generated on a free tier and had

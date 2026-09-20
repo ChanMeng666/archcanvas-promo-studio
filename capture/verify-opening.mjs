@@ -52,6 +52,9 @@ const { entryOpacity, ENTRY_OPACITY_FLOOR } = film.camera;
 const { MONTAGE_PANE_ENTRY_FLOOR } = film.film;
 const { CARD_RULE_FLOOR, WORD_FLOOR, WORD_RISE_SEC, WORD_STAGGER_SEC, CONTRAST_PAIRS, TYPE } = film.tokens;
 const { deriveLayout, DELIVERABLES } = film.layout;
+const { EDIT_ID } = film.version;
+const audio = film.audio;
+const { linesFor } = film.copy;
 const { CAPTION_SCALE } = film.caption;
 
 /**
@@ -201,13 +204,47 @@ if (captionSizes === 0) fail("vacuous", "caption size", "no composition was meas
 const STATIC_MAX_SEC = 2.5;
 const MOVING_REPLICA_SEC = 0.4;
 
+/**
+ * The same ceiling in BARS, for an edit that is cut to the music.
+ *
+ * ⚠ Edit B's cards are two and three bars long, and they are that long because
+ * their own words take that long to read — the reading-time rule in
+ * `verify:bars` is what sets them. Holding B to 2.5 s of wall clock would have
+ * meant either type nobody can read or a card that cuts mid-sentence.
+ *
+ * So for B the ceiling is TWO BARS of the bed's own measured bar, and a card is
+ * only "holding" once its last word has landed: type still arriving is the beat
+ * doing something, which is the whole point of the rule. `music-analysis` §
+ * tempo has the take accelerating, so the bar is read from the bed rather than
+ * from a BPM.
+ */
+const STATIC_MAX_BARS = 2;
+
+const barSecFor = (cut) => {
+  const db = audio.downbeatsFor(cut);
+  if (db.length < 2) return null;
+  return (db[db.length - 1] - db[0]) / (db.length - 1);
+};
+
+/** How long a card's words take to finish arriving. */
+const riseSec = (scene) => {
+  const s = SCENES[scene];
+  if (!s?.copy) return 0;
+  const words = linesFor(s.copy.copy, "landscape").join(" ").split(/\s+/).filter(Boolean).length;
+  return WORD_STAGGER_SEC * Math.max(0, words - 1) + WORD_RISE_SEC;
+};
+
 let paced = 0;
 for (const cut of CUT_IDS) {
   for (const beat of timelineFor(cut, "landscape").beats) {
     const scene = SCENES[beat.scene];
     if (scene.kind === "endcard") continue;
     paced += 1;
-    if (beat.durationSec <= STATIC_MAX_SEC + 1e-9) continue;
+    const bar = EDIT_ID === "B" ? barSecFor(cut) : null;
+    const ceiling = bar ? STATIC_MAX_BARS * bar : STATIC_MAX_SEC;
+    // A card is not holding while its type is still arriving.
+    const held = beat.durationSec - riseSec(beat.scene);
+    if (held <= ceiling + 1e-9) continue;
 
     const moves = Math.abs(Math.log(beat.push || 1)) > 0.03;
     const playing =
@@ -219,7 +256,7 @@ for (const cut of CUT_IDS) {
     fail(
       "static",
       `cut ${cut}s beat ${beat.index} "${beat.scene}"`,
-      `holds ${beat.durationSec.toFixed(2)}s over the ${STATIC_MAX_SEC}s ceiling with the camera parked ` +
+      `holds ${held.toFixed(2)}s after its type lands, over the ${ceiling.toFixed(2)}s ceiling, with the camera parked ` +
         `(push ${beat.push.toFixed(2)}) and ${playing.toFixed(2)}s of screenplay playing — push it, cut it, or let something arrive`,
     );
   }
@@ -292,7 +329,9 @@ console.log(
   `    a card's first word is ${((0.25 + 0.75 * easeOutExpo(BY_FRAME / FPS / WORD_RISE_SEC)) * 100).toFixed(0)} % up at frame ${BY_FRAME}; ` +
     `${pairs} colour pair(s) checked for contrast`,
 );
-console.log(`    ${paced} beat(s) paced against the ${STATIC_MAX_SEC}s static ceiling`);
+console.log(
+  `    ${paced} beat(s) paced against ${EDIT_ID === "B" ? `${STATIC_MAX_BARS} bars` : `${STATIC_MAX_SEC}s`}, measured after the type lands`,
+);
 console.log(
   `    the film's caption sets at ` +
     DELIVERABLES.filter((d) => d.cut === "30")

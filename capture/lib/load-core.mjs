@@ -29,6 +29,9 @@ export * as cuts from "./cuts";
 export * as scenes from "./scenes";
 export * as timeline from "./timeline";
 export * as tokens from "./tokens";
+// Which version this process is building, and which edit travels with it.
+export * as version from "./version";
+export * as honesty2 from "./honesty";
 `;
 
 /**

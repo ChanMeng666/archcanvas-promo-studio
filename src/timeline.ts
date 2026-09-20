@@ -26,6 +26,7 @@ import { CUT_IDS, CUT_SECONDS, FPS, type Aspect, type CutId } from "./layout-cor
 import { CUTS, HONESTY_MIN_SEC, HONESTY_OVERLAY_SEC, type Edit } from "./cuts";
 import { DRAFTING_SPAN, DRAW_HANDOFF_SEC } from "./honesty";
 import { gridFor } from "./data/music-grid";
+import { EDIT_ID } from "./version";
 import { REPLICA_CAPTION, REPLICA_CAPTION_WINDOW } from "./honesty";
 import { CARD_SEC, MAX_STATIC_UI_SEC, SCENES, hasReplica, type SceneId } from "./scenes";
 
@@ -393,8 +394,20 @@ export const resolveCut = (cut: CutId, grid?: BeatGrid | null, aspect: Aspect = 
   return { cut, aspect, beats, totalFrames, totalSeconds: frameToSec(totalFrames), snapped };
 };
 
+/**
+ * The beat grid, or NOTHING when the edit was authored on one.
+ *
+ * ⚠ Edit A was cut in seconds and then nudged onto the nearest downbeat within
+ * 150 ms, which is what `gridFor` does. Edit B's boundaries ARE downbeats —
+ * every length in `edits/B.ts` is a difference between two entries in the bed's
+ * own measured list — so running the snapper over it is not a refinement, it is
+ * a second opinion fighting the first. It moved fourteen of B's sixty-one beats
+ * the first time it was tried.
+ */
+const gridForEdit = (id: CutId) => (EDIT_ID === "B" ? null : gridFor(id));
+
 const built = {} as Record<CutId, ResolvedCut>;
-for (const id of CUT_IDS) built[id] = resolveCut(id, gridFor(id));
+for (const id of CUT_IDS) built[id] = resolveCut(id, gridForEdit(id));
 
 /**
  * The same four edits resolved for a 9:16 frame.
@@ -406,7 +419,25 @@ for (const id of CUT_IDS) built[id] = resolveCut(id, gridFor(id));
  * assert it.
  */
 const builtPortrait = {} as Record<CutId, ResolvedCut>;
-for (const id of CUT_IDS) builtPortrait[id] = resolveCut(id, gridFor(id), "portrait");
+for (const id of CUT_IDS) builtPortrait[id] = resolveCut(id, gridForEdit(id), "portrait");
+
+/**
+ * When the end card starts, in FILM seconds, for the active version's edit.
+ *
+ * ⚠ Per version × cut, and reachable from the audio side, which is the whole
+ * reason it is exported. `audio.ts` suppresses the END cue when it would land
+ * within 250 ms of the bed's own final hit, and it needs to know when the end
+ * card actually begins to do that — a number that is different in every cut and
+ * different again in edit B, where the end card lands on the take's lift at
+ * 115.83 s rather than wherever A's seconds happened to add up.
+ *
+ * `null` when a cut has no end card, which no cut does, but a derived number
+ * that cannot say "I do not know" is a derived number that lies.
+ */
+export const endcardStartSec = (cut: CutId, aspect: Aspect = "landscape"): number | null => {
+  const beat = timelineFor(cut, aspect).beats.find((b) => SCENES[b.scene].kind === "endcard");
+  return beat ? beat.startSec : null;
+};
 
 /** The resolved edit for a frame shape. `Film.tsx` and every gate read this. */
 export const timelineFor = (cut: CutId, aspect: Aspect): ResolvedCut =>

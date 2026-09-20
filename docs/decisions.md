@@ -1401,3 +1401,76 @@ coincident cues summing differently in the browser's mixer than in the model.
 
 **If version B's 60 s cut is the one that goes over**, this is why, and the fix is
 a cue gain in the data rather than a bed level.
+
+## D34. A version is {music, edit, sfxSet}, and B is cut to the bar grid.
+
+The second take is not a different soundtrack under the same picture. A was cut
+to a track with **one** big arrival; "Daylight Forward" has eleven sections,
+eleven fills and five crashes, and cutting it like A would leave the music doing
+all the moving. So the EDLs became a dimension.
+
+### The version model
+
+`src/data/versions.json` ties `{music, edit, sfxSet}` together. **The version ID
+is the music version's ID** — deliberately: `tools/use-music.mjs` already writes
+`music.json`'s `active`, `render.ps1` already takes `-MusicVersion`, and the beds
+are already named for it. A second namespace would have meant two things to keep
+in step and a gate to check they were. `FILM_VERSION` in the environment
+overrides it and selects all three at once, which is how both versions render
+without editing code.
+
+`src/edits/A.ts` holds A's four lists, **moved verbatim**;
+`src/data/edit-a-timeline.lock.json` holds A's resolved timeline as it was before
+the move — scene, frames, replica window, fill, push, every beat — and
+`verify:bars` reproduces it. A is rendered and approved; a diff there is a red
+gate, not a review comment.
+
+### The B edit
+
+1. **Claim before proof.** "Get a real, dimensioned floor plan." moves BEFORE the
+   drawing. In A the card summarises what you just watched; in B it makes a
+   promise and the plan keeps it.
+2. **Every major boundary is a MEASURED downbeat.** Not `bpm × n`: the take
+   accelerates from 125.3 to 128.3 BPM and a fixed grid is 1.53 s out by the last
+   bar. Worst boundary in B is **0.5 frame**. The first wall stroke lands on
+   downbeat #5 at **9.24 s** in the 30 s cut, where the full arrangement enters.
+3. **Long beats get camera setups**, cut on downbeats, rather than one held
+   state.
+4. **B does not get the grid snapper.** Its boundaries already are downbeats;
+   the snapper moved fourteen of them the first time it ran.
+
+### What the gates changed about the edit
+
+Three things, which is the argument for having them:
+
+- the 30 s **price card went from one bar to two** — thirteen words need 3.4 s and
+  the reading-time rule said so;
+- the receipt's **establishing wide went from `fill: 0.62` to 0.76** — 19 % of the
+  frame is not an establishing shot;
+- the 120 s **hook and claim card gained a slow push** — three bars parked is a
+  slide, and the pace rule caught it.
+
+### The pace rule, in bars
+
+For edit B the static ceiling is **two bars of the bed's own measured bar**, and a
+card is only "holding" once its last word has landed — type still arriving is the
+beat doing something. Holding B to A's 2.5 s of wall clock would have meant
+either type nobody can read or a card that cuts mid-sentence.
+
+### ⚠ The gate caught itself first
+
+`verify:bars` read a beat field that does not exist. Every comparison came back
+`NaN > tolerance` — false — and it reported "0.00 frames off" for sixty
+boundaries it had not looked at. **A non-finite measurement now fails.** This is
+the second silent-pass of this exact shape in this repo.
+
+| revert | what reddens |
+|---|---|
+| the 30 s claim card 3 frames longer | 6 `offbeat` — every boundary after it |
+| any edit to `edits/A.ts` | 1 `drift` against the lock, naming the beat |
+
+### Not done in this pass
+
+Piecewise per-bar warps inside the draw beat, per-role ducking, the stills and
+the motion preview. The edit and the version model land first because everything
+else is measured against them.

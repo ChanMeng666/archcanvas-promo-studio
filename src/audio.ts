@@ -28,6 +28,7 @@
  */
 
 import musicJson from "./data/music.json";
+import { MUSIC_ID, SFX_SET } from "./version";
 import sfxJson from "./data/sfx.json";
 import rolesJson from "./data/sfx-roles.json";
 import versionsJson from "./data/versions.json";
@@ -119,7 +120,14 @@ export const SFX_SET_IDS: readonly string[] = Object.keys(sfxDoc.sets);
  * as the music has one `active` — so there is no second place the film could
  * decide which palette it is using. Change it with `node tools/use-sfx.mjs`.
  */
-export const activeSfxSetId = (): string => sfxDoc.active;
+/**
+ * ⚠ The VERSION's set, not the manifest's `active`.
+ *
+ * One selector. `FILM_VERSION` picks a version and the music, the edit and the
+ * sound palette all follow from `versions.json`; `sfx-sets`' own `active` is the
+ * default for a version that does not name one, which is none of them today.
+ */
+export const activeSfxSetId = (): string => (sfxDoc.sets[SFX_SET] ? SFX_SET : sfxDoc.active);
 export const sfxSet = (id: string = sfxDoc.active): SfxSet => {
   const set = sfxDoc.sets[id];
   if (!set) throw new Error(`unknown sfx set "${id}" — known sets: ${SFX_SET_IDS.join(", ")}`);
@@ -298,16 +306,30 @@ export type FilmVersion = {
   readonly sfxSet: string;
   readonly outDir?: string;
   readonly quality?: string;
+  /** `master` (may ship) or `audition` (renders at master quality, never ships). */
+  readonly release?: string;
+  readonly note?: string;
 };
 
+/**
+ * ⚠ ONE flat map, not a `releasable` group and an `audition` group.
+ *
+ * Two groups meant two places to add a version and a question — "which list is
+ * this in?" — every time one was read. An audition is a version with somewhere
+ * else to write and a reason it may not ship, which is two fields. `release`
+ * says which, and `outDirFor` is the only thing that cares.
+ */
 type VersionsDoc = {
-  readonly releasable: Readonly<Record<string, FilmVersion>>;
-  readonly audition: Readonly<Record<string, FilmVersion>>;
+  readonly versions: Readonly<Record<string, FilmVersion>>;
 };
 const versionsDoc = versionsJson as unknown as VersionsDoc;
 
-export const auditionVersions = (): Readonly<Record<string, FilmVersion>> => versionsDoc.audition;
-export const releasableVersions = (): Readonly<Record<string, FilmVersion>> => versionsDoc.releasable;
+const pick = (release: string) =>
+  Object.fromEntries(Object.entries(versionsDoc.versions ?? {}).filter(([, v]) => (v.release ?? "master") === release));
+
+export const auditionVersions = (): Readonly<Record<string, FilmVersion>> => pick("audition");
+export const releasableVersions = (): Readonly<Record<string, FilmVersion>> => pick("master");
+export const allVersions = (): Readonly<Record<string, FilmVersion>> => versionsDoc.versions ?? {};
 
 /**
  * Where a version's masters are allowed to be written.
@@ -317,10 +339,12 @@ export const releasableVersions = (): Readonly<Record<string, FilmVersion>> => v
  * function of the sound set's licence, not of anyone remembering.
  */
 export const outDirFor = (versionId: string): string => {
-  const audition = versionsDoc.audition[versionId];
-  if (audition) return audition.outDir ?? `out/previews/AUDITION-not-for-release/${versionId}`;
-  if (versionsDoc.releasable[versionId]) return `out/masters/${versionId}`;
-  throw new Error(`unknown version "${versionId}"`);
+  const v = versionsDoc.versions?.[versionId];
+  if (!v) throw new Error(`unknown version "${versionId}"`);
+  if ((v.release ?? "master") === "audition") {
+    return v.outDir ?? `out/previews/AUDITION-not-for-release/${versionId}`;
+  }
+  return v.outDir ?? `out/masters/${versionId}`;
 };
 
 /* ── music ──────────────────────────────────────────────────────────────────── */
@@ -372,8 +396,14 @@ export type MusicDoc = {
 
 const doc = musicJson as unknown as MusicDoc;
 
-/** Which take the film is currently cut to. */
-export const MUSIC_VERSION: string = doc.active;
+/**
+ * Which take the film is currently cut to.
+ *
+ * The VERSION's, not the manifest's `active` — a version is `{music, edit,
+ * sfxSet}` and `FILM_VERSION` selects all three at once. `active` is still the
+ * default, which is what `tools/use-music.mjs` writes.
+ */
+export const MUSIC_VERSION: string = doc.versions?.[MUSIC_ID] ? MUSIC_ID : doc.active;
 
 export const musicVersions = (): readonly string[] => Object.keys(doc.versions ?? {});
 
@@ -385,7 +415,7 @@ export const musicVersions = (): readonly string[] => Object.keys(doc.versions ?
  * manifest should redden a gate, not the editor. `audioProblems()` reports it.
  */
 export const music: Music =
-  doc.versions?.[doc.active] ??
+  doc.versions?.[MUSIC_VERSION] ??
   ({ track: "", bpm: 0, barSec: 0, beatSec: 0, beds: {} } as unknown as Music);
 
 /**
