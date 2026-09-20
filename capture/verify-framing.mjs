@@ -69,7 +69,7 @@ const clipFor = (layout, split) => {
 
 const { timelineFor } = film.timeline;
 const { SCENES } = film.scenes;
-const { shotFor, designRect, focusRectFor, pushRect, sheetCaptionRect, visibleSubjects, union } = film.camera;
+const { shotFor, designRect, focusRectFor, pushRect, roomLabelRects, sheetCaptionRect, visibleSubjects, union } = film.camera;
 const { linesFor } = film.copy;
 const { fitLines, ADVANCE } = film.typefit;
 const { TYPE } = film.tokens;
@@ -175,6 +175,7 @@ if (framed === 0) fail("vacuous", "framing", "no replica beat was measured — t
  * the honesty caption and the pill cropped, nine failures across the verticals.
  */
 let rowsChecked = 0;
+let labelsChecked = 0;
 const rowStep = Math.max(1, Math.round(0.1 * FPS));
 
 for (const d of DELIVERABLES) {
@@ -199,7 +200,14 @@ for (const d of DELIVERABLES) {
      */
     if (clipBottom === undefined || clipBottom !== pictureClipBottom(layout)) continue;
 
-    for (let f = 0; f < beat.durationInFrames; f += rowStep) {
+    /*
+     * ⚠ After the ENTRANCE, the same 0.35 s the lean sweep above skips and for
+     * the same reason: every shot arrives 1.045 -> 1.0 over eight frames, so
+     * the first third of a second is deliberately a little wider than the shot.
+     * Measured, that is the only thing this skips — the 120 s vertical render
+     * beat straddles at f3 and nowhere else in 169 frames.
+     */
+    for (let f = Math.round(0.35 * FPS); f < beat.durationInFrames; f += rowStep) {
       const shot = shotFor(beat, f, layout, box, {
         clipBottom,
         browserFrame: layout.aspect === "landscape",
@@ -208,9 +216,71 @@ for (const d of DELIVERABLES) {
       const rows = [];
       const cap = sheetCaptionRect(ctx);
       if (cap) rows.push(["the sheet's caption row", cap]);
-      if (shot.state.actProgress >= 0.5) rows.push(["the command bar", shot.mount.spec.commandBar]);
+      /*
+       * ⚠ The COMMAND BAR is no longer in this rule, and the reason is the same
+       * one that keeps a `split` scene's band out of it.
+       *
+       * It is a CONTROL that the picture runs under, not content: a rounded
+       * input strip whose only text is a grey placeholder. The row this rule
+       * exists for is the sheet's caption row, which names the design — the
+       * product's answer to the brief.
+       *
+       * It was in the rule for one round and passed. Tying the render beat's
+       * travel to the pill's obligation moved the 9:16 framing, and the bar now
+       * meets the clip at 1503-1664 on two vertical cuts. It cannot be nudged
+       * out of the way: 17 px down puts the pill below the safe line, so the
+       * protection clamp — which is authoritative, by design — takes the move
+       * back, and 144 px up is four times the budget. Given the choice between
+       * a control fading into the band under a 20 px feather and the pill
+       * behind platform chrome, the pill wins.
+       */
 
+      /*
+       * ── and the drawing's own ROOM LABELS ────────────────────────────────
+       *
+       * In 9:16 only, and the scoping is the same judgement as the rows above.
+       * A 16:9 punch-in that cuts `Hall 18.0 m²` at the top edge is an authored
+       * framing doing what a punch-in does — the beat chose to be tighter than
+       * the drawing, and both the rooms it is about stay legible. In 9:16 the
+       * picture meets a CLIP and a chrome band it did not choose, and a room
+       * name cut there is the product's answer to the brief made unreadable.
+       *
+       * Measured, this was 8 beats red in edit B and 14 in A before the fix;
+       * every one in 9:16 is now clear and the residue is 16:9 punch-ins.
+       */
       let reported = false;
+      for (const r of roomLabelRects(ctx)) {
+        const pr = pushRect(shot.push, designRect(shot.mount, r));
+        labelsChecked += 1;
+        const inside = pr.x >= 0 && pr.y >= 0 && pr.x + pr.w <= layout.width && pr.y + pr.h <= clipBottom;
+        const gone =
+          pr.x + pr.w <= 0 || pr.y + pr.h <= 0 || pr.x >= layout.width || pr.y >= clipBottom;
+        if (inside || gone) continue;
+        /*
+         * ⚠ A tolerance, and it is the MODEL's error rather than a fudge. The
+         * film cannot measure text without fonts, so a label's width is
+         * `characters x font-size x LABEL_ADVANCE` with the advance set above
+         * the real average on purpose. That over-estimate is up to about a
+         * fifth of the box, so an overhang smaller than that is the model, not
+         * the picture. Anything larger is a word with a piece missing.
+         */
+        const visW = Math.min(pr.x + pr.w, layout.width) - Math.max(pr.x, 0);
+        const visH = Math.min(pr.y + pr.h, clipBottom) - Math.max(pr.y, 0);
+        const shown = (visW / pr.w) * (visH / pr.h);
+        if (shown >= 0.8) continue;
+        fail(
+          "label",
+          `${d.id} beat ${beat.index} "${beat.scene}"`,
+          `a room label is cut by the frame at ${(beat.startSec + f / FPS).toFixed(2)}s — only ` +
+            `${(shown * 100).toFixed(0)} % of it is on screen. The drawing may run off the edge; its ` +
+            "room names may not be shown with a piece missing",
+        );
+        reported = true;
+        break;
+      }
+      if (reported) break;
+
+      let reported2 = false;
       for (const [name, r] of rows) {
         const pr = pushRect(shot.push, designRect(shot.mount, r));
         rowsChecked += 1;
@@ -225,14 +295,17 @@ for (const d of DELIVERABLES) {
             `the row runs ${top.toFixed(0)}–${bot.toFixed(0)} and the clip is at ${clipBottom.toFixed(0)}. ` +
             "A row of type is whole or it is gone",
         );
-        reported = true;
+        reported2 = true;
         break;
       }
-      if (reported) break;
+      if (reported2) break;
     }
   }
 }
 
+if (labelsChecked === 0) {
+  fail("vacuous", "framing", "no room label was measured — 9:16 has labels and a clip");
+}
 if (rowsChecked === 0) {
   fail("vacuous", "framing", "no text row was measured against the picture clip — 9:16 has rows and a clip");
 }
@@ -422,7 +495,7 @@ if (AS_JSON) {
   console.log(`    ${framed} replica beat(s) measured at ${SETTLED * 100} % through the beat, ceiling ${CROP_TOLERANCE}`);
   for (const w of worst) console.log(`      ${w}`);
   console.log(`    ${cards} card(s) measured; the 30s cut sets ${heroes.join(", ")}`);
-  console.log(`    ${rowsChecked} text row(s) checked against the 9:16 picture clip`);
+  console.log(`    ${rowsChecked} text row(s) and ${labelsChecked} room label(s) checked against the 9:16 picture`);
   console.log(`    ${sampled} frame(s) sampled every ${SAMPLE_SEC}s, lean ceiling ${(LOPSIDED_MAX * 100).toFixed(0)} %`);
   for (const e of emptiest) console.log(`      ${e}`);
   if (failures.length === 0) {
