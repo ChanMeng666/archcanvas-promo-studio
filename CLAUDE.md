@@ -148,7 +148,7 @@ npm run dev                                   # Remotion Studio
 npm run lint                                  # tsc --noEmit
 npm run verify                                # assets -> replica -> timeline -> copy -> numbers
                                               #   -> audio -> honesty -> framing -> violet
-                                              #   -> opening
+                                              #   -> loudness -> opening
 npm run stills --  --comp Studio-30-Landscape-16x9   # six beats of one master
 for c in ...; do node capture/stills.mjs --comp $c; done   # a full sweep, per comp
 node capture/stills.mjs --sheet --comp <id>   # contact FRAMES for one cut

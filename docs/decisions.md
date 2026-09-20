@@ -1303,3 +1303,65 @@ what the table says.
 | the render beat's travel | 6 frames |
 | protecting the rendering from the beat's first frame | 4 frames |
 | (before this round, no travel at all) | **38 frames across receipt and render** |
+
+## D33. The duck was a trim, and nothing in the repo could have said so.
+
+Eight masters were rendered and measured **-17.3 to -17.9 LUFS integrated**
+against a -16 target, with true peaks -3.4 to -4.6 dBTP. Every audio check in
+the repo was green, and all of them were about the cue sheet: every cue has a
+file, lands inside its cut, nothing piles up. All true of a film that is 1.5 LU
+quiet.
+
+**The cause was in the data.** `duckWindows` fired on any run of cues, which
+covered 36-59 % of the runtime before the attack and release tails and 50-73 %
+with them. A duck that is on for two thirds of a film is not a duck; it is a
+trim. It costs loudness everywhere and emphasises nothing, which is the opposite
+of both things a duck is for.
+
+`DUCK` now carries `minCues: 4` and `minCuesPerSec: 4`, so only a genuinely dense
+passage qualifies — in this film, the typing runs. An isolated pin drop no longer
+pulls the bed down for a third of a second, which is also the right answer
+musically: those cues are meant to be felt over the music, not to clear a space
+in it. Coverage falls to 11-20 %.
+
+| cut | before | after |
+|---|---|---|
+| 15 s | -17.5 LUFS, duck 73 % | **-15.7**, duck 17 % |
+| 30 s | -17.8 LUFS, duck 70 % | **-16.3**, duck 20 % |
+| 60 s | -17.6 LUFS, duck 59 % | **-16.3**, duck 14 % |
+| 120 s | -17.3 LUFS, duck 50 % | **-16.3**, duck 11 % |
+
+True peaks -3.0 to -4.2 dBTP, all under the -1.0 ceiling. `MASTER_TRIM_DB`
+exists and **measures zero**: the gap was not a missing gain.
+
+### The instrument, and why it can be believed
+
+`capture/lib/mix.mjs` builds the mix offline from the manifests — bed, cue
+sheet, duck envelope, master trim — playing the film's OWN `duckGainAt`, and
+ffmpeg's `ebur128` measures it. A full Remotion render is twenty minutes of
+picture to hear thirty seconds of sound.
+
+It is an instrument, not a substitute for the render, and what licenses it is
+that **it reproduces the defect**: mixed with the duck as it was when those eight
+masters were rendered it reports -17.5 / -17.8 / -17.6 / -17.3 against the
+render's measured -17.3 to -17.9, with true peaks inside 0.3 dB. A number that
+can produce the bug can be trusted to show it gone.
+
+`duckGainAt` moved from `FilmAudio.tsx` into `audio.ts` for the same reason every
+other table has: the gate is React-free, and a gate that re-implements the thing
+it checks eventually certifies a film nobody rendered.
+
+### The gate
+
+`verify:loudness` asserts, for **every music version with beds on disk** — so a
+second SUNO take is measured the day it lands, not the day it becomes active:
+
+1. each cut within ±0.5 LU of that version's own `targetLufs`;
+2. true peak ≤ -1.0 dBTP, the platform limiter's line rather than the sample one;
+3. the duck on for ≤ 30 % of runtime — the check that would have caught this
+   before a frame was rendered.
+
+| revert | what reddens |
+|---|---|
+| `minCues` / `minCuesPerSec` → 0 (the always-on duck) | 8 failures: 4 `loudness` at -17.3…-17.8, 4 `duck` at 50-73 % |
+| `MASTER_TRIM_DB` → +3 | 7 failures, `loudness` over the top of the window |
