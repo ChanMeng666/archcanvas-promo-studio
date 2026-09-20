@@ -141,10 +141,21 @@ export const mixCut = async (cut, opts = {}) => {
     }
   }
 
+  // Where the loudest sample is. The gate needs it: the model's error is a
+  // property of an OPENING transient, so the margin it carries depends on
+  // whether this cut's peak is one.
+  let peak = 0;
+  let peakAt = 0;
+  for (let i = 0; i < out.length; i += 1) {
+    const a = Math.abs(out[i]);
+    if (a > peak) { peak = a; peakAt = i; }
+  }
+
   return {
     cut,
     durationSec,
     pcm: out,
+    peakAtSec: peakAt / CHANNELS / SAMPLE_RATE,
     events,
     duckedFraction: ducked / frames,
     cueCount: sheet.length,
