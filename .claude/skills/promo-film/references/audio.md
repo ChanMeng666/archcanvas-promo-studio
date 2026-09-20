@@ -109,24 +109,27 @@ master is never the answer.
 Targets: **−16 LUFS integrated, −1.5 dBTP** for a bed (`audio/bed-plan.json`); the gate
 allows ±0.5 LU and **≤ −1.5 dBTP** for the mix (`capture/verify-loudness.mjs`), measured on
 an AAC encode at the **delivery's own settings — probed with `ffprobe` off a delivered
-master, never typed** — plus **1.1 dB of extra margin when the cut's peak falls in the
-first 100 ms**, where the model is known to be wrong by that much.
+master, never typed**.
 
-⚠ **The model cannot predict an opening transient and no encoder setting fixes that.**
-A 60 s predicted −2.3 and delivered −1.2; the same mix encoded at 192k / 317k / 512k
-measures −2.3 / −2.3 / −2.4, so bitrate is 0.1 dB of a 1.1 dB gap. Aligned sample by
-sample the delivered film is exactly bed + opening cue at the gain the sheet says — the
-difference is *when*, by a few milliseconds: the film quantises the cue to a frame and
-decodes the bed's MP3 through Chromium, the mix places it at the exact sample and decodes
-through ffmpeg. On a transient meeting a bed entry that is over a decibel of sum,
-constructive in one bed and not another (frame-quantising the mix fits A and breaks B).
-**Do not try to model it** (D41).
+⚠ **The offline mix must place cues where the FILM places them, or the true peak it
+reports is a different film's.** `FilmAudio.tsx` mounts every cue in a
+`<Sequence from={secToFrame(rc.startSec)}>`, so a cue starts on a FRAME — up to 16.7 ms
+from its own second. A 60 s opens with a cue ~7 ms from its bed's entry, which is the
+difference between two transients summing and following each other: the mix said −2.4
+dBTP and the film delivered −1.2, for two rounds, green. `mix.mjs` § `cueStartSample`
+owns this, plus a constant **16 samples** that is EMPIRICAL — fitted against delivered
+films, direction included, with no mechanism claimed. Together: every one of the 32
+delivered masters predicted within **0.1 dB**, each on the right sample (D42).
 
-The dial for a cut that goes over is `versions.<id>.openingCueTrimDb` — the OPENING cue's
-gain, never the bed's — because every bed enters at 0 s and the first cue lands 40 ms
-later, so the highest sample in a master is almost always their sum in the first ~64 ms
-(D40). Trim until the peak moves **out of** the first 100 ms; then the model is accurate
-again and the plain −1.5 applies. Check `peakAtSec`, not just the number.
+Ruled out by measurement, so do not re-run them: the encoder's bitrate (0.1 dB across
+192k/256k/317k/512k), the bed's alignment (exactly 2048 samples of AAC priming in every
+film), and evaluating gains per frame as Remotion does (identical to the tenth of a dB).
+
+The dial for a cut over the ceiling is `versions.<id>.openingCueTrimDb` — the OPENING
+cue's gain, never the bed's — because every bed enters at 0 s and the first cue lands
+40 ms later, so the highest sample is usually their sum in the first ~64 ms. Turn it a
+decibel at a time and watch the number; it stops responding once the bed alone owns that
+sample. Current: A 60 s −3, B 120 s −7, B+el 15 s −8, everything at −1.9 dBTP or better.
 
 Beds are made two-pass (`tools/prepare-bed.ps1`): `loudnorm` measures, then re-runs with
 the measured `I`/`TP`/`LRA`/`thresh`/`offset` **and `linear=true`** so it cannot fall into
@@ -148,17 +151,12 @@ is reported beside the reality, and an **optimistic** one (predicted more than 0
 below the measured peak) is fatal. Pessimistic is a note — a prediction under the real
 peak is how a master ships at −1.2 under a green gate; over it is only over-cautious.
 
-⚠ A cut whose audio changed since its master was rendered is skipped there with a ⚠ note,
-because a stale master would otherwise fail the check for having been fixed. "Changed" is
-answered by comparing `openingCueTrimDb` now against its value at the manifest's
-`renderCommit` — **unless that render was packaged from a dirty tree**, which both current
-manifests were, in which case the gate says so and falls back to treating any trimmed cut
-as possibly stale. The line that closes it for good is a fingerprint of the resolved cue
-sheet recorded per file in `MANIFEST.json`; `package-masters.ps1` does not write one yet,
-and **a render from a clean tree is worth more than it looks** for exactly this reason.
-**If a re-render disagrees by more than
-about 0.5 LU, the gate's model is wrong and that is the finding** — do not just accept
-the file.
+⚠ **Commit `MANIFEST.json` after packaging.** It is the only thing in the repo that can
+contradict the model. Each film carries a `cueSha` — a fingerprint of the resolved sheet
+— so a cut whose audio changed since its render is skipped as stale while every other cut
+stays checked, trims and all. Older manifests without one fall back to blunter rules that
+say so out loud. **If a re-render disagrees by more than about 0.5 LU, the gate's model is
+wrong and that is the finding** — do not just accept the file.
 
 ## Traps
 
