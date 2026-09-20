@@ -15,11 +15,18 @@
     "musicCommercialUse": true,
     "musicNote": "Dated founder confirmation recorded in ../archcanvas-promo-remotion/docs/suno-prompt.md. Not a measurement: a SUNO export does not carry the account's plan."
   },
-  "renderCommit": "bf65ec4bb7eaedb5b1a7bfeb3c5eedca978b3e4e",
-  "workingTreeDirty": false,
+  "renderCommit": "860c2a799f6543fc8a5b478076f533a36c4f3e97",
+  "workingTreeDirty": true,
   "renderedOn": "2026-09-21",
   "fps": 30,
   "codec": "h264 / yuv420p, crf 18, AAC audio",
+  "thresholds": {
+    "truePeakMaxDb": -1.5,
+    "lufsTarget": -16,
+    "lufsWindow": 0.5,
+    "measuredOn": "the delivered file, not the offline mix"
+  },
+  "verifiedCount": 8,
   "supersedes": [
     {
       "renderCommit": "8e48d320bfe5bea779e8499a816b5a35a33002f4",
@@ -50,8 +57,12 @@
       "truePeakDb": -4.2,
       "meanVolumeDb": -17.1,
       "maxVolumeDb": -4.2,
+      "audioBitrate": null,
+      "audioProfile": null,
       "bitrate": 1957900,
-      "modified": "2026-09-20T23:05:25"
+      "modified": "2026-09-20T23:05:25",
+      "verified": true,
+      "reason": null
     },
     {
       "tag": "15v",
@@ -74,8 +85,12 @@
       "truePeakDb": -4.2,
       "meanVolumeDb": -17.1,
       "maxVolumeDb": -4.2,
+      "audioBitrate": null,
+      "audioProfile": null,
       "bitrate": 1797566,
-      "modified": "2026-09-20T23:06:19"
+      "modified": "2026-09-20T23:06:19",
+      "verified": true,
+      "reason": null
     },
     {
       "tag": "30l",
@@ -98,8 +113,12 @@
       "truePeakDb": -4.2,
       "meanVolumeDb": -17.6,
       "maxVolumeDb": -4.2,
+      "audioBitrate": null,
+      "audioProfile": null,
       "bitrate": 2143814,
-      "modified": "2026-09-21T01:24:47"
+      "modified": "2026-09-21T01:24:47",
+      "verified": true,
+      "reason": null
     },
     {
       "tag": "30v",
@@ -122,8 +141,12 @@
       "truePeakDb": -4.2,
       "meanVolumeDb": -17.6,
       "maxVolumeDb": -4.2,
+      "audioBitrate": null,
+      "audioProfile": null,
       "bitrate": 2177762,
-      "modified": "2026-09-21T01:25:43"
+      "modified": "2026-09-21T01:25:43",
+      "verified": true,
+      "reason": null
     },
     {
       "tag": "60l",
@@ -146,8 +169,12 @@
       "truePeakDb": -2.7,
       "meanVolumeDb": -17.4,
       "maxVolumeDb": -2.7,
+      "audioBitrate": null,
+      "audioProfile": null,
       "bitrate": 2101965,
-      "modified": "2026-09-21T01:27:28"
+      "modified": "2026-09-21T01:27:28",
+      "verified": true,
+      "reason": null
     },
     {
       "tag": "60v",
@@ -170,8 +197,12 @@
       "truePeakDb": -2.7,
       "meanVolumeDb": -17.4,
       "maxVolumeDb": -2.7,
+      "audioBitrate": null,
+      "audioProfile": null,
       "bitrate": 2073422,
-      "modified": "2026-09-21T01:29:14"
+      "modified": "2026-09-21T01:29:14",
+      "verified": true,
+      "reason": null
     },
     {
       "tag": "120l",
@@ -194,8 +225,12 @@
       "truePeakDb": -3.3,
       "meanVolumeDb": -17.5,
       "maxVolumeDb": -3.3,
+      "audioBitrate": null,
+      "audioProfile": null,
       "bitrate": 2013345,
-      "modified": "2026-09-21T01:32:54"
+      "modified": "2026-09-21T01:32:54",
+      "verified": true,
+      "reason": null
     },
     {
       "tag": "120v",
@@ -218,8 +253,12 @@
       "truePeakDb": -3.3,
       "meanVolumeDb": -17.5,
       "maxVolumeDb": -3.3,
+      "audioBitrate": null,
+      "audioProfile": null,
       "bitrate": 1995178,
-      "modified": "2026-09-21T01:36:21"
+      "modified": "2026-09-21T01:36:21",
+      "verified": true,
+      "reason": null
     }
   ]
 }

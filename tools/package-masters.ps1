@@ -85,6 +85,14 @@ function Read-Metric {
   return [double]$v
 }
 
+# The delivered-file thresholds. They mirror `verify:loudness`'s, deliberately:
+# the gate predicts against these and this asserts them, so a disagreement
+# between the two is visible as one film passing there and failing here rather
+# than as two different standards.
+$TRUE_PEAK_MAX = -1.5
+$LUFS_TARGET = -16
+$LUFS_WINDOW = 0.5
+
 $commit = (& git -C $repo rev-parse HEAD).Trim()
 
 # The manifest cannot meaningfully report on its OWN pending state. Writing it
@@ -144,13 +152,31 @@ foreach ($t in $targets) {
 
   $sha = (Get-FileHash $p -Algorithm SHA256).Hash.ToLower()
 
-  if ($frames -ne $expectedFrames) { $problems += "$($t.tag): $frames frames, expected $expectedFrames" }
-  if ($v.width -ne $t.w -or $v.height -ne $t.h) { $problems += "$($t.tag): $($v.width)x$($v.height), expected $($t.w)x$($t.h)" }
-  if ($v.pix_fmt -ne "yuv420p") { $problems += "$($t.tag): pix_fmt $($v.pix_fmt)" }
-  if ($fps -ne 30) { $problems += "$($t.tag): $fps fps" }
-  if (-not $a) { $problems += "$($t.tag): NO AUDIO STREAM" }
-  elseif ($meanVol -lt -40) { $problems += "$($t.tag): mean volume $meanVol dB -- effectively silent" }
-  if ($tp -gt -1.0) { $problems += "$($t.tag): true peak $tp dBTP is over the -1.0 ceiling" }
+  # ── The delivered file is the final gate ──────────────────────────────────
+  #
+  # `verify:loudness` predicts from an offline mix, and a prediction is an EARLY
+  # WARNING, not a verdict. It was shown to be exactly that: the A 60s cut's
+  # mix peaks at -2.40 dBTP and the rendered master measures -1.2, so the gate
+  # reported green on a film 0.3 dB over its own ceiling. Encoding accounts for
+  # 0.1-0.2 dB of that; the rest is the offline mix and the composition
+  # disagreeing about the first 64 ms.
+  #
+  # So these two numbers are asserted HERE, against the bytes that ship, and a
+  # film that fails is recorded `verified: false` with the reason rather than
+  # quietly listed beside the ones that passed. A manifest is a receipt, and a
+  # receipt that cannot say "this one did not pass" is not one.
+  $issues = @()
+  if ($frames -ne $expectedFrames) { $issues += "$frames frames, expected $expectedFrames" }
+  if ($v.width -ne $t.w -or $v.height -ne $t.h) { $issues += "$($v.width)x$($v.height), expected $($t.w)x$($t.h)" }
+  if ($v.pix_fmt -ne "yuv420p") { $issues += "pix_fmt $($v.pix_fmt)" }
+  if ($fps -ne 30) { $issues += "$fps fps" }
+  if (-not $a) { $issues += "NO AUDIO STREAM" }
+  elseif ($meanVol -lt -40) { $issues += "mean volume $meanVol dB -- effectively silent" }
+  if ($tp -gt $TRUE_PEAK_MAX) { $issues += ("true peak {0} > {1} dBTP" -f $tp, $TRUE_PEAK_MAX) }
+  if ([math]::Abs($lufs - $LUFS_TARGET) -gt $LUFS_WINDOW) {
+    $issues += ("{0} LUFS, outside {1} +/- {2}" -f $lufs, $LUFS_TARGET, $LUFS_WINDOW)
+  }
+  foreach ($i in $issues) { $problems += "$($t.tag): $i" }
 
   $rows += [pscustomobject]@{
     tag = $t.tag
@@ -173,12 +199,20 @@ foreach ($t in $targets) {
     truePeakDb = $tp
     meanVolumeDb = $meanVol
     maxVolumeDb = $maxVol
+    audioBitrate = if ($a -and $a[0].bit_rate) { [int]$a[0].bit_rate } else { $null }
+    audioProfile = if ($a) { $a[0].profile } else { $null }
     bitrate = [int]$f.bit_rate
     modified = $item.LastWriteTime.ToString("s")
+    # The verdict, and it is about THIS file rather than a model of it.
+    verified = $issues.Count -eq 0
+    reason = if ($issues.Count -eq 0) { $null } else { $issues -join "; " }
   }
 
-  Write-Host ("    {0,-5} {1,6:N1} MB  {2,4}x{3,-4} {4,5} frames  {5,7:N3}s  {6,7:N1} LUFS  {7,6:N1} dBTP  mean {8,6:N1} dB" -f `
-      $t.tag, ($item.Length / 1MB), $v.width, $v.height, $frames, [double]$v.duration, $lufs, $tp, $meanVol)
+  $mark = if ($issues.Count -eq 0) { "ok " } else { "NOT" }
+  $colour = if ($issues.Count -eq 0) { "Gray" } else { "Red" }
+  Write-Host ("    {0,-5} {1,6:N1} MB  {2,4}x{3,-4} {4,5} frames  {5,7:N3}s  {6,7:N1} LUFS  {7,6:N1} dBTP  mean {8,6:N1} dB   {9}" -f `
+      $t.tag, ($item.Length / 1MB), $v.width, $v.height, $frames, [double]$v.duration, $lufs, $tp, $meanVol, $mark) -ForegroundColor $colour
+  if ($issues.Count -gt 0) { Write-Host ("          ^ $($issues -join '; ')") -ForegroundColor Red }
 }
 
 $manifestPath = Join-Path $outDir "MANIFEST.json"
@@ -244,13 +278,22 @@ $manifest = [ordered]@{
   renderedOn = (Get-Date).ToString("yyyy-MM-dd")
   fps = 30
   codec = "h264 / yuv420p, crf 18, AAC audio"
+  # The thresholds this manifest was judged against, written down beside the
+  # verdict so a reader is never left inferring which ceiling was in force.
+  thresholds = [ordered]@{
+    truePeakMaxDb = $TRUE_PEAK_MAX
+    lufsTarget = $LUFS_TARGET
+    lufsWindow = $LUFS_WINDOW
+    measuredOn = "the delivered file, not the offline mix"
+  }
+  verifiedCount = @($rows | Where-Object { $_.verified }).Count
   supersedes = $history
   masters = $rows
 }
 
 $manifest | ConvertTo-Json -Depth 6 | Set-Content $manifestPath -Encoding utf8
 Write-Host ""
-Write-Host "  wrote $((Resolve-Path -Relative $manifestPath))"
+Write-Host ("  wrote {0} -- {1} of {2} film(s) verified" -f (Resolve-Path -Relative $manifestPath), $manifest.verifiedCount, $rows.Count)
 
 # --- review copies ----------------------------------------------------------
 #
