@@ -5,11 +5,21 @@ by a human with a SUNO account, and it is the only manual step in the audio
 pipeline. Everything else — the four beds, the fourteen sound effects, the beat
 grid — is derived by command from whatever track lands in `audio/source/`.
 
-The track on disk today, `confident-arrival.mp3`, is a **placeholder borrowed
-from the previous film**. It is genuinely good and it is measurably the best of
+**This brief has been answered.** `daylight-forward.mp3` was generated from the
+prompt below on 2026-09-19 and is version `B-daylight-forward`: 127.6 BPM, a
+1.894 s bar, eleven fills, five crashes, a fifteen-second breakdown and a real
+ending — measurably faster, brighter, busier and flatter than the placeholder it
+replaces. The measurement is `docs/music/daylight-forward.md`. **One thing is
+still open: the SUNO plan tier on the day it was generated** (see *Licensing*).
+
+The prompt is kept because it worked, and because a third take may be wanted. It
+is also the record of what to ask for.
+
+`confident-arrival.mp3` — now at `audio/takes/` — was a **placeholder borrowed
+from the previous film**. It is genuinely good and was measurably the best of
 the three takes we had (see below), but it was written for a 75-second
-continuous camera pull-back, not for a fast product film that cuts. Replacing it
-is the point of this document.
+continuous camera pull-back, not for a fast product film that cuts. It stays
+renderable as version A.
 
 ---
 
@@ -128,15 +138,20 @@ the film's edit snaps to. Nothing is hand-typed, so nothing goes stale.
 ```bash
 # 1. Drop the new take in, and take the old one out. `audio/source/` must hold
 #    exactly ONE file — the tools refuse to guess between two.
-mv ~/Downloads/<new-take>.mp3 audio/source/
-rm audio/source/confident-arrival.mp3
+#    COPY the download; never `rm` a take. SUNO output is irreproducible and the
+#    old take is what makes its version re-cuttable.
+cp ~/Downloads/<new-take>.mp3 audio/source/<kebab-case-name>.mp3
+mv audio/source/<the-previous-take>.mp3 audio/takes/
 
-# 2. Rebuild the beds. Plan -> cut -> measure.
+# 2. Read what landed, before cutting anything.
+npm run audio:structure
+
+# 3. Rebuild the beds. Plan -> cut -> measure.
 npm run audio:beds
 
-# 3. Check it.
+# 4. Check it.
 npm run lint
-npm run verify:assets
+npm run verify
 ```
 
 `npm run audio:all` does the effects as well, which the swap does not need — the
@@ -198,6 +213,17 @@ SUNO, founder-generated, **paid tier confirmed 2026-09-08**. That confirmation
 covers `confident-arrival.mp3`; a new take generated on the same account is
 covered by the same entitlement, but **check the plan is still active before
 generating**, not after.
+
+- [x] SUNO plan tier for `confident-arrival.mp3` · confirmed **2026-09-08**
+- [ ] SUNO plan tier for `daylight-forward.mp3` (created **2026-09-19**) ·
+      confirmed on: ____________
+
+⚠ **The second box is open, and the take is already generated.** Nothing in a
+SUNO export records the account's plan, so this cannot be closed by measurement
+— only the founder can close it. Until it is closed, version B's beds are not to
+be rendered. That is the same open box the first film shipped with
+(`docs/audio-provenance.md` § 1), and the sibling repo's own phrase for it is
+worth repeating: *that is how an open gate stops being noticed.*
 
 That ordering is not pedantry. It is the single most expensive lesson in this
 project's history: twelve ElevenLabs assets were generated on a free tier and had

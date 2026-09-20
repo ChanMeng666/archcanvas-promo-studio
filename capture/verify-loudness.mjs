@@ -40,6 +40,21 @@
  * All three, for EVERY music version with beds on disk — so a second take is
  * measured the day it lands, not the day it becomes active.
  *
+ * ⚠ **That last sentence was false until version B landed.** The loop over
+ * versions was here, but the mixer it called could only reach the ACTIVE bed, so
+ * it measured one take four times and printed it under each version's name. With
+ * one version on file nobody could tell. With two it produced four rows
+ * identical to the tenth of a LU for two takes that do not sound alike — which
+ * is the tell, and is why a gate should be asked what it looked at rather than
+ * whether it is green. `bedFor(cut, version)` is the fix.
+ *
+ * What a non-active version's row can and cannot say: the bed is its own, so the
+ * level, the true peak and the headroom are real. The CUE SHEET is the active
+ * take's, because cues are derived by walking a cut that is snapped to whichever
+ * take is active — a non-active version's true sound sheet only exists while it
+ * is active. Those rows are therefore marked, and their duck figure is the
+ * active take's duck over their bed, not a prediction of their own.
+ *
  * Usage:  node capture/verify-loudness.mjs [--json]
  */
 
@@ -86,13 +101,15 @@ for (const version of A.musicVersions()) {
   }
 
   const target = meta.targetLufs ?? -16;
+  const isActive = version === A.MUSIC_VERSION;
   for (const cut of cuts) {
-    const r = await mixAndMeasure(cut, film);
+    const r = await mixAndMeasure(cut, film, version);
     measured += 1;
     rows.push(
       `${version.padEnd(22)} ${(cut + "s").padStart(5)}  ${r.lufs.toFixed(1)} LUFS  ` +
         `TP ${r.truePeakDb.toFixed(1)}  LRA ${r.lra.toFixed(1)}  duck ${(r.duckedFraction * 100).toFixed(0)} %` +
-        `${r.masterTrimDb ? `  trim ${r.masterTrimDb > 0 ? "+" : ""}${r.masterTrimDb} dB` : ""}`,
+        `${r.masterTrimDb ? `  trim ${r.masterTrimDb > 0 ? "+" : ""}${r.masterTrimDb} dB` : ""}` +
+        `${isActive ? "" : "   (bed is its own; cue sheet is the active take's)"}`,
     );
 
     if (!Number.isFinite(r.lufs)) {

@@ -588,8 +588,12 @@ if (IMAGES) {
   drawText(buf, W, H, L + pw - 190, 41, "purple: section bounds", 0x8b, 0x1a, 0x8b, 2);
   fs.writeFileSync(path.join(IMG_DIR, `${SLUG}-energy.png`), encodePng(W, H, buf));
 
+  // 1280x560 rather than the chart's 1800: a spectrogram of dense material is
+  // mostly noise, PNG cannot compress noise, and this file lives in git forever.
+  // At 1800x760 it was 2.1 MB and told no more than it does here.
   const spec = spawnSync("ffmpeg", ["-y", "-v", "error", "-vn", "-i", AUDIO, "-lavfi",
-    "showspectrumpic=s=1800x760:mode=combined:legend=1:scale=log:gain=3:color=intensity",
+    "showspectrumpic=s=1280x560:mode=combined:legend=1:scale=log:gain=3:color=intensity",
+    "-compression_level", "9",
     path.join(IMG_DIR, `${SLUG}-spectrogram.png`)], { encoding: "utf8" });
   if (spec.status !== 0) console.error("  spectrogram failed:\n" + spec.stderr);
 }
