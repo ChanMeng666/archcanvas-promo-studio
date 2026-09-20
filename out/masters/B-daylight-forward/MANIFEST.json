@@ -15,12 +15,26 @@
     "musicCommercialUse": true,
     "musicNote": "Confirmed by founder 2026-09-20 for a take created 2026-09-19T23:20:50Z. Not a measurement: a SUNO export does not carry the account's plan. If challenged, produce the SUNO billing record for 2026-09-19."
   },
-  "renderCommit": "2a87f2971192d443275c5a1eef1d6d76507e5e6c",
-  "workingTreeDirty": false,
-  "renderedOn": "2026-09-20",
+  "renderCommit": "860c2a799f6543fc8a5b478076f533a36c4f3e97",
+  "workingTreeDirty": true,
+  "renderedOn": "2026-09-21",
   "fps": 30,
   "codec": "h264 / yuv420p, crf 18, AAC audio",
-  "supersedes": [],
+  "thresholds": {
+    "truePeakMaxDb": -1.5,
+    "lufsTarget": -16,
+    "lufsWindow": 0.5,
+    "measuredOn": "the delivered file, not the offline mix"
+  },
+  "verifiedCount": 8,
+  "supersedes": [
+    {
+      "renderCommit": "2a87f2971192d443275c5a1eef1d6d76507e5e6c",
+      "renderedOn": "2026-09-20",
+      "filmVersion": "B-daylight-forward",
+      "note": "superseded by 747f5326eeda"
+    }
+  ],
   "masters": [
     {
       "tag": "15l",
@@ -43,8 +57,12 @@
       "truePeakDb": -2.2,
       "meanVolumeDb": -18.4,
       "maxVolumeDb": -2.2,
+      "audioBitrate": null,
+      "audioProfile": null,
       "bitrate": 1644850,
-      "modified": "2026-09-20T23:38:53"
+      "modified": "2026-09-20T23:38:53",
+      "verified": true,
+      "reason": null
     },
     {
       "tag": "15v",
@@ -67,14 +85,18 @@
       "truePeakDb": -2.2,
       "meanVolumeDb": -18.4,
       "maxVolumeDb": -2.2,
+      "audioBitrate": null,
+      "audioProfile": null,
       "bitrate": 1506716,
-      "modified": "2026-09-20T23:39:25"
+      "modified": "2026-09-20T23:39:25",
+      "verified": true,
+      "reason": null
     },
     {
       "tag": "30l",
       "file": "archcanvas-studio-2026-09_30s_landscape_1920x1080.mp4",
-      "bytes": 7274801,
-      "sha256": "809156205aa0fdfb005c3a2c4d598a2e562d7b02c1f693382760d2f2a2a17cc3",
+      "bytes": 7277606,
+      "sha256": "f300a507057814f404268d1d73ff0792dcf2df5afa2101763ea1453bd4de8e97",
       "durationSec": 30.059,
       "videoDurationSec": 30.0,
       "frames": 900,
@@ -91,14 +113,18 @@
       "truePeakDb": -3.2,
       "meanVolumeDb": -18.1,
       "maxVolumeDb": -3.3,
-      "bitrate": 1936160,
-      "modified": "2026-09-20T23:40:25"
+      "audioBitrate": null,
+      "audioProfile": null,
+      "bitrate": 1936907,
+      "modified": "2026-09-21T01:42:23",
+      "verified": true,
+      "reason": null
     },
     {
       "tag": "30v",
       "file": "archcanvas-studio-2026-09_30s_vertical_1080x1920.mp4",
-      "bytes": 7367320,
-      "sha256": "dbdcb2447887b1228aceda999bde0c6f046aadda85106d0928c197c8c6f4b668",
+      "bytes": 7375957,
+      "sha256": "dca536e71436a9ff99a54058e0a6d82012fdd14b235d2d907066da30cb4155e1",
       "durationSec": 30.059,
       "videoDurationSec": 30.0,
       "frames": 900,
@@ -115,14 +141,18 @@
       "truePeakDb": -3.2,
       "meanVolumeDb": -18.1,
       "maxVolumeDb": -3.3,
-      "bitrate": 1960784,
-      "modified": "2026-09-20T23:41:25"
+      "audioBitrate": null,
+      "audioProfile": null,
+      "bitrate": 1963082,
+      "modified": "2026-09-21T01:43:20",
+      "verified": true,
+      "reason": null
     },
     {
       "tag": "60l",
       "file": "archcanvas-studio-2026-09_60s_landscape_1920x1080.mp4",
-      "bytes": 15534293,
-      "sha256": "6f3db1f69b74a91537fc6cf0d21241de89f3583249961921a75447a3f9cd35dc",
+      "bytes": 15627876,
+      "sha256": "3e4dea909a4c193db783e09b20c28ca1f04e2140c85760dbe3f7e609afb4a1d1",
       "durationSec": 60.053,
       "videoDurationSec": 60.0,
       "frames": 1800,
@@ -139,14 +169,18 @@
       "truePeakDb": -3.3,
       "meanVolumeDb": -18.1,
       "maxVolumeDb": -3.3,
-      "bitrate": 2069399,
-      "modified": "2026-09-20T23:43:39"
+      "audioBitrate": null,
+      "audioProfile": null,
+      "bitrate": 2081866,
+      "modified": "2026-09-21T01:45:06",
+      "verified": true,
+      "reason": null
     },
     {
       "tag": "60v",
       "file": "archcanvas-studio-2026-09_60s_vertical_1080x1920.mp4",
-      "bytes": 15928951,
-      "sha256": "f539bd7d0323339c9d495ea1fffa055cea0945ba44ee202cfa5966ede126ecc5",
+      "bytes": 15649622,
+      "sha256": "09eef08e076aae021bc516a5662cf23516dec787ea02252e0aa68026e84807e1",
       "durationSec": 60.053,
       "videoDurationSec": 60.0,
       "frames": 1800,
@@ -163,14 +197,18 @@
       "truePeakDb": -3.3,
       "meanVolumeDb": -18.1,
       "maxVolumeDb": -3.3,
-      "bitrate": 2121973,
-      "modified": "2026-09-20T23:45:31"
+      "audioBitrate": null,
+      "audioProfile": null,
+      "bitrate": 2084763,
+      "modified": "2026-09-21T01:46:54",
+      "verified": true,
+      "reason": null
     },
     {
       "tag": "120l",
       "file": "archcanvas-studio-2026-09_120s_landscape_1920x1080.mp4",
-      "bytes": 28197274,
-      "sha256": "e290b2435c1ec8a30f73d787367026ee45b6fd8222ade137c6e1c40c808082c4",
+      "bytes": 28388568,
+      "sha256": "fe034ddca40941c17fb5e0d3ed87829129489414b8a2ddafef4efee8c038638b",
       "durationSec": 120.064,
       "videoDurationSec": 120.0,
       "frames": 3600,
@@ -187,14 +225,18 @@
       "truePeakDb": -2.1,
       "meanVolumeDb": -18.0,
       "maxVolumeDb": -2.2,
-      "bitrate": 1878816,
-      "modified": "2026-09-20T23:49:30"
+      "audioBitrate": null,
+      "audioProfile": null,
+      "bitrate": 1891562,
+      "modified": "2026-09-21T01:50:40",
+      "verified": true,
+      "reason": null
     },
     {
       "tag": "120v",
       "file": "archcanvas-studio-2026-09_120s_vertical_1080x1920.mp4",
-      "bytes": 29531349,
-      "sha256": "921453a6f3c91ada127fcf6a3c1cb37abd017c38f33b96ff86bb4c832fc0bd95",
+      "bytes": 29387789,
+      "sha256": "cae39b6add69d4a226bc761d492a7f3dd0592636d74337628c2f6da2687428ef",
       "durationSec": 120.064,
       "videoDurationSec": 120.0,
       "frames": 3600,
@@ -211,8 +253,12 @@
       "truePeakDb": -2.1,
       "meanVolumeDb": -18.0,
       "maxVolumeDb": -2.2,
-      "bitrate": 1967707,
-      "modified": "2026-09-20T23:53:11"
+      "audioBitrate": null,
+      "audioProfile": null,
+      "bitrate": 1958141,
+      "modified": "2026-09-21T01:54:16",
+      "verified": true,
+      "reason": null
     }
   ]
 }
