@@ -138,37 +138,32 @@ const CUT_30: readonly Edit[] = [
     sec: 1.67,
     replicaFrom: 23.5,
     replicaTo: 25.4,
-    fill: 0.62,
+    fill: 0.76,
     push: 1.02,
-    why: "SETUP 1 of 3 — the whole sheet, the pins landing on it. @18.72",
+    why: "SETUP 1 of 2 — the whole sheet, the pins landing on it. @18.72",
   },
   {
     scene: "receipt",
     sec: 1.67,
     replicaFrom: 25.4,
-    replicaTo: 26.3,
-    fill: 0.86,
-    push: 1.03,
-    why: "SETUP 2 — a punch-in on the pin as it opens. @20.39",
-  },
-  {
-    scene: "receipt",
-    sec: 1.88,
-    replicaFrom: 26.3,
     replicaTo: 28,
-    fill: 0.82,
-    push: 1.02,
-    why: "SETUP 3 — the card, readable. @22.06",
+    fill: 0.84,
+    push: 1.04,
+    why: "SETUP 2 — punch in as the pin opens; the card is readable by the end. @20.39",
   },
   {
     scene: "export",
-    sec: 1.95,
+    sec: 1.88,
     replicaFrom: 31.5,
     replicaTo: LOOP_FADE_SEC,
     push: 1.04,
-    why: "Out on the fill at 23.94.",
+    why: "Out on the fill at 22.06.",
   },
-  { scene: "price", sec: 1.88, why: "The money line, one bar. @25.89" },
+  {
+    scene: "price",
+    sec: 3.83,
+    why: "TWO bars, not one — thirteen words need 3.4 s to read and the gate says so. @23.94",
+  },
   { scene: "endcard", sec: 2.23, why: "@27.77 to the cadence." },
 ];
 
@@ -184,7 +179,7 @@ const CUT_30: readonly Edit[] = [
  * that most wants the lift. The tweak keeps its own two bars before it.
  */
 const CUT_60: readonly Edit[] = [
-  { scene: "hook", sec: 3.85, why: "Two bars on the crash." },
+  { scene: "hook", sec: 3.89, why: "Two bars on the crash." },
   {
     scene: "brief",
     sec: 5.35,
@@ -218,7 +213,7 @@ const CUT_60: readonly Edit[] = [
     sec: 1.92,
     replicaFrom: 23.5,
     replicaTo: 25.4,
-    fill: 0.62,
+    fill: 0.76,
     push: 1.02,
     why: "SETUP 1 — the sheet and the pins. @33.50",
   },
@@ -297,7 +292,7 @@ const CUT_120: readonly Edit[] = [
     sec: 5.69,
     replicaFrom: 23.5,
     replicaTo: 25.0,
-    fill: 0.62,
+    fill: 0.76,
     push: 1.02,
     why: "SETUP 1 — the sheet and the pins, still over the groove. @57.73",
   },
@@ -339,11 +334,11 @@ const CUT_120: readonly Edit[] = [
     push: 1,
     why: "ONE plan per pane, two bars each — a different brief and a different layout every time. @97.23",
   },
-  { scene: "second-brief", sec: 3.73, replicaFrom: 1, replicaTo: 2, push: 1, why: "@100.98" },
-  { scene: "second-brief", sec: 3.7, replicaFrom: 2, replicaTo: 3, push: 1, why: "@104.71" },
-  { scene: "second-brief", sec: 3.63, replicaFrom: 3, replicaTo: 4, push: 1, why: "@108.41" },
-  { scene: "price", sec: 3.79, why: "The drop-out at 112.04 — the money line in the quiet." },
-  { scene: "endcard", sec: 4.17, why: "The lift at 115.83, and the cadence takes it out." },
+  { scene: "second-brief", sec: 3.75, replicaFrom: 1, replicaTo: 2, push: 1, why: "@100.98" },
+  { scene: "second-brief", sec: 3.71, replicaFrom: 2, replicaTo: 3, push: 1, why: "@104.71" },
+  { scene: "second-brief", sec: 3.61, replicaFrom: 3, replicaTo: 4, push: 1, why: "@108.41" },
+  { scene: "price", sec: 3.87, why: "The drop-out at 112.04 — the money line in the quiet." },
+  { scene: "endcard", sec: 2.21, why: "The lift at 115.83, and the cadence takes it out." },
 ];
 
 /** The four edits. `timeline.ts` checks each sums to its cut length. */
