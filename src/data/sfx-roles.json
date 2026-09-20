@@ -17,12 +17,14 @@
       "perMusic": {
         "A-confident-arrival": {
           "gainDb": -14,
-          "eq": "highshelf=f=3500:g=-14,equalizer=f=10000:t=q:w=1.2:g=-6"
+          "eq": "highshelf=f=3500:g=-14,equalizer=f=10000:t=q:w=1.2:g=-6",
+          "file": "draw-b.A-confident-arrival"
         },
         "B-daylight-forward": {
           "gainDb": -10,
           "eq": "highshelf=f=5000:g=-9,equalizer=f=10000:t=q:w=1.2:g=-4",
-          "$why": "Shelf deepened from -7 to -9 after re-checking against the B edit's REAL draw windows. B's 15s cut draws at 5.66-9.40s, early in the take where the bed is ~4 dB quieter at 6.3 kHz than it is later, so the -7 setting left the cue 1.4 dB OVER the music there. At -9 the worst band across all four cuts is parity (-0.1 dB at 6.3 kHz on the 15s) and everything else clears by 3-12 dB."
+          "$why": "Shelf deepened from -7 to -9 after re-checking against the B edit's REAL draw windows. B's 15s cut draws at 5.66-9.40s, early in the take where the bed is ~4 dB quieter at 6.3 kHz than it is later, so the -7 setting left the cue 1.4 dB OVER the music there. At -9 the worst band across all four cuts is parity (-0.1 dB at 6.3 kHz on the 15s) and everything else clears by 3-12 dB.",
+          "file": "draw-b.B-daylight-forward"
         }
       },
       "duckDb": 0,

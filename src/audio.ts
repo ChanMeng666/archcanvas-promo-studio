@@ -246,7 +246,20 @@ export type RoleView = {
   readonly byIntent?: Readonly<Record<string, string>>;
   readonly anchor: "start" | "attack";
   readonly gainDb: number;
-  readonly perMusic?: Readonly<Record<string, { gainDb?: number; eq?: string }>>;
+  /**
+   * Per music take: a level, an EQ recipe, and the file that recipe was BAKED
+   * into.
+   *
+   * ⚠ `eq` alone never reached the film. Remotion's `<Audio>` takes a gain and
+   * nothing else, so for as long as the EQ was only a string the one thing that
+   * ever played it was `tools/mix-preview.mjs`. Measured on version B's 30 s
+   * draw window, the unshelved texture sat 0.4–3.7 dB OVER the music at 6.3, 8
+   * and 10 kHz — the bands the hats and shaker live in, on the money shot, and
+   * the reason the drawing role is not ducked at all is that its space was
+   * supposed to be carved here. `tools/bake-eq.mjs` renders the recipe into
+   * `file` and this plays that. The recipe stays as the record of how.
+   */
+  readonly perMusic?: Readonly<Record<string, { gainDb?: number; eq?: string; file?: string }>>;
   readonly perFile?: Readonly<Record<string, { gainDb?: number; anchor?: "start" | "attack"; duckDb?: number }>>;
   readonly loop?: RoleLoop;
   readonly bandTick?: RoleBandTick;
@@ -395,11 +408,17 @@ export const roleCue = (
   const setId = set ?? activeSfxSetId();
   const v = roleView(id, setId);
   const tick = intent === BAND_INTENT ? v.bandTick : undefined;
+  const perMusic = tick || !music ? undefined : v.perMusic?.[music];
+  /*
+   * The BAKED file wins, when the manifest names one. `eq` is then already in
+   * the bytes, so it is not returned — an offline mixer that applied both would
+   * shelve the same texture twice.
+   */
   const cueId = tick?.file
+    ?? perMusic?.file
     ?? (intent && v.byIntent?.[intent])
     ?? (r.rotate ? v.files[nth % Math.max(1, v.files.length)] : v.files[0]);
   const perFile = v.perFile?.[cueId];
-  const perMusic = music ? v.perMusic?.[music] : undefined;
   const cue = sfxSet(setId).cues.find((c) => c.id === cueId);
   if (!cue) {
     throw new Error(
@@ -413,7 +432,9 @@ export const roleCue = (
     file: cue.file,
     durationSec: cue.durationSec,
     gainDb: tick?.gainDb ?? perMusic?.gainDb ?? perFile?.gainDb ?? v.gainDb,
-    eq: tick ? null : (perMusic?.eq ?? null),
+    // Null once it is baked: the filter is in the file, and a mixer that
+    // applied it again would shelve the same texture twice.
+    eq: tick || perMusic?.file ? null : (perMusic?.eq ?? null),
     anchor,
     // `start` schedules at the action; `attack` pulls back so the sound's first
     // strong onset lands ON it. The offset is measured, never typed.

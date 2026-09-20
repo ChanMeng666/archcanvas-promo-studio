@@ -56,6 +56,7 @@
  * Usage:  node capture/verify-audio.mjs [--json]
  */
 
+import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -73,8 +74,8 @@ const film = await loadFilm();
 const { CUT_IDS, FPS } = film.layout;
 const { TIMELINES } = film.timeline;
 const { cuesFor, cueProblems, drawBeatsFor, MAX_SIMULTANEOUS, MAX_KEYS_PER_SEC } = film.cues;
-const { allSfx, audioProblems, bedFor, resolveCue, role, roleCue, roleView, ROLE_IDS, SFX_SET_IDS } = film.audio;
-const { VERSION, EDIT_ID } = film.version;
+const { allSfx, audioProblems, bedFor, MUSIC_VERSION, resolveCue, role, roleCue, roleView, ROLE_IDS, SFX_SET_IDS } = film.audio;
+const { VERSION, EDIT_ID, versionProblems } = film.version;
 
 /** How far a derived cue may sit from the moment it is derived FROM. */
 const TOL_FRAMES = 1;
@@ -100,6 +101,17 @@ for (const cut of CUT_IDS) {
 /* ── 2. the manifests are internally sound ────────────────────────────────── */
 
 for (const problem of audioProblems()) fail("manifest", "src/data", problem);
+
+/*
+ * ⚠ And the VERSION map, here, because nothing else was reading it.
+ *
+ * `versionProblems()` has been correctly reporting that the two `+el` versions
+ * name an unknown sound set since the day they landed — `version.ts` held a
+ * hand-written union naming `elevenlabs`, and the set on disk is
+ * `elevenlabs-audition`. Reported, never enforced, so it said so to nobody for
+ * a fortnight. Which set a version loads is an audio fact, so it fails here.
+ */
+for (const problem of versionProblems()) fail("version", "src/data/versions.json", problem);
 
 /*
  * Every role, and every intent the sheets use, resolves in EVERY set — not just
@@ -166,6 +178,56 @@ for (const setId of SFX_SET_IDS) {
   }
 }
 
+/*
+ * A baked EQ still matches its recipe.
+ *
+ * `tools/bake-eq.mjs` renders the manifest's per-music filter into real bytes,
+ * because Remotion's `<Audio>` takes a gain and nothing else. That makes the
+ * baked file a DERIVED artefact committed next to its source, and a derived
+ * artefact with no tripwire is a stale artefact waiting to happen: change the
+ * shelf, or re-buy the source, and the film goes on playing yesterday's filter
+ * with every other gate green. The hash is recomputed from the source's bytes
+ * and the recipe string — no ffmpeg, no decode.
+ */
+let bakedChecked = 0;
+for (const setId of SFX_SET_IDS) {
+  for (const roleId of ROLE_IDS) {
+    const v = roleView(roleId, setId);
+    for (const [music, entry] of Object.entries(v.perMusic ?? {})) {
+      if (!entry || typeof entry !== "object" || !entry.eq) continue;
+      bakedChecked += 1;
+      if (!entry.file) {
+        fail(
+          "baked",
+          `${setId} · ${roleId} · ${music}`,
+          `declares an EQ (${entry.eq}) but names no baked file — Remotion cannot filter audio, so this ` +
+            "recipe reaches nothing. Run `node tools/bake-eq.mjs`",
+        );
+        continue;
+      }
+      const baked = film.audio.sfxSet(setId).cues.find((c) => c.id === entry.file);
+      const source = film.audio.sfxSet(setId).cues.find((c) => c.id === baked?.derivedFrom);
+      if (!baked || !source) {
+        fail("baked", `${setId} · ${roleId} · ${music}`, `names "${entry.file}", which the set does not carry`);
+        continue;
+      }
+      const srcAbs = path.join(PUBLIC_DIR, source.file);
+      if (!fs.existsSync(srcAbs)) continue; // the missing-file check above owns this
+      const want = crypto.createHash("sha256")
+        .update(crypto.createHash("sha256").update(fs.readFileSync(srcAbs)).digest("hex"))
+        .update("\n").update(entry.eq).digest("hex").slice(0, 16);
+      if (baked.recipeHash !== want) {
+        fail(
+          "baked",
+          `${setId} · ${roleId} · ${music}`,
+          `"${entry.file}" was baked from a different source or a different recipe ` +
+            `(${baked.recipeHash} vs ${want}) — run \`node tools/bake-eq.mjs\``,
+        );
+      }
+    }
+  }
+}
+
 /* ── 3. the cue sheets ────────────────────────────────────────────────────── */
 
 const perCut = {};
@@ -214,7 +276,7 @@ for (const cut of CUT_IDS) {
    */
   for (const cue of sheet) {
     const rc = resolveCue(cue);
-    const r = roleCue(cue.role, { intent: cue.intent, nth: cue.nth });
+    const r = roleCue(cue.role, { intent: cue.intent, nth: cue.nth, music: MUSIC_VERSION });
     const want = cue.atSec - r.offsetSec;
     if (!Number.isFinite(rc.startSec) || Math.abs(rc.startSec - want) > TOL_SEC + 1e-9) {
       fail(
@@ -362,7 +424,7 @@ console.log(
     `${bandTicksChecked} band tick(s), worst ${worstTickFrames.toFixed(2)} frame off its knot`,
 );
 console.log(`    ${mappingsChecked} role→file mapping(s) resolved across ${SFX_SET_IDS.length} set(s): ${SFX_SET_IDS.join(", ")}`);
-console.log(`    ${scopedChecked} per-set field(s) checked for fall-through from the role`);
+console.log(`    ${scopedChecked} per-set field(s) checked for fall-through from the role; ${bakedChecked} baked EQ recipe(s) still current`);
 
 if (!failures.length) {
   console.log("\n  ✓ every cue has a file, is anchored, lands inside its cut, and nothing piles up\n");

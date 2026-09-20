@@ -25,10 +25,27 @@
  */
 
 import musicJson from "./data/music.json";
+import sfxJson from "./data/sfx.json";
 import versionsJson from "./data/versions.json";
 
 export type EditId = "A" | "B";
-export type SfxSetId = "synth" | "elevenlabs";
+
+/**
+ * A sound set's id, and it is **whatever `sfx.json` holds** rather than a union.
+ *
+ * ⚠ It was `"synth" | "elevenlabs"`, which named a set that has never existed:
+ * `elevenlabs` is the reserved name for a releasable vendor set, and the one on
+ * disk is `elevenlabs-audition`. So `versionProblems()` reported two versions
+ * as naming an unknown set — correctly, about itself — for as long as the +el
+ * versions have existed, and nothing failed, because nothing reads it. A hand
+ * written union over a set of ids that lives in a manifest is a second copy of
+ * that manifest, and this is what a second copy does.
+ */
+export type SfxSetId = string;
+
+const sfxSetIds: readonly string[] = Object.keys(
+  (sfxJson as unknown as { sets?: Record<string, unknown> }).sets ?? {},
+);
 
 export type VersionSpec = {
   readonly music?: string;
@@ -87,8 +104,11 @@ export const versionProblems = (): readonly string[] => {
   }
   for (const [id, spec] of Object.entries(doc.versions ?? {})) {
     if (spec.edit !== "A" && spec.edit !== "B") out.push(`version "${id}" names an unknown edit "${spec.edit}"`);
-    if (spec.sfxSet !== "synth" && spec.sfxSet !== "elevenlabs") {
-      out.push(`version "${id}" names an unknown sfx set "${spec.sfxSet}"`);
+    if (!sfxSetIds.includes(spec.sfxSet)) {
+      out.push(
+        `version "${id}" names the sfx set "${spec.sfxSet}", which src/data/sfx.json does not hold — ` +
+        `it has ${sfxSetIds.join(", ") || "(none)"}`,
+      );
     }
   }
   return out;
