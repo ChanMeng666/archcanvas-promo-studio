@@ -95,11 +95,26 @@ product's own strings. A replica *can* draw a number no compiler emitted — tha
 Commercial rights attach to the tier active when an asset was *created*; upgrading
 afterwards does not license what already exists. ElevenLabs' free plan carries no
 commercial licence and its terms cover content created outside a paid subscription
-*before or after* — twelve assets were deleted over this (`docs/decisions.md` D4), and
-that is why all fourteen sound effects are synthesised offline instead.
+*before or after* — twelve assets were deleted over this (`docs/decisions.md` D4).
 
-For SUNO the record is a dated checkbox per take in `docs/suno-prompt.md`
-("plan tier for `<take>.mp3` · confirmed on: ____"). **Human judgement — there is no
-gate.** No code in this repo refuses a master on licence grounds; an unconfirmed take is
-blocked by the founder and by this line, so leave the box unticked until it is true and
-do not render against a take whose box is empty.
+**The fact is now a field, and a gate reads it.** Every sound-effect set and music version
+carries a `provenance` object — `source`, `tier`, `generatedAt` / `confirmedOn`,
+`commercialUse`, and for music `confirmedBy` plus a note naming the billing record that
+would answer a challenge. The value is decided **at generation time** by the vendor's own
+subscription endpoint; nothing downstream re-decides it.
+
+`npm run verify:release` (`capture/verify-release.mjs`) refuses to let masters be rendered
+when the active sound-effect set — or any cue in it — carries `commercialUse: false`, or
+when the active music version explicitly does. It is **not** in `npm run verify`: it is
+first in `verify:strict`, and `render.ps1` calls it directly before it will so much as
+create `out/masters/<version>/`. What it allows instead is an **audition render into
+`out/previews/AUDITION-not-for-release/`**, which is how an unlicensed set can be listened
+to without being able to leave as a deliverable.
+
+Two things it deliberately does *not* do. A **missing** `commercialUse` on a music version
+is not a blocker — the SUNO beds predate the field and are covered by the dated
+confirmation rather than re-decided by a gate. And it does not stop anyone *choosing* an
+audition set; `tools/use-sfx.mjs` warns and switches. **It stops accidents, not
+decisions.** For SUNO the record remains a dated checkbox per take in
+`docs/suno-prompt.md` plus the `provenance` block in `src/data/music.json` — **confirming
+it is human judgement**, and the gate only enforces what a human wrote down.

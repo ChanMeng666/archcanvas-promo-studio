@@ -1,4 +1,4 @@
-# Versions — a version is music + edit + sound sheet
+# Versions — a version is music + edit + sound-effect set
 
 The edit is snapped to the take. `src/timeline.ts` pulls every scene boundary onto the
 nearest downbeat of that cut's own bed, and `src/cues.ts` derives every sound effect by
@@ -18,9 +18,12 @@ versions are to be kept, both must stay *renderable*, not merely archived.
 | measurements (downbeats, LUFS, true peak, provenance) | `src/data/music.json` → `versions.<version>` |
 | masters | `out/masters/<version>/` |
 
-The fourteen sound effects are **not** versioned — they are synthesised offline and have
-nothing to do with the music track. `npm run audio:all` rebuilds them; a music swap does
-not need it.
+The **sound-effect set** is versioned separately and on its own axis, because it has
+nothing to do with the music track: `src/data/sfx.json` holds every set and names one
+`active`, switched by `node tools/use-sfx.mjs <set>`. `npm run audio:all` rebuilds the
+`synth` set; a music swap does not need it. So a master is pinned by three choices —
+music version, edit, and which set was active — and the third is the one with no folder
+name to remind you, which is why `verify:release` reads it before a master may exist.
 
 A version id is a **letter plus the take's own slug** — `A-confident-arrival`,
 `B-daylight-forward`. Neither half is typed: `tools/plan-beds.mjs` derives the slug from
@@ -70,6 +73,25 @@ mp3s are missing, and says which ones.
 **`render.ps1 -MusicVersion` is an assertion, not a switch.** It is compared against
 `active` and stops the run on disagreement, because a master filed under the wrong music is
 worse than no master: it looks like a deliverable.
+
+## Auditioning a sound-effect set
+
+```powershell
+node tools/use-sfx.mjs                         # list sets; * marks active
+node tools/use-sfx.mjs elevenlabs-audition     # switch; it warns, it does not block
+node tools/use-sfx.mjs elevenlabs-audition --draw c   # repoint one alias
+npm run audition                               # draw candidates + the HTML page
+```
+
+`npm run audition` builds five muxes of one 8 s draw segment (one per candidate, silent
+picture plus the candidate at −8 dB) into `out/previews/AUDITION-not-for-release/`,
+carrying a `README-NOT-FOR-RELEASE.txt` in with them, and an HTML page with spectrograms
+under `out/audition/`. `npm run verify:release` refuses masters while an unlicensed set is
+active, so the audition can be heard properly without being able to leave as a
+deliverable. Switch back to `synth` before rendering, or promote the set properly with
+`node tools/generate-sfx-elevenlabs.mjs --set elevenlabs` — which refuses to run on a free
+tier, by design, and which is a **re-mix**: there is no seed, so it buys a different sound
+design rather than restoring this one.
 
 `verify:assets` checks **every** version's beds are on disk, not just the active one, so a
 deleted bed reddens today rather than on the day someone tries to re-render that version.
