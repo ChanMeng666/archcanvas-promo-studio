@@ -3,6 +3,13 @@
  * use-sfx.mjs — point the film at a sound-effect set, and choose which `draw`
  * candidate the plan-drawing beat uses.
  *
+ * ⚠ **Since the version model landed this is a FALLBACK switch, not the switch.**
+ * `FILM_VERSION` picks a version out of `src/data/versions.json`, and the
+ * version names its own sound set; `active` here is only consulted when the
+ * selected version names none, which none of them do today. So this tool still
+ * reports what is on disk and still repoints `--draw`, but setting `active`
+ * will NOT change what a render or a gate uses. Change the version instead.
+ *
  * The sibling of `tools/use-music.mjs`, and the same law: **one switch.**
  * `src/data/sfx.json` has a single `active` field, `src/audio.ts` reads it, and
  * everything else — the gates, the stills, the renders — reads `src/audio.ts`.
