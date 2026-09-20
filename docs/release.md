@@ -42,12 +42,20 @@ same discipline `src/data/music-grid.ts` already records under "one clock".
 
 ---
 
-## Version A — rendered 2026-09-20
+## Version A — re-rendered 2026-09-20 at `8181e86`
 
-Eight masters, `out/masters/A-confident-arrival/`, at commit `8593e72`. Every one
-exact on frame count (450 / 900 / 1800 / 3600), 30 fps, h264 / yuv420p, AAC audio
-present and not silent, and past `verify:flash` with zero flash pairs. The record
-is `MANIFEST.json`; the review copies are in `review/`.
+Eight masters, `out/masters/A-confident-arrival/`. Every one exact on frame count
+(450 / 900 / 1800 / 3600), 30 fps, h264 / yuv420p, AAC audio present and not
+silent, and past `verify:flash` with zero flash pairs. The record is
+`MANIFEST.json`; the review copies are in `review/`.
+
+This **replaced** the first render (`8593e72`), which was superseded by the travel
+and loudness fixes. The old mp4s were deleted rather than kept — 147 MB to
+preserve a provenance that four lines of JSON preserve better — and
+`MANIFEST.json`'s `supersedes` is that record. The replacement was staged: the
+previous masters were moved aside and only removed once every new one had been
+measured and screened, so a failed render could never have left the folder
+without a good master.
 
 The container duration reads ~60 ms over each cut length on all eight. That is the
 AAC tail padding — the **video** stream is exactly 15.000 / 30.000 / 60.000 /
@@ -170,12 +178,17 @@ Two things it reports that are **not** faults:
   stream, and AAC pads its tail to a whole 1024-sample frame. The manifest
   carries the video stream's own duration and frame count beside it, and those
   are exact — 450 / 900 / 1800 / 3600 frames at 30 fps.
-- **A master reads a little QUIETER than its bed** — about −17.6 LUFS against a
-  −16 bed. That is the duck, which at this cue density covers 51–74 % of the
-  runtime and acts as a ~2 dB trim. Measured and explained in
-  `docs/decisions.md` D32a. Platforms normalise up from here and there is 3–4 dB
-  of true-peak headroom, so it is a constant and a re-render if the founder
-  wants it louder — not a re-mix.
+- **The measured loudness should match `verify:loudness` within ~0.1 LU.** It
+  did on version A: −15.8 / −16.4 / −16.4 / −16.3 against a predicted −15.7 /
+  −16.3 / −16.3 / −16.3. **If a re-render disagrees by more than about 0.5 LU,
+  the gate's model is wrong and that is the finding** — do not just accept the
+  file.
+- **True peak is predicted less reliably than loudness.** On the 60 s cut the
+  model said −2.4 dBTP and the master measured −1.2, reached in the first 64 ms
+  where that bed's entry meets the opening cue. It clears the −1.0 ceiling by
+  0.2 dB, so **the peak check is the one with no margin left**. If a new take
+  goes over, expect it there, and fix it with a cue gain in the data rather
+  than a bed level. `docs/decisions.md`, *Confirmed against the real masters*.
 
 ### 6. Screen every master
 
