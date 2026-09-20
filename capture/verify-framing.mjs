@@ -51,7 +51,22 @@ const failures = [];
 const fail = (kind, subject, detail) => failures.push({ kind, subject, detail });
 
 const film = await loadFilm();
-const { DELIVERABLES, deriveLayout, splitStage, FPS } = film.layout;
+const { DELIVERABLES, deriveLayout, pictureClipBottom, splitStage, FPS } = film.layout;
+/**
+ * The clip `SceneRouter` applies, for this frame shape and this scene kind.
+ *
+ * ⚠ It is not optional detail. `camera.ts` reads `clipBottom` for `fillScale`
+ * and for the protection bounds, so a gate that passes the mount box and not
+ * the clip measures a camera the renderer does not use — "the gate that
+ * re-implements what it checks", arriving through an omitted argument.
+ */
+const clipFor = (layout, split) => {
+  const clip = split
+    ? Math.min(splitStage(layout).line.y - layout.u(10), pictureClipBottom(layout))
+    : pictureClipBottom(layout);
+  return clip < layout.height ? clip : undefined;
+};
+
 const { timelineFor } = film.timeline;
 const { SCENES } = film.scenes;
 const { shotFor, designRect, focusRectFor, pushRect, visibleSubjects, union } = film.camera;
@@ -107,9 +122,11 @@ for (const d of DELIVERABLES) {
     const scene = SCENES[beat.scene];
     const split = scene.kind === "split";
     const box = split ? sp.replica : layout.picture;
+    const clipBottom = clipFor(layout, split);
     const clipBottom = split ? sp.line.y - layout.u(10) : undefined;
 
     const shot = shotFor(beat, Math.round(beat.durationInFrames * SETTLED), layout, box, {
+      clipBottom,
       browserFrame: layout.aspect === "landscape",
       clipBottom,
     });
@@ -160,6 +177,7 @@ for (const d of DELIVERABLES) {
     const scene = SCENES[beat.scene];
     const split = scene.kind === "split";
     const box = split ? sp.replica : layout.picture;
+    const clipBottom = clipFor(layout, split);
     const clipBottom = split ? sp.line.y - layout.u(10) : undefined;
     const viewH = clipBottom ?? layout.height;
 
@@ -167,6 +185,7 @@ for (const d of DELIVERABLES) {
     // The entrance is allowed to be wide, so the sweep starts after it.
     for (let f = Math.round(0.35 * FPS); f < beat.durationInFrames; f += step) {
       const shot = shotFor(beat, f, layout, box, {
+        clipBottom,
         browserFrame: layout.aspect === "landscape",
         clipBottom,
       });
@@ -188,6 +207,7 @@ for (const d of DELIVERABLES) {
        * this round was opened by go red again.
        */
       const lookahead = shotFor(beat, Math.min(f + 3, beat.durationInFrames - 1), layout, box, {
+        clipBottom,
         browserFrame: layout.aspect === "landscape",
         clipBottom,
       });

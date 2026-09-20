@@ -3,7 +3,7 @@ import { AbsoluteFill } from "remotion";
 
 import { COPY_FLAGS } from "../copy";
 import { CHAPTER_LABELS } from "../film-demo";
-import { splitStage, useLayout } from "../layout";
+import { PICTURE_FEATHER_PX, pictureClipBottom, splitStage, useLayout } from "../layout";
 import { SCENES, groundOf } from "../scenes";
 import type { ResolvedBeat } from "../timeline";
 import { APP, BAND, SPOT, STAGE } from "../tokens";
@@ -63,18 +63,68 @@ export const SceneRouter: React.FC<{ beat: ResolvedBeat }> = ({ beat }) => {
 
     case "replica":
     default:
-      return (
-        <AbsoluteFill>
-          {beat.scene === "second-brief" ? <SecondBrief beat={beat} /> : <ReplicaSlot beat={beat} />}
-          {scene.chapter && beat.scene !== "second-brief" ? (
-            <ChapterChip label={CHAPTER_LABELS[scene.chapter]} />
-          ) : null}
-        </AbsoluteFill>
-      );
+      return <FullBleed beat={beat} />;
   }
 };
 
 /**
+ * A full-bleed replica beat: the picture, clipped, on the chapter's ground.
+ *
+ * ⚠ The clip is the point. `ReplicaSlot` mounts inside `layout.picture`, and
+ * `camera.ts` then scales the whole layer about its origin — so a 2.6x push
+ * carries content out of the box it was mounted in, and in 9:16 it lands in the
+ * 390 px the platforms cover with their own interface. That is where the
+ * sheet's caption row was being cut in half and where the drafting card was
+ * losing both its sides.
+ *
+ * So the picture ends where `pictureClipBottom` says and the chapter's colour
+ * owns the band below it — which is what a `split` scene has always done with
+ * its type band, now one rule rather than two. In 16:9 the clip is the frame
+ * and this costs nothing.
+ *
+ * The ground is painted OUTSIDE the clip: `ReplicaSlot` paints its own, and a
+ * clipped ground is a clipped ground.
+ */
+const FullBleed: React.FC<{ beat: ResolvedBeat }> = ({ beat }) => {
+  const layout = useLayout();
+  const scene = SCENES[beat.scene];
+  const clip = pictureClipBottom(layout);
+  const clipped = clip < layout.height;
+  /*
+   * A hard line across the paper reads as a crop; a short feather reads as the
+   * sheet running under the band. The mask is on the CLIP layer, which is not
+   * transformed — the trap list's warning is about backing store for large
+   * TRANSFORMED layers, and this is not one.
+   */
+  const feather = clipped
+    ? `linear-gradient(to bottom, #000 calc(100% - ${PICTURE_FEATHER_PX}px), transparent 100%)`
+    : undefined;
+
+  return (
+    <AbsoluteFill style={{ backgroundColor: groundOf(beat.scene) ?? APP.page }}>
+      <AbsoluteFill
+        style={{
+          height: clip,
+          overflow: "hidden",
+          maskImage: feather,
+          WebkitMaskImage: feather,
+        }}
+      >
+        {beat.scene === "second-brief" ? (
+          <SecondBrief beat={beat} />
+        ) : (
+          <ReplicaSlot beat={beat} clipBottom={clipped ? clip : undefined} />
+        )}
+      </AbsoluteFill>
+      {scene.chapter && beat.scene !== "second-brief" ? (
+        <ChapterChip label={CHAPTER_LABELS[scene.chapter]} />
+      ) : null}
+    </AbsoluteFill>
+  );
+};
+
+/**
+ * Whether this beat's split line is on screen./**
  * Whether this beat's split line is on screen.
  *
  * One scene, one flag: `tweak` is the only beat whose line the founder has not
@@ -99,7 +149,8 @@ const Split: React.FC<{ beat: ResolvedBeat; dur: number }> = ({ beat, dur }) => 
   const layout = useLayout();
   const scene = SCENES[beat.scene];
   const { replica, line } = splitStage(layout);
-  const clipBottom = line.y - layout.u(10);
+  // The tighter of the two: a split scene's band, or the picture clip.
+  const clipBottom = Math.min(line.y - layout.u(10), pictureClipBottom(layout));
   /*
    * The band takes the chapter's own colour, so the type sits in the film's
    * colour script rather than on beige under a coloured stage. The review

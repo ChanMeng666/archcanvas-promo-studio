@@ -69,7 +69,7 @@ const exceptions = [];
 const fail = (kind, subject, detail) => failures.push({ kind, subject, detail });
 
 const film = await loadFilm();
-const { DELIVERABLES, deriveLayout, FPS, splitStage } = film.layout;
+const { DELIVERABLES, deriveLayout, FPS, pictureClipBottom, splitStage } = film.layout;
 const { timelineFor, honestyWindow } = film.timeline;
 const { SCENES } = film.scenes;
 const { shotFor, insideFrame, draftCardRectFor } = film.camera;
@@ -97,6 +97,21 @@ if (drift) fail("drift", "the honesty caption", drift);
  * reach it. It is two lines and it is derived from the aspect, so it cannot
  * drift in a way that matters; anything larger would belong in `camera.ts`.
  */
+/**
+ * The clip `SceneRouter` applies, for this frame shape and this scene kind.
+ *
+ * ⚠ It is not optional detail. `camera.ts` reads `clipBottom` for `fillScale`
+ * and for the protection bounds, so a gate that passes the mount box and not
+ * the clip measures a camera the renderer does not use — "the gate that
+ * re-implements what it checks", arriving through an omitted argument.
+ */
+const clipFor = (layout, split) => {
+  const clip = split
+    ? Math.min(splitStage(layout).line.y - layout.u(10), pictureClipBottom(layout))
+    : pictureClipBottom(layout);
+  return clip < layout.height ? clip : undefined;
+};
+
 const boxFor = (layout, beat) =>
   SCENES[beat.scene].kind === "split" ? splitStage(layout).replica : layout.picture;
 
@@ -170,9 +185,10 @@ for (const d of DELIVERABLES) {
     if (beat.replicaFrom === undefined) continue;
     if (beat.scene === "second-brief") continue;
     const box = boxFor(layout, beat);
+    const clipBottom = clipFor(layout, SCENES[beat.scene].kind === "split");
 
     for (let f = 0; f < beat.durationInFrames; f += 1) {
-      const shot = shotFor(beat, f, layout, box, { browserFrame: windowed });
+      const shot = shotFor(beat, f, layout, box, { browserFrame: windowed, clipBottom });
       const abs = beat.startFrame + f;
 
       // Only a caption the camera has left WHOLE counts toward the floor. One
