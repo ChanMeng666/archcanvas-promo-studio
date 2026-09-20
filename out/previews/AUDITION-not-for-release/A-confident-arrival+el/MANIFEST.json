@@ -15,12 +15,19 @@
     "musicCommercialUse": true,
     "musicNote": "Dated founder confirmation recorded in ../archcanvas-promo-remotion/docs/suno-prompt.md. Not a measurement: a SUNO export does not carry the account's plan."
   },
-  "renderCommit": "8e48d320bfe5bea779e8499a816b5a35a33002f4",
+  "renderCommit": "bf65ec4bb7eaedb5b1a7bfeb3c5eedca978b3e4e",
   "workingTreeDirty": false,
-  "renderedOn": "2026-09-20",
+  "renderedOn": "2026-09-21",
   "fps": 30,
   "codec": "h264 / yuv420p, crf 18, AAC audio",
-  "supersedes": [],
+  "supersedes": [
+    {
+      "renderCommit": "8e48d320bfe5bea779e8499a816b5a35a33002f4",
+      "renderedOn": "2026-09-20",
+      "filmVersion": "A-confident-arrival+el",
+      "note": "superseded by bf65ec4bb7ea"
+    }
+  ],
   "masters": [
     {
       "tag": "15l",
@@ -73,8 +80,8 @@
     {
       "tag": "30l",
       "file": "archcanvas-studio-2026-09_30s_landscape_1920x1080.mp4",
-      "bytes": 7995805,
-      "sha256": "0d42ecbb5c1530800ba655f020238b0264f57f45ce193f70703aeaf4eb469da1",
+      "bytes": 8055024,
+      "sha256": "84849c5e9ef6066d6109b9626443c9aa5911c5181267e0012b9f811e40f2c2f0",
       "durationSec": 30.059,
       "videoDurationSec": 30.0,
       "frames": 900,
@@ -91,14 +98,14 @@
       "truePeakDb": -4.2,
       "meanVolumeDb": -17.6,
       "maxVolumeDb": -4.2,
-      "bitrate": 2128053,
-      "modified": "2026-09-20T23:07:59"
+      "bitrate": 2143814,
+      "modified": "2026-09-21T01:24:47"
     },
     {
       "tag": "30v",
       "file": "archcanvas-studio-2026-09_30s_vertical_1080x1920.mp4",
-      "bytes": 8238391,
-      "sha256": "14b565b2a24ebda56d150c2c99ed1c8499bb0ac01fbdd8338a66185303c65d42",
+      "bytes": 8182578,
+      "sha256": "21de72d4b5a98c884c51ade539704cf06baffe3f26d6d32fe89fe4ecd5e92499",
       "durationSec": 30.059,
       "videoDurationSec": 30.0,
       "frames": 900,
@@ -115,14 +122,14 @@
       "truePeakDb": -4.2,
       "meanVolumeDb": -17.6,
       "maxVolumeDb": -4.2,
-      "bitrate": 2192616,
-      "modified": "2026-09-20T23:09:41"
+      "bitrate": 2177762,
+      "modified": "2026-09-21T01:25:43"
     },
     {
       "tag": "60l",
       "file": "archcanvas-studio-2026-09_60s_landscape_1920x1080.mp4",
-      "bytes": 15641707,
-      "sha256": "f3eff72960a3c48a1047779b67bd4b6823168b6b8fdab876f96f2ea8625719d8",
+      "bytes": 15778752,
+      "sha256": "a9c36fc0537f39ff66cd9de80ada9a22f272bb18ab075e3e52a1b6f381c0ea82",
       "durationSec": 60.053,
       "videoDurationSec": 60.0,
       "frames": 1800,
@@ -139,14 +146,14 @@
       "truePeakDb": -2.7,
       "meanVolumeDb": -17.4,
       "maxVolumeDb": -2.7,
-      "bitrate": 2083708,
-      "modified": "2026-09-20T23:13:19"
+      "bitrate": 2101965,
+      "modified": "2026-09-21T01:27:28"
     },
     {
       "tag": "60v",
       "file": "archcanvas-studio-2026-09_60s_vertical_1080x1920.mp4",
-      "bytes": 15564558,
-      "sha256": "4b6cf2bc0f4228368b56a41b8b39b293fcdda2c44b56f4706393645200145f7f",
+      "bytes": 15564495,
+      "sha256": "3149ad64aab2df754c0ba8a0c4b751ddba4ba7930896128aa0153b128f22369d",
       "durationSec": 60.053,
       "videoDurationSec": 60.0,
       "frames": 1800,
@@ -163,14 +170,14 @@
       "truePeakDb": -2.7,
       "meanVolumeDb": -17.4,
       "maxVolumeDb": -2.7,
-      "bitrate": 2073431,
-      "modified": "2026-09-20T23:16:40"
+      "bitrate": 2073422,
+      "modified": "2026-09-21T01:29:14"
     },
     {
       "tag": "120l",
       "file": "archcanvas-studio-2026-09_120s_landscape_1920x1080.mp4",
-      "bytes": 30055814,
-      "sha256": "8ffce392b2f72a5314e5a4dab435109388e5528db2a36f86bce71840a10b07fe",
+      "bytes": 30216288,
+      "sha256": "edea41cdefe0f4edf4d7936580c648584a17c95f8dab6f0e39c806fce401306f",
       "durationSec": 120.064,
       "videoDurationSec": 120.0,
       "frames": 3600,
@@ -187,14 +194,14 @@
       "truePeakDb": -3.3,
       "meanVolumeDb": -17.5,
       "maxVolumeDb": -3.3,
-      "bitrate": 2002652,
-      "modified": "2026-09-20T23:21:04"
+      "bitrate": 2013345,
+      "modified": "2026-09-21T01:32:54"
     },
     {
       "tag": "120v",
       "file": "archcanvas-studio-2026-09_120s_vertical_1080x1920.mp4",
-      "bytes": 30316449,
-      "sha256": "d7a48e888706da29bf9f6f76fa6e5a7bb1077d9dadaf530f74c6e25e38bd5ab7",
+      "bytes": 29943643,
+      "sha256": "9481e320eb64bc7c6dc97cfd99c8978c99e37df12f768ad793b9603a1287c1d8",
       "durationSec": 120.064,
       "videoDurationSec": 120.0,
       "frames": 3600,
@@ -211,8 +218,8 @@
       "truePeakDb": -3.3,
       "meanVolumeDb": -17.5,
       "maxVolumeDb": -3.3,
-      "bitrate": 2020019,
-      "modified": "2026-09-20T23:27:46"
+      "bitrate": 1995178,
+      "modified": "2026-09-21T01:36:21"
     }
   ]
 }
