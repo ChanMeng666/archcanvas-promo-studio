@@ -817,7 +817,8 @@ export const shotFor = (
    * The 0.5 line is the same one the honesty gate reads, so the two cannot
    * disagree about when the pill has to be whole.
    */
-  if (overlaps(span, RENDERING_SPAN) && state.rendering.p >= 0.5) protect.push(pad(renderingRaw, layout.u(6)));
+  const pillOnScreen = overlaps(span, RENDERING_SPAN) && state.rendering.p >= 0.5;
+  if (pillOnScreen) protect.push(pad(renderingRaw, layout.u(6)));
   /*
    * The export menu is the subject of its own beat, and in 9:16 it is a
    * full-width bottom sheet. Unprotected, the push slid it under the split
@@ -850,7 +851,28 @@ export const shotFor = (
     // rectangle comfortably inside the frame can be entirely below that clip.
     // The protection is about what a viewer can see, so it is bounded by the
     // clip; coverage still uses the whole frame.
-    protectBounds: viewH >= layout.height ? undefined : { x: 0, y: 0, w: layout.width, h: viewH },
+    /*
+     * ⚠ In 9:16 the pill is bounded by the SAFE frame, not by the frame.
+     *
+     * `verify:honesty` asks whether the "AI-generated" pill's rectangle is
+     * inside the FRAME, and it was — comfortably, legibly, and inside the
+     * bottom 390 px that Reels, TikTok and Shorts cover with their own chrome.
+     * "Inside the frame" and "visible to a viewer of the vertical master on the
+     * platform it is cut for" are not the same claim, and the obligation the
+     * pill discharges (EU AI Act Art. 50) is about the second one.
+     *
+     * Only while a rendering is actually on screen, and only in 9:16: the
+     * landscape masters have no chrome band, and bounding every portrait beat
+     * this way would pull the framing back on beats that have no pill to
+     * protect.
+     */
+    protectBounds: (() => {
+      const safeBottom = layout.aspect === "portrait" && pillOnScreen
+        ? layout.height - layout.safe.bottom
+        : Infinity;
+      const h = Math.min(viewH, safeBottom);
+      return h >= layout.height ? undefined : { x: 0, y: 0, w: layout.width, h };
+    })(),
     // Not a hairline. A protected rectangle that ends two pixels from the frame
     // edge is technically uncropped and looks like a mistake, so the margin is
     // a visible one and the framing gives way to it.
@@ -870,6 +892,20 @@ export const shotFor = (
     renderingOpacity: state.rendering.p,
   };
 };
+
+/**
+ * The drafting card's box after the push, or `null` when it is not on screen.
+ *
+ * For `verify:honesty`, which has to ask whether the film's opaque band is
+ * printing over the product's own sheet. Exported rather than re-derived in the
+ * gate for the usual reason: `draftCardBox` carries a labelled workaround for a
+ * stale upstream spec (`DRAFT_CARD_SPEC_SHORTFALL`), and a gate with its own
+ * copy of that would go green on the day upstream fixed it.
+ */
+export const draftCardRectFor = (shot: Shot): StageRect | null =>
+  shot.state.drafting.visible
+    ? pushRect(shot.push, designRect(shot.mount, draftCardBox(shot.mount.spec)))
+    : null;
 
 /**
  * The scene's entrance, as a SCALE and nothing else.

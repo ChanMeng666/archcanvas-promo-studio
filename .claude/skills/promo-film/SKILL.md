@@ -81,6 +81,7 @@ frame. `references/traps.md` has the one-command proof.
 ```powershell
 node tools/beat-strip.mjs --cut 30                           # the cut's whole clock
 node capture/stills.mjs --comp Studio-30-Landscape-16x9      # six named beats
+                                                             #   + the 3 hand-over frames
 node capture/stills.mjs --sheet --comp <id>                  # contact frames
 npm run stills:sheet                                         # tile them, both aspects
 node capture/stills.mjs --at 30-Land:7.4,9.1                 # ad-hoc seconds

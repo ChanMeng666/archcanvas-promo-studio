@@ -69,6 +69,12 @@ while cutting, rendering and reviewing a version. Every one cost real time once.
 - **A stale number in a one-way copy is a labelled workaround, not a fix.**
   `DRAFT_CARD_SPEC_SHORTFALL` pads a `spec.draftCard` of 300 against a rendered ~400; it
   is documented as film-side and deleted when upstream fixes it.
+- **A still that is never TAKEN is a defect that cannot be found.** `stills.mjs` shot the
+  money shot at 45 % through its beat; the film's opaque honesty band was printing over
+  the product's drafting sheet for the first 0.4–0.8 s of it, in every cut, in both
+  edits. Three look passes, eight rendered masters and eleven green gates never sampled a
+  frame that had it. The hand-over frames are in the standard set now. **When a defect
+  survives a look pass, ask what the look pass SAMPLES before asking what the code does.**
 - **Screenshots shot and never opened are not a look pass.** Every finding in the three
   look-fix passes was invisible to a green gate, and a look pass run against a build that
   is not the shipping one misses the thing it was for.

@@ -1,7 +1,7 @@
 import React from "react";
 import { AbsoluteFill, useCurrentFrame } from "remotion";
 
-import { CAPTION_SCALE } from "../caption";
+import { CAPTION_SCALE, honestyBandRect } from "../caption";
 import { HONESTY, linesFor } from "../copy";
 import { FONT } from "../fonts";
 import { useLayout } from "../layout";
@@ -77,15 +77,21 @@ export const HonestyCaption: React.FC<{
   // Anchored to the BOTTOM OF THE STAGE, never to the bottom of the frame. In
   // 9:16 the last 390 px belong to Reels, TikTok and Shorts, and the film's one
   // mandatory sentence is the last thing that may sit behind a share sheet.
-  const height = layout.u(TYPE.caption * CAPTION_SCALE * 1.3) * lines.length + layout.u(40);
+  //
+  // ⚠ The box comes from `caption.ts` rather than being computed here, because
+  // `verify:honesty` now asks where this band lands — it is an opaque pill and
+  // it was printing over the product's own drafting sheet — and a gate reading
+  // one arithmetic while the component renders another is a gate that certifies
+  // a film nobody rendered.
+  const band = honestyBandRect(layout, lines.length);
 
   return (
     <AbsoluteFill
       style={{
-        left: layout.stage.x,
-        top: layout.stage.y + layout.stage.h - height - layout.u(56),
-        width: layout.stage.w,
-        height,
+        left: band.x,
+        top: band.y,
+        width: band.w,
+        height: band.h,
         justifyContent: "flex-start",
         alignItems: "center",
         opacity,

@@ -36,6 +36,15 @@
  *      opaque** (EU AI Act Art. 50). Checked as the rendering card's box being
  *      inside the frame, because the pill is drawn inside that card and the
  *      product owns where.
+ *   3b. **The film's own band never prints over the product's drafting sheet.**
+ *      The band is an OPAQUE pill at the bottom of the stage; upstream keeps the
+ *      sheet up while the drawing starts underneath it, so the money-shot beat
+ *      opened with the band across the card's own "Designing, checking and
+ *      reviewing your plan - usually 2-3 minutes." Two sentences saying nearly
+ *      the same thing, over each other, on the first frames of the beat the
+ *      whole edit is built around. Nothing cropped, nothing doubled, five green
+ *      checks - it survived three look passes and a rendered master, and only a
+ *      motion preview found it.
  *   4. **The film's caption and the replica's are the same sentence.** Two
  *      copies of one sentence is one copy too many; this is what stops them
  *      parting company when the product re-words its own.
@@ -56,14 +65,21 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const AS_JSON = process.argv.includes("--json");
 
 const failures = [];
+const exceptions = [];
 const fail = (kind, subject, detail) => failures.push({ kind, subject, detail });
 
 const film = await loadFilm();
 const { DELIVERABLES, deriveLayout, FPS, splitStage } = film.layout;
 const { timelineFor, honestyWindow } = film.timeline;
-const { HONESTY_MIN_SEC } = film.cuts;
 const { SCENES } = film.scenes;
-const { shotFor, insideFrame } = film.camera;
+const { shotFor, insideFrame, draftCardRectFor } = film.camera;
+const { honestyBandRect, captionLines } = film.caption;
+const { honestyWaitDiagnostic } = film.timeline;
+const { HONESTY_MIN_SEC } = film.cuts;
+
+/** Do two rectangles share any area? */
+const intersects = (a, b) =>
+  a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
 
 /** Entirely outside the frame — no part of it visible. */
 const outsideFrame = (r, w, h) => r.x + r.w <= 0.5 || r.y + r.h <= 0.5 || r.x >= w - 0.5 || r.y >= h - 0.5;
@@ -97,6 +113,9 @@ for (const d of DELIVERABLES) {
   let opaqueFrames = 0;
   let captionSamples = 0;
   let pillSamples = 0;
+  let overlapFrames = 0;
+  const band = honestyBandRect(layout, captionLines(layout.aspect));
+  const frameRect = { x: 0, y: 0, w: layout.width, h: layout.height };
 
   /**
    * The sentence's opacity at every frame of the master, from EITHER source.
@@ -110,6 +129,32 @@ for (const d of DELIVERABLES) {
   const ink = new Float64Array(resolved.totalFrames);
   const filmInk = new Float64Array(resolved.totalFrames);
   const win = honestyWindow(d.cut, layout.aspect);
+  /*
+   * ⚠ The exception is CHECKED, not believed.
+   *
+   * Waiting for the card costs the start of the band, and on a short money shot
+   * that is the difference between clearing the three-second floor and not — A's
+   * 15 s cut lands at 2.83 s. So the film does not wait there, and the overlap
+   * stands, because the sentence is the obligation and a composition problem may
+   * not spend it. What this asserts is that the exception was EARNED: every cut
+   * that declines to wait must be a cut where waiting really would have gone
+   * under. A standing excuse attached to a red gate trains everyone to read past
+   * the day it goes red for a real reason.
+   */
+  const bandWaits = win.bandWaitsForCard;
+  if (!bandWaits) {
+    const { waited } = honestyWaitDiagnostic(d.cut, layout.aspect);
+    exceptions.push(`${d.id}: band does not wait (waiting = ${waited.coveredSec.toFixed(2)}s, floor ${HONESTY_MIN_SEC}s)`);
+    if (waited.coveredSec + 1e-9 >= HONESTY_MIN_SEC) {
+      fail(
+        "overprint",
+        d.id,
+        `the band does not wait for the drafting sheet, but waiting would have kept the sentence on ` +
+          `screen for ${waited.coveredSec.toFixed(2)}s — over the ${HONESTY_MIN_SEC}s floor. The overlap is ` +
+          "not paying for anything here",
+      );
+    }
+  }
   if (win.source === "film") {
     // The band fades in over `MOTION.enterSec` (capped at a sixth of the window)
     // and does NOT fade out — `HonestyCaption`'s own arithmetic.
@@ -159,14 +204,43 @@ for (const d of DELIVERABLES) {
         }
       }
 
+      // 3b — the band is opaque; the drafting card must not be under it.
+      if (filmInk[abs] >= 0.1 && bandWaits) {
+        const card = draftCardRectFor(shot);
+        if (card && intersects(card, band) && intersects(card, frameRect)) {
+          overlapFrames += 1;
+          if (overlapFrames === 1) {
+            fail(
+              "overprint",
+              d.id,
+              `the film's honesty band is printing over the product's drafting sheet at ` +
+                `${(beat.startSec + f / FPS).toFixed(2)}s (beat ${beat.index} "${beat.scene}"): ` +
+                `band ${fmt(band)}, card ${fmt(card)} in ${layout.width}x${layout.height}`,
+            );
+          }
+        }
+      }
+
       // 3 — the rendering card carries the always-visible "AI-generated" pill.
       if (shot.renderingOpacity >= 0.5) {
         pillSamples += 1;
-        if (!insideFrame(shot.renderingRect, layout.width, layout.height, MARGIN)) {
+        /*
+         * ⚠ In 9:16 the bar is the SAFE frame, not the frame.
+         *
+         * This asked whether the pill's rectangle was inside the FRAME, and it
+         * was — comfortably, legibly, and sitting in the bottom 390 px that
+         * Reels, TikTok and Shorts cover with their own chrome. The obligation
+         * the pill discharges (EU AI Act Art. 50) is about what a viewer
+         * actually sees, so on the masters cut FOR those platforms the pill has
+         * to clear their furniture.
+         */
+        const bottomBar = layout.aspect === "portrait" ? layout.safe.bottom : 0;
+        const inside = insideFrame(shot.renderingRect, layout.width, layout.height - bottomBar, MARGIN);
+        if (!inside) {
           fail(
             "pill",
             d.id,
-            `the rendering card — and its "AI-generated" pill — is cropped at ` +
+            `the rendering card — and its "AI-generated" pill — is ${bottomBar ? "inside the platform chrome band" : "cropped"} at ` +
               `${(beat.startSec + f / FPS).toFixed(2)}s (push ${shot.push.scale.toFixed(3)}): ` +
               `box ${fmt(shot.renderingRect)} in ${layout.width}x${layout.height}`,
           );

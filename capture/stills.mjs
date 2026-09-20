@@ -110,7 +110,33 @@ const BEATS = {
 
 const film = await loadFilm();
 const { TIMELINES } = film.timeline;
+const { DRAW_HANDOFF_SEC } = film.honesty;
 const { DELIVERABLES, FPS } = film.layout;
+
+/**
+ * The HAND-OVER frames: the drafting sheet leaving as the first stroke lands.
+ *
+ * ⚠ Derived and unconditional, because this is the blind spot that hid a real
+ * defect through three look passes and a rendered master. The named-beat table
+ * below shoots the money shot at 45 % through its beat — two and a half seconds
+ * after the hand-over — and the film's opaque honesty band was printing over
+ * the product's drafting card for the first 0.4–0.8 s of every cut. A still
+ * that is never taken is a defect that cannot be seen.
+ *
+ * Before, just after, and once the card should have gone.
+ */
+const HANDOVER_OFFSETS = [-0.2, 0.1, 0.4];
+
+const handoverShots = (cut) => {
+  const beat = TIMELINES[cut].beats.find(
+    (b) => b.replicaFrom !== undefined && Math.abs(b.replicaFrom - DRAW_HANDOFF_SEC) < 1e-6,
+  );
+  if (!beat) return [];
+  return HANDOVER_OFFSETS.map((d) => ({
+    frame: Math.max(0, Math.round((beat.startSec + d) * FPS)),
+    name: `handover${d >= 0 ? "+" : ""}${d.toFixed(1)}s`,
+  }));
+};
 
 /** The absolute frame a `[scene, nth, p, name]` entry names, in a cut. */
 function frameFor(cut, [scene, nth, p]) {
@@ -170,6 +196,9 @@ for (const d of comps) {
         ? null
         : { frame, name: `${String(i + 1).padStart(2, "0")}-${entry[3]}` };
     }).filter(Boolean);
+    shots.push(
+      ...handoverShots(d.cut).map((h, i) => ({ ...h, name: `${String(shots.length + i + 1).padStart(2, "0")}-${h.name}` })),
+    );
   }
 
   for (const shot of shots) {

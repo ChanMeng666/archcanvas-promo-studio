@@ -48,6 +48,17 @@ is a hard cut at the beat's start (`docs/decisions.md` D19, D23).
 **The product's own "AI-generated" pill**, on any rendering, always visible, never a hover
 state — EU AI Act Art. 50. `verify-honesty.mjs` requires the pill's rectangle to be wholly
 inside the frame whenever `renderingOpacity >= 0.5`, and `camera.ts` protects it there.
+⚠ **In 9:16 the bar is the SAFE frame, not the frame.** The pill was inside the frame and
+inside the bottom 390 px that Reels/TikTok/Shorts cover with their own chrome; "inside the
+frame" and "visible to a viewer on the platform the vertical master is cut for" are not
+the same claim, and the obligation is about the second one (`docs/decisions.md` D38).
+
+**And the film's band may not print over the product's drafting sheet.** The band is an
+OPAQUE pill and upstream keeps the sheet up while the drawing starts underneath it, so the
+money shot opened with the film's sentence across the card's own "Designing, checking and
+reviewing your plan — usually 2–3 minutes." The band now WAITS for the card — unless
+waiting takes the sentence under the 3.0 s floor, which is A's 15 s cut, where the
+obligation wins and `bandWaitsForCard` reports it. `verify:honesty` § `overprint`.
 
 ## Colour
 

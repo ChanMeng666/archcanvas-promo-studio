@@ -1732,3 +1732,143 @@ The three findings above. A full render of version B — nothing here has been
 heard in a master, only in the offline mix and in one 8 s motion preview. The
 preview was cut at `--scale=0.75` rather than the 0.667 that was asked for,
 because 1080 × 0.667 is 720.36 and Remotion refuses a non-integer height.
+
+---
+
+## D38. Two of the three look findings are fixed; the third names a decision.
+
+D37 recorded three things the look loop found and did not fix, on the grounds
+that they were founder or upstream questions. They are not — all three are
+film-side — so this is the round that tried all three. Two landed. The third
+turned out to be a question about the 9:16 picture, and it is written down here
+as a question rather than guessed at.
+
+### The film's own band was printing over the product's drafting sheet
+
+The first reading was wrong in a way worth recording: the overlap is **not** the
+replica's caption against the card. The camera expels the replica's caption
+correctly on that beat — measured, `captionRect` at y = 1387 in a 1080-tall
+frame, fully out. What was on screen was the **film's own band**, an opaque pill
+at the bottom of the stage, printed across the card's own *"Designing, checking
+and reviewing your plan — usually 2–3 minutes."*
+
+Two existing rules were each right about the case they were written for:
+
+- `draftShare(win) > 0.5` stops a beat expelling when it is MOSTLY the drafting
+  card. Upstream deliberately keeps the sheet up while the drawing starts
+  underneath it, so the money-shot beat holds the card for 13.5 % of its window
+  and sails under a 50 % test.
+- `captionBandTop` has carried a docstring describing this exact fix since the
+  art-direction round — "the camera now treats the band's top as the bottom of
+  the frame for that beat" — and **no callers**. `visibleBottom` records why
+  that version was abandoned: it cost the money shot 30 % of its size.
+
+**Three fixes were measured and rejected before the fourth.**
+
+| attempt | what it did |
+|---|---|
+| protect the card above the band | `drafting.visible` is a boolean; the scale jumps 1.61 → 2.71 in one frame. A 68 % pop is worse than the overlap. |
+| ease that with a `lerpPush` over the card's fade | fixes the pop, then fails `verify:honesty` on all eight: at the wider framing the expelled caption comes back half into frame. The card and the caption are vertically adjacent, so lifting one brings the other back. |
+| make the band wait for the card, everywhere | A's 15 s money shot is 3.30 s long and the card holds the first 0.45 s. The sentence lands at **2.83 s** against the 3.0 s floor. |
+
+So the band waits for the card **unless waiting would take the sentence under
+the floor**. The priority is stated rather than tuned, in the only order it can
+be: the sentence is the film's one mandatory obligation and a composition
+problem may not spend it. Seven of the eight cut-and-edit combinations wait; A's
+15 s cut keeps the overlap and `bandWaitsForCard` says so out loud. Derived, not
+tabled — lengthen A's money shot by a fifth of a second and the wait applies
+there too, with nothing to remember.
+
+One thing fell out of it. A delayed band no longer abuts the product's caption,
+so its fade-in came out of the **opaque** run the floor is measured on: B's 15 s
+cut derived 3.07 s and the gate, which samples what is actually drawn, measured
+2.87 s. A delayed band is therefore `hardIn`; a fade from nothing in the middle
+of a beat, half a second after a card went away, is a glitch with a ramp on it
+rather than a hand-over.
+
+`verify:honesty` gains `overprint`, plus the check that keeps it honest: a cut
+that declines to wait must be a cut where waiting really would have gone under
+the floor, re-derived through `honestyWaitDiagnostic`. An exception earned every
+time it is taken, instead of a standing excuse attached to a red gate.
+
+⚠ **A's PICTURE changes; A's TIMELINE does not.** `edit-a-timeline.lock.json` is
+untouched and `verify:bars` still reproduces it to the frame. A's masters need
+re-rendering — they did anyway, for the sound.
+
+### The pill, and what "visible" means on a vertical master
+
+`verify:honesty` asked whether the "AI-generated" pill's rectangle was inside
+the FRAME. It was — comfortably, legibly, and inside the bottom 390 px that
+Reels, TikTok and Shorts cover with their own chrome. **"Inside the frame" and
+"visible to a viewer of the vertical master on the platform it is cut for" are
+not the same claim**, and the obligation the pill discharges (EU AI Act Art. 50)
+is about the second one.
+
+In 9:16, while a rendering is on screen, the protection bounds now end at the
+safe line rather than the frame edge, and the gate asserts the same. Scoped to
+beats that have a pill: bounding every portrait beat that way would pull the
+framing back on beats with nothing to protect.
+
+### The blind spot that hid all of this
+
+`stills.mjs` shoots the money shot at 45 % through its beat — two and a half
+seconds after the hand-over. The defect lived in the first 0.4–0.8 s. Three look
+passes, eight rendered masters and eleven green gates never looked at a frame
+that had it. The standard still set now always includes the hand-over: first
+stroke −0.2 s, +0.1 s, +0.4 s, derived per cut.
+
+**A still that is never taken is a defect that cannot be found**, and the
+general form is worth keeping: when a defect survives a look pass, ask what the
+look pass samples before asking what the code does.
+
+### ⚠ NOT fixed: the sheet's caption row, bisected in every 9:16 drawing beat
+
+Root-caused and measured rather than deferred. **Eleven beats** across the four
+vertical cuts push the sheet's own caption row into the bottom band, half
+outside the frame — `-storey Townhouse`, with "Two" off the left edge, at about
+40 px.
+
+It is **not** the picture box overrunning the safe area, which was the obvious
+theory: `PICTURE.portrait.bottom` is 400 against a 390 px safe bottom, so the
+mount already clears it. The row is put there by the **push** — `pushRect`
+scales about the origin, so content leaves the mount box.
+
+Expelling it, the way the product's own caption is expelled on a money shot,
+raises the scale until the honesty caption and the pill crop: **9 failures**
+across the vertical masters. The row, the caption and the rendering card all
+live in the lower third of the 9:16 design, and in that frame shape they cannot
+all be satisfied by framing alone.
+
+So the real question is about the 9:16 **picture**, not about a framing rule:
+either the picture box ends at the safe line and the chapter-colour band owns
+the bottom 390 px (consistent with the split scenes, and a change to every
+vertical beat), or the replica gets a 9:16 arrangement that does not put a
+sentence under the paper. Both are larger than a framing tweak and neither
+should be guessed at the end of a round.
+
+`sheetCaptionRect` lands anyway — derived through `sheetChrome`/`worldToDesign`
+so it cannot drift from what the component draws — because whichever way that
+question is answered, the next attempt needs the rect.
+
+### ⚠ And the new hand-over frames found a fourth thing, in 9:16 only
+
+The first thing the new samples showed is that the fix works: at the hand-over
+in 16:9 the drafting card is clean, legible and whole, with the drawing coming
+up behind it and no band on top of it.
+
+The second is that **in 9:16 the drafting card is cropped on both sides** for
+the same half-second. The money-shot beat is framed for the drawing at about
+2.6x, the card is still on screen for the first 0.5 s of it, and at that scale
+the card does not fit: `...y Townhouse`, `...room`, `Kitche...`, `...ting and
+reviewing your plan — usu...`. Nearly every line meets a frame edge.
+
+It is pre-existing and was not introduced here — only the band moved — and
+`timeline.ts` § `expels` already records the same shape being fixed once before
+("applied to the whole scene it cropped the drafting card on both sides"). The
+resolution then was to expel only on the money-shot half; what nobody sampled
+is that the money-shot half *begins* with the card still up.
+
+It is the same question as the sheet's caption row, at a larger size: in 9:16,
+during the hand-over, the frame is holding two subjects that need different
+framings. Recorded with the still rather than guessed at.
+Evidence: `out/stills/wp9/Studio-30-Vertical-9x16/08-handover+0.1s.png`.
