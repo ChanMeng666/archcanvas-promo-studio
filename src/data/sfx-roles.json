@@ -1,0 +1,99 @@
+{
+  "$comment": "WHAT plays and HOW LOUD. The cue sheet owns WHEN. Six roles, each naming the files it may use, how the film should line them up, how loud they sit, and how far they pull the music down. Written by hand from measurements (tools/rate-draw.mjs, tools/mask-check.mjs) and reviewed in docs/decisions.md D12 — every number here has a reason recorded there. Roles resolve against the ACTIVE sfx set in src/data/sfx.json; a set that lacks a file named here fails `npm run verify:assets`.",
+  "$anchorNote": "anchor 'start' schedules the file at the action instant; anchor 'attack' schedules it at (action - alignOffsetSec) so the sound's first strong onset lands ON the action. Per-cue alignOffsetSec lives in sfx.json and is measured, not typed.",
+  "$duckNote": "duckDb is how far the MUSIC is pulled down under this role. Overlapping ducks take the DEEPEST value, never the sum: two clicks 80ms apart must not dig a 6 dB hole. attack/hold/release are seconds.",
+  "$gainNote": "gainDb is relative to the cue as stored (every cue is normalised to -3 dBFS peak). `perMusic` overrides the base where a take's spectrum demands it — see D12: bed A is ~20 dB darker than bed B above 10 kHz, so one setting cannot serve both.",
+
+  "roles": {
+    "draw": {
+      "desc": "The plan drawing itself out, stroke by stroke. Plays as one continuous bed under the whole drawing beat.",
+      "files": ["draw-b"],
+      "rotate": false,
+      "anchor": "start",
+      "gainDb": -10,
+      "perMusic": {
+        "A-confident-arrival": { "gainDb": -14, "eq": "highshelf=f=3500:g=-14,equalizer=f=10000:t=q:w=1.2:g=-6" },
+        "B-daylight-forward": { "gainDb": -10, "eq": "highshelf=f=5000:g=-7,equalizer=f=10000:t=q:w=1.2:g=-4" }
+      },
+      "duckDb": 0,
+      "duck": null,
+      "$why": "Not ducked. Every other role is a transient that borrows a moment from the music; this one runs for seconds, and a duck that long is a hole rather than a gesture. Its space is carved with EQ instead — see perMusic."
+    },
+
+    "type": {
+      "desc": "The brief being typed into the composer. Four clusters, rotated so a long run never repeats a cluster back to back.",
+      "files": ["type-1", "type-2", "type-3", "type-4"],
+      "rotate": true,
+      "anchor": "attack",
+      "gainDb": -12,
+      "duckDb": -2.5,
+      "duck": { "attack": 0.03, "hold": 0.12, "release": 0.25 }
+    },
+
+    "click": {
+      "desc": "A control being used. `click` for a button, `tick` for a slider step, `chip` for selecting an option.",
+      "files": ["click", "tick", "chip"],
+      "rotate": false,
+      "byIntent": { "button": "click", "step": "tick", "select": "chip" },
+      "anchor": "attack",
+      "gainDb": -9,
+      "duckDb": -3,
+      "duck": { "attack": 0.02, "hold": 0.08, "release": 0.2 }
+    },
+
+    "move": {
+      "desc": "A panel, card or menu arriving or leaving.",
+      "files": ["move-in", "move-out"],
+      "rotate": false,
+      "byIntent": { "in": "move-in", "out": "move-out" },
+      "anchor": "start",
+      "gainDb": -11,
+      "duckDb": -4,
+      "duck": { "attack": 0.04, "hold": 0.1, "release": 0.3 }
+    },
+
+    "appear": {
+      "desc": "Something landing: a card, a review pin, the drafting sheet, a saved toast, a rendering resolving.",
+      "files": ["pop", "pin-drop", "sheet", "confirm", "shimmer"],
+      "rotate": false,
+      "byIntent": {
+        "card": "pop",
+        "pin": "pin-drop",
+        "sheet": "sheet",
+        "confirm": "confirm",
+        "render": "shimmer"
+      },
+      "anchor": "attack",
+      "gainDb": -10,
+      "perFile": {
+        "confirm": { "gainDb": -9, "duckDb": -5 },
+        "shimmer": { "gainDb": -12, "anchor": "start", "duckDb": -4 },
+        "sheet": { "gainDb": -11 }
+      },
+      "duckDb": -3.5,
+      "duck": { "attack": 0.03, "hold": 0.1, "release": 0.28 }
+    },
+
+    "end": {
+      "desc": "The end card landing.",
+      "files": ["end-1"],
+      "rotate": false,
+      "anchor": "attack",
+      "gainDb": -6,
+      "duckDb": -5,
+      "duck": { "attack": 0.02, "hold": 0.25, "release": 0.5 },
+      "suppressIfNearBedFinalHitSec": 0.25,
+      "$why": "Suppressed when the end card lands within 250 ms of the music's own final hit, rather than the 120 ms a strict collision test would use. Measured: version A's 60s cut puts them 200 ms apart and its 120s cut 160 ms apart. Both clear 120 ms and both are a flam — two impacts that close read as a stumble, not as two events, and the music's resolution is the better of the two. So on those cuts the music finishes the film alone."
+    }
+  },
+
+  "$measured": {
+    "bedFinalHitSec": {
+      "A-confident-arrival": { "15": 10.99, "30": 25.97, "60": 56.0, "120": 115.99 },
+      "B-daylight-forward": { "15": 12.55, "30": 27.56, "60": 57.51, "120": 117.52 }
+    },
+    "$bedFinalHitNote": "Where each bed's own last strong hit lands, measured by tools/lib/dsp.mjs findEnding(). The `end` role's suppression rule reads these. A beds resolve 4.0s before the end, B beds 2.45s before.",
+    "endcardStartSec_editA": { "15": 13.1, "30": 27.2, "60": 56.2, "120": 115.83 },
+    "$endcardNote": "From the edit on this branch, which is version A's. Version B's edit is the scenes agent's and is not merged yet — these numbers MUST be re-derived against it before the B previews are judged, because the suppression rule depends on them."
+  }
+}

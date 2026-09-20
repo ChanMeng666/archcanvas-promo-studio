@@ -29,6 +29,8 @@
 
 import musicJson from "./data/music.json";
 import sfxJson from "./data/sfx.json";
+import rolesJson from "./data/sfx-roles.json";
+import versionsJson from "./data/versions.json";
 import { CUT_IDS, type CutId } from "./layout-core";
 
 /* ── sound effects ──────────────────────────────────────────────────────────── */
@@ -178,6 +180,147 @@ export const releaseBlockers = (setId: string = sfxDoc.active): readonly string[
     }
   }
   return problems;
+};
+
+/* ── roles: WHAT plays and HOW LOUD ─────────────────────────────────────────── */
+
+/**
+ * The role layer, and the division of labour it encodes.
+ *
+ * The cue sheet owns **WHEN** — which frame a click belongs on. This owns
+ * **WHAT** plays there and **HOW LOUD**. Keeping them apart is what lets the
+ * sound design be re-chosen without touching the edit, and the edit be recut
+ * without re-deciding every gain.
+ *
+ * `src/data/sfx-roles.json` is hand-written from measurements and every number
+ * in it has a reason in `docs/decisions.md` D12.
+ */
+
+export type RoleDuck = { readonly attack: number; readonly hold: number; readonly release: number };
+
+export type SfxRole = {
+  readonly desc: string;
+  readonly files: readonly string[];
+  readonly rotate?: boolean;
+  readonly byIntent?: Readonly<Record<string, string>>;
+  readonly anchor: "start" | "attack";
+  readonly gainDb: number;
+  readonly perMusic?: Readonly<Record<string, { gainDb?: number; eq?: string }>>;
+  readonly perFile?: Readonly<Record<string, { gainDb?: number; anchor?: "start" | "attack"; duckDb?: number }>>;
+  readonly duckDb: number;
+  readonly duck: RoleDuck | null;
+  readonly suppressIfNearBedFinalHitSec?: number;
+};
+
+type RolesDoc = {
+  readonly roles: Readonly<Record<string, SfxRole>>;
+  readonly $measured: {
+    readonly bedFinalHitSec: Readonly<Record<string, Readonly<Record<string, number>>>>;
+  };
+};
+const rolesDoc = rolesJson as unknown as RolesDoc;
+
+export const ROLE_IDS: readonly string[] = Object.keys(rolesDoc.roles);
+export type RoleId = string;
+
+export const role = (id: RoleId): SfxRole => {
+  const r = rolesDoc.roles[id];
+  if (!r) throw new Error(`unknown sfx role "${id}" — known: ${ROLE_IDS.join(", ")}`);
+  return r;
+};
+
+/**
+ * Resolve a role (and optionally an intent, e.g. `click`/`button`) to the file
+ * and the numbers the mixer needs, for a given music version.
+ *
+ * `nth` rotates through a role's variants — the typing role exists in four
+ * clusters precisely so a long run of keys never repeats one back to back.
+ */
+export const roleCue = (
+  id: RoleId,
+  { intent, nth = 0, music }: { intent?: string; nth?: number; music?: string } = {},
+): {
+  cueId: string; file: string; gainDb: number; eq: string | null;
+  anchor: "start" | "attack"; offsetSec: number; duckDb: number; duck: RoleDuck | null;
+} => {
+  const r = role(id);
+  const cueId = (intent && r.byIntent?.[intent])
+    || (r.rotate ? r.files[nth % r.files.length] : r.files[0]);
+  const perFile = r.perFile?.[cueId];
+  const perMusic = music ? r.perMusic?.[music] : undefined;
+  const cue = sfxSet().cues.find((c) => c.id === cueId);
+  if (!cue) {
+    throw new Error(
+      `role "${id}" wants cue "${cueId}", which the active set "${activeSfxSetId()}" does not have — ` +
+      `switch sets with \`node tools/use-sfx.mjs\` or fix src/data/sfx-roles.json`,
+    );
+  }
+  const anchor = perFile?.anchor ?? r.anchor;
+  return {
+    cueId,
+    file: cue.file,
+    gainDb: perMusic?.gainDb ?? perFile?.gainDb ?? r.gainDb,
+    eq: perMusic?.eq ?? null,
+    anchor,
+    // `start` schedules at the action; `attack` pulls back so the sound's first
+    // strong onset lands ON it. The offset is measured, never typed.
+    offsetSec: anchor === "attack" ? (cue.alignOffsetSec ?? 0) : 0,
+    duckDb: perFile?.duckDb ?? r.duckDb,
+    duck: r.duck,
+  };
+};
+
+/** Where a bed's own last strong hit lands — the `end` role's suppression reads this. */
+export const bedFinalHitSec = (musicVersion: string, cut: CutId): number | null =>
+  rolesDoc.$measured.bedFinalHitSec[musicVersion]?.[cut] ?? null;
+
+/**
+ * Should the end-card cue be suppressed on this cut?
+ *
+ * True when the card lands close enough to the music's own final hit that the
+ * two read as one stumble rather than two events. Measured at 160–200 ms on
+ * version A's long cuts, which clears a strict 120 ms collision test and is
+ * still a flam — so the threshold is 250 ms and the music wins.
+ */
+export const endCueSuppressed = (musicVersion: string, cut: CutId, endcardStartSec: number): boolean => {
+  const r = role("end");
+  const window = r.suppressIfNearBedFinalHitSec ?? 0;
+  const hit = bedFinalHitSec(musicVersion, cut);
+  if (hit == null || !window) return false;
+  return Math.abs(endcardStartSec - hit) < window;
+};
+
+/* ── versions: {music, edit, sfxSet} ────────────────────────────────────────── */
+
+export type FilmVersion = {
+  readonly music: string;
+  readonly edit: string;
+  readonly sfxSet: string;
+  readonly outDir?: string;
+  readonly quality?: string;
+};
+
+type VersionsDoc = {
+  readonly releasable: Readonly<Record<string, FilmVersion>>;
+  readonly audition: Readonly<Record<string, FilmVersion>>;
+};
+const versionsDoc = versionsJson as unknown as VersionsDoc;
+
+export const auditionVersions = (): Readonly<Record<string, FilmVersion>> => versionsDoc.audition;
+export const releasableVersions = (): Readonly<Record<string, FilmVersion>> => versionsDoc.releasable;
+
+/**
+ * Where a version's masters are allowed to be written.
+ *
+ * An audition version renders at full master quality — the founder judges these
+ * as finished films — but it never lands in `out/masters/`. The routing is a
+ * function of the sound set's licence, not of anyone remembering.
+ */
+export const outDirFor = (versionId: string): string => {
+  const audition = versionsDoc.audition[versionId];
+  if (audition) return audition.outDir ?? `out/previews/AUDITION-not-for-release/${versionId}`;
+  if (versionsDoc.releasable[versionId]) return `out/masters/${versionId}`;
+  throw new Error(`unknown version "${versionId}"`);
 };
 
 /* ── music ──────────────────────────────────────────────────────────────────── */
