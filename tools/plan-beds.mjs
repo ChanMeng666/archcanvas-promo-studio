@@ -199,22 +199,61 @@ const entries = onsets
   });
 
 /**
+ * The loudest two seconds anywhere in the take — the yardstick a body's own
+ * level is measured against. The same normalisation `tools/analyze-music.mjs`
+ * uses for its window table, so the two tools agree about what "live" means.
+ */
+const loudestBlock = (() => {
+  let m = 0;
+  for (let t = 0; t + 2 <= duration; t += 2) m = Math.max(m, rmsBetween(rms, t, t + 2));
+  return m || 1e-9;
+})();
+
+/**
  * Pick a body start for a cut of length `L`.
  *
  * Constraints: the body has to fit between the start and the ending window, and
  * it should sit in material with some energy in it. Among what fits, prefer the
  * cleanest entry — but weight the onset's own strength too, so a lift caused by
  * the take merely getting louder does not beat an actual downbeat.
+ *
+ * ── The body term, and the take that made it necessary ──────────────────────
+ *
+ * Every other factor here describes the first two seconds. Nothing described the
+ * other thirteen, or the other hundred and eighteen, and on a take whose quiet
+ * material happens to come first that is not a small omission.
+ *
+ * `daylight-forward.mp3` opens from digital silence, so its very first onset
+ * scores an infinite `lift` — capped at 3, which no musical re-entry can reach
+ * (a return out of a breakdown measures about 1.4x). It therefore won every cut
+ * length outright, and the 15 s bed it produced spent 9.3 of its 12.5 body
+ * seconds in the two quietest sections in the track: mean body level 0.629 of
+ * the take's loudest block, against 0.883 for a start on the final chorus. A
+ * fifteen-second spot cannot afford to open on the thinnest nine seconds of its
+ * own music, and nothing in the pipeline would have said so — the durations,
+ * the loudness and the downbeat counts would all have been right.
+ *
+ * So the score is multiplied by the body's own mean level. It is one term, it is
+ * the same quantity `analyze-music.mjs` already scores its windows on, and it is
+ * **provably a no-op for version A**: replayed against `confident-arrival.mp3`
+ * it re-picks 99.81 / 99.81 / 19.05 / 9.53 s, which is exactly what
+ * `src/data/music.json` records that take's beds were cut at. On
+ * `daylight-forward.mp3` it moves the 15 s bed from 0.14 s to 115.56 s — the
+ * track's biggest lift, +6.92 dB — and leaves 30 / 60 / 120 where they were.
  */
 const pickBody = (L) => {
   const bodyTargetLen = L - END_TARGET + CROSSFADE;
   const viable = entries.filter((e) => e.t + bodyTargetLen <= endingStart + 0.001 && e.t >= 0);
   if (!viable.length) return null;
   const loudest = Math.max(...viable.map((e) => e.after));
-  const scored = viable.map((e) => ({
-    ...e,
-    score: Number((Math.min(3, e.lift) * (0.45 + 0.55 * (e.after / loudest)) * (0.5 + 0.5 * e.relStrength)).toFixed(4)),
-  }));
+  const scored = viable.map((e) => {
+    const body = rmsBetween(rms, e.t, e.t + bodyTargetLen) / loudestBlock;
+    return {
+      ...e,
+      body: Number(body.toFixed(4)),
+      score: Number((Math.min(3, e.lift) * (0.45 + 0.55 * (e.after / loudest)) * (0.5 + 0.5 * e.relStrength) * body).toFixed(4)),
+    };
+  });
   scored.sort((a, b) => b.score - a.score);
   return scored;
 };
@@ -258,7 +297,7 @@ for (const L of CUTS) {
     crossfadeSec: CROSSFADE,
     /** What the two pieces should add up to. The gate re-measures the file. */
     expectedSec: Number((bodyLen + endLen - CROSSFADE).toFixed(4)),
-    entry: { lift: start.lift, relStrength: start.relStrength, score: start.score },
+    entry: { lift: start.lift, relStrength: start.relStrength, body: start.body, score: start.score },
   });
 }
 
@@ -291,11 +330,11 @@ console.log(`\n  plan-beds · ${plan.source} · version ${plan.version}`);
 console.log(`    ${plan.sourceDurationSec}s · beat ${beatSec}s (${plan.bpm} BPM) · bar ${barSec}s`);
 console.log(`    final hit at ${plan.finalHitSec}s · ring-out usable to ${plan.ringOutEndsSec}s`);
 console.log(`    ending window starts ${plan.endingStartSec}s · crossfade ${CROSSFADE}s (one bar, equal-power)\n`);
-console.log("    cut    body window            len      ending            len    total   entry lift");
+console.log("    cut    body window            len      ending            len    total   entry lift   body level");
 for (const b of plan.beds) {
   console.log(
     `    ${b.cut.padStart(3)}s   ${b.bodyStartSec.toFixed(2).padStart(7)}s -> ${b.bodyEndSec.toFixed(2).padStart(7)}s  ${b.bodyLenSec.toFixed(2).padStart(7)}s   ` +
-    `${b.endingStartSec.toFixed(2)}s +${b.endingLenSec.toFixed(2).padStart(5)}s  ${b.endingLenSec.toFixed(2).padStart(5)}s  ${b.expectedSec.toFixed(2).padStart(7)}s   ${b.entry.lift.toFixed(2)}x`,
+    `${b.endingStartSec.toFixed(2)}s +${b.endingLenSec.toFixed(2).padStart(5)}s  ${b.endingLenSec.toFixed(2).padStart(5)}s  ${b.expectedSec.toFixed(2).padStart(7)}s   ${b.entry.lift.toFixed(2).padStart(6)}x   ${b.entry.body.toFixed(3).padStart(8)}`,
   );
 }
 console.log(`\n  wrote ${path.relative(ROOT, PLAN_FILE)}\n`);
