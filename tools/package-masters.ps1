@@ -93,16 +93,17 @@ $TRUE_PEAK_MAX = -1.5
 $LUFS_TARGET = -16
 $LUFS_WINDOW = 0.5
 
-# A fingerprint of the RESOLVED cue sheet, per cut. `verify:loudness` has to
-# tell a stale master from a wrong model, and its own note says the
-# discriminator it wants is exactly this -- until now it asked git what the trim
-# was at `renderCommit`, which cannot answer through a dirty tree or a shallow
-# clone, and which sees only the per-cut dial. Anything else that moves a cue
-# changes the sound without moving that table. A hash of the sheet makes
-# staleness a property of THIS FILE.
-$cueShaJson = & node (Join-Path $repo "tools\cue-sha.mjs") --version $FilmVersion
-$cueSha = if ($LASTEXITCODE -eq 0) { $cueShaJson | ConvertFrom-Json } else { $null }
-if (-not $cueSha) { Write-Host "  (could not compute cue-sheet hashes -- rows will omit them)" -ForegroundColor Yellow }
+# The per-cut cue-sheet fingerprint comes from `tools/version-info.mjs`, above,
+# and there is exactly ONE of it.
+#
+# ⚠ Two landed independently: `cueSha` out of version-info (resolved file,
+# start, gain, length, fades) and a `cueSheetSha` out of a second script here.
+# They hashed different fields, so they could disagree about whether a master
+# was stale -- and `verify:loudness` reads `cueSha`, which means the other was
+# a field nothing consulted, sitting in the manifest looking authoritative.
+# That is the "fallback lying beside it" shape this repo keeps paying for, so
+# the unread one is gone rather than kept for symmetry.
+if (-not $info.cueSha) { Write-Host "  (version-info returned no cue hashes -- rows will omit them)" -ForegroundColor Yellow }
 
 $commit = (& git -C $repo rev-parse HEAD).Trim()
 
@@ -221,10 +222,6 @@ foreach ($t in $targets) {
     # instead of excusing every cut that carries a trim.
     cueSha = if ($info.cueSha) { $info.cueSha."$($t.cut)" } else { $null }
     modified = $item.LastWriteTime.ToString("s")
-    # The resolved cue sheet this film was rendered from, as a hash — so a
-    # later run can tell "this master is old" from "the model is wrong" without
-    # asking git anything.
-    cueSheetSha = if ($cueSha) { $cueSha.($t.cut.ToString()) } else { $null }
     # The verdict, and it is about THIS file rather than a model of it.
     verified = $issues.Count -eq 0
     reason = if ($issues.Count -eq 0) { $null } else { $issues -join "; " }

@@ -245,12 +245,49 @@ export const measure = (wavAbs) => {
     { maxBuffer: 1 << 28, encoding: "utf8" },
   );
   const stderr = String(r.stderr ?? "");
-  const tail = stderr.slice(stderr.lastIndexOf("Integrated loudness"));
+
+  /*
+   * ⚠ THROW, do not return NaN.
+   *
+   * This returned `{lufs: NaN, truePeakDb: NaN}` on any failure, and the gate
+   * printed a row of NaN and a `[unmeasured]` line with no reason attached.
+   * Seen once in five runs on the 120 s cut and never explained, because the
+   * one thing that could have explained it — ffmpeg's own stderr — was
+   * discarded on the way out.
+   *
+   * Three ways it could fail silently, all now fatal and all now quoted:
+   * ffmpeg not spawning at all (`r.error`), ffmpeg exiting non-zero, and a
+   * summary that is simply absent. The last is the subtle one:
+   * `lastIndexOf` returns -1 when the marker is missing and `slice(-1)` then
+   * yields the LAST CHARACTER of stderr, so the regex matched nothing and
+   * every field came back NaN — a missing measurement wearing the shape of a
+   * successful one.
+   */
+  if (r.error) throw new Error(`ffmpeg could not be run for ${path.basename(wavAbs)}: ${r.error.message}`);
+  if (r.status !== 0) {
+    throw new Error(
+      `ffmpeg exited ${r.status} measuring ${path.basename(wavAbs)} — ${stderr.trim().split("\n").slice(-3).join(" | ") || "(no stderr)"}`,
+    );
+  }
+  const at = stderr.lastIndexOf("Integrated loudness");
+  if (at === -1) {
+    throw new Error(
+      `ebur128 printed no summary for ${path.basename(wavAbs)} — ${stderr.trim().split("\n").slice(-3).join(" | ") || "(no stderr)"}`,
+    );
+  }
+
+  const tail = stderr.slice(at);
   const num = (label) => {
     const m = tail.match(new RegExp(label + ":\\s*(-?\\d+(?:\\.\\d+)?)"));
     return m ? Number(m[1]) : NaN;
   };
-  return { lufs: num("I"), lra: num("LRA"), truePeakDb: num("Peak") };
+  const out = { lufs: num("I"), lra: num("LRA"), truePeakDb: num("Peak") };
+  if (!Number.isFinite(out.lufs) || !Number.isFinite(out.truePeakDb)) {
+    throw new Error(
+      `ebur128's summary for ${path.basename(wavAbs)} did not parse — ${tail.trim().split("\n").slice(0, 6).join(" | ")}`,
+    );
+  }
+  return out;
 };
 
 /**
@@ -284,6 +321,9 @@ export const measure = (wavAbs) => {
  * Falls back to the recorded default when no master is on disk, and says which
  * it used.
  */
+// Distinguishes two scratch files made by the same process in one run.
+let scratchSeq = 0;
+
 const FALLBACK_BITRATE = 317375;
 
 let cachedDelivery = null;
@@ -323,7 +363,24 @@ const encodeAac = (wavAbs, outAbs) => {
 /** Mix a cut, write it to a scratch WAV, encode it, and measure both. */
 export const mixAndMeasure = async (cut, film, version) => {
   const mix = await mixCut(cut, { film, version });
-  const base = path.join(os.tmpdir(), `archcanvas-mix-${version ?? "active"}-${cut}`);
+  /*
+   * ⚠ The PID and a counter are load-bearing, not decoration.
+   *
+   * This was `archcanvas-mix-<version>-<cut>` — a name with nothing unique in
+   * it — so two processes measuring the same version and cut at the same time
+   * wrote and deleted each other's scratch files. `verify:versions` already
+   * spawns a child per version, and running a gate beside a packaging run is
+   * ordinary, so the collision needs no unusual behaviour to happen; it just
+   * needs the wrong overlap.
+   *
+   * This was NOT reproduced on demand, and is recorded as a removed hazard
+   * rather than a proven cause: the failure it is suspected of (`[unmeasured]`
+   * with NaN) showed up once in five runs and not again in the ten since. What
+   * makes that honest rather than hand-waving is the change above — a failure
+   * here now throws with ffmpeg's own stderr, so the next occurrence names
+   * itself instead of needing a hypothesis.
+   */
+  const base = path.join(os.tmpdir(), `archcanvas-mix-${version ?? "active"}-${cut}-${process.pid}-${scratchSeq++}`);
   const wav = `${base}.wav`;
   const m4a = `${base}.m4a`;
   writeWav(mix.pcm, wav);
