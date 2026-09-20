@@ -326,3 +326,80 @@ holds the full list; these four are the render-day ones.
 - **Don't run eight renders in parallel**, and don't run one beside a
   `check:full` in the product repo. One machine, 16 GB, and it has been rebooted
   over this before.
+
+---
+
+## Sound-effect sets, and the gate that stops an audition shipping
+
+The music has `active`. The sound effects now have one too, for the same reason
+and with the same shape: `src/data/sfx.json` has **one** `active` field,
+`src/audio.ts` reads it, everything else reads `src/audio.ts`.
+
+| set | source | releasable |
+|---|---|---|
+| `synth` | ffmpeg, `tools/synth-sfx.mjs` | **yes** — no vendor, no terms |
+| `elevenlabs-audition` | ElevenLabs, free tier, 2026-09-20 | **no** — audition only |
+| `elevenlabs` | ElevenLabs, paid tier | yes, once it exists |
+
+```bash
+node tools/use-sfx.mjs                          # list, and say which is releasable
+node tools/use-sfx.mjs synth                    # the licensed set
+node tools/use-sfx.mjs elevenlabs-audition --draw c
+```
+
+### Why a set can exist that must never ship
+
+`elevenlabs-audition` was generated so the founder could hear whether vendor
+effects beat the synthesised ones — specifically the sound the plan makes while
+it draws itself. The account is on a free plan, which carries no commercial
+licence and whose terms withhold rights from anything created outside a paid
+subscription **before or after**. Upgrading later does not license what already
+exists (`docs/audio-provenance.md` §4, `docs/decisions.md` D4).
+
+At render time a quarantined set is indistinguishable from a licensed one: same
+manifest shape, same paths, same everything the renderer looks at. The only
+thing between it and a master on a landing page is somebody remembering — and
+this project has already proved that does not hold.
+
+### The gate
+
+```bash
+npm run verify:release        # 0 = masters may be rendered
+```
+
+It reads `releaseBlockers()` out of `src/audio.ts`, so the gate and the film
+cannot disagree about what is licensed. It refuses when the active sound set, or
+any individual cue in it, or the active music version, carries
+`commercialUse: false`.
+
+It runs in **two** places, and the first one matters most:
+
+- **`render.ps1`, before it renders anything.** Not at ship time — a refusal
+  after a two-hour render costs the render.
+- **`npm run ship`**, via `verify:strict`.
+
+Auditions are not blocked, only misfiled: they render to
+`out/previews/AUDITION-not-for-release/`, which carries a standing notice
+(`capture/audition-notice.txt`, copied in by `npm run audition`).
+
+**What the gate does not defend against** is a hand-edit of
+`src/data/sfx.json` setting `commercialUse: true`. That is deliberate. The field
+is data-driven so a *paid* regeneration flips it automatically, and nothing can
+distinguish a hand-edit from a legitimate one. The gate stops accidents, not
+decisions.
+
+### Moving the audition to a releasable set
+
+```bash
+# 1. upgrade the ElevenLabs plan FIRST — rights attach to the tier live at
+#    generation, not at shipping
+node tools/generate-sfx-elevenlabs.mjs --set elevenlabs   # refuses on a free tier
+node tools/use-sfx.mjs elevenlabs --draw <a|b|c|d|e>
+npm run verify:release
+pwsh -File ./render.ps1
+```
+
+The prompts are committed (`audio/sfx-sets/prompts.json`), so the brief survives
+the regeneration. **The audio does not:** the sound-effects API exposes no seed,
+so the same prompt returns a different take. A paid regeneration is a re-mix, not
+a re-render, and the result needs listening to again.
