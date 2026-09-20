@@ -314,12 +314,18 @@ Two things it reports that are **not** faults:
   −16.3 / −16.3 / −16.3. **If a re-render disagrees by more than about 0.5 LU,
   the gate's model is wrong and that is the finding** — do not just accept the
   file.
-- **True peak is predicted less reliably than loudness.** On the 60 s cut the
-  model said −2.4 dBTP and the master measured −1.2, reached in the first 64 ms
-  where that bed's entry meets the opening cue. It clears the −1.0 ceiling by
-  0.2 dB, so **the peak check is the one with no margin left**. If a new take
-  goes over, expect it there, and fix it with a cue gain in the data rather
-  than a bed level. `docs/decisions.md`, *Confirmed against the real masters*.
+- **True peak is predicted less reliably than loudness, and the manifest is how
+  the gate finds out.** The model is accurate within ~0.3 dB wherever a cut's
+  peak is in the body, and wrong by ~1.1 dB where it is the opening transient —
+  a matter of milliseconds between the bed's entry and the first cue, not of
+  encoder settings (bitrate accounts for 0.1 dB of it; D41). So
+  `verify:loudness` now reads the true peaks `package-masters.ps1` wrote into
+  `MANIFEST.json` and **fails when its own prediction was optimistic by more
+  than 0.3 dB**. That means **the manifest must be committed after a packaging
+  run** — it is tracked although the masters are not, and it is the only thing
+  in the gate that can contradict the model. If a cut goes over, fix it with
+  `openingCueTrimDb` in the data rather than a bed level, and trim until the
+  peak moves out of the first 100 ms.
 
 ### 6. Screen every master
 
