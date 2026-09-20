@@ -14,6 +14,7 @@
     "typecheck": "tsc",
     "sync:replica": "node scripts/sync-replica.mjs",
     "audio:analyze": "node tools/analyze-music.mjs",
+    "audio:structure": "node tools/analyze-structure.mjs",
     "audio:sfx": "node tools/synth-sfx.mjs",
     "audio:sfx:check": "node tools/synth-sfx.mjs --check",
     "audio:sfx:elevenlabs": "node tools/generate-sfx-elevenlabs.mjs",

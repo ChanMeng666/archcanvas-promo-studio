@@ -74,7 +74,45 @@ It is kept, not replaced. When B exists, A stays renderable.
 
 ---
 
-## Version B — the whole procedure
+## Version B — `B-daylight-forward`, cut 2026-09-20
+
+**The beds exist and every gate is green. Nothing has been rendered.**
+
+| | |
+|---|---|
+| version | `B-daylight-forward` |
+| track | `daylight-forward.mp3`, **127.6 BPM, bar 1.894 s**, 133.53 s |
+| beds | `public/audio/beds/B-daylight-forward/` — 15.000 / 30.000 / 60.000 / 120.000 s, −16.1 to −16.2 LUFS, true peak −2.1 to −4.1 dBTP |
+| provenance | SUNO, founder-generated, created 2026-09-19T23:20:50Z per the file's own tag. **Plan tier NOT yet confirmed for that date** (`docs/audio-provenance.md`) |
+| analysis | `docs/music/daylight-forward.md` — structure, edit windows, the fills and crashes in film time |
+| status | **blocked on the tier confirmation**, and on a listening pass. Renderable the moment both land. |
+
+Against version A: 26 % faster, 50 % brighter by spectral centroid, 50 % denser
+in strong onsets, and 4.4 LU of loudness range against 7.3 — and where A has one
+enormous arrival at 99.6 s, B has eleven fills, five crashes and two drop-outs
+spread across its length. That is the difference that matters for a film that
+cuts. The reasoning, with the numbers, is in `docs/music/daylight-forward.md`.
+
+Seven scene boundaries moved across the four cuts, none by more than 0.14 s, and
+`verify:timeline` raised one new advisory pace note (the 120 s cut's `price` card
+now holds 2.23 s against a 2.2 s ceiling — a 30 ms overrun).
+
+**Two gate defects surfaced doing this, both fixed, both documented in the
+analysis doc:** `plan-beds.mjs` scored a bed's entry and never its body, and
+`verify:loudness` measured the active take once per version and printed it under
+every version's name. The second is the sharper lesson — it went unnoticed
+because with one version on file its answer was accidentally right, and the tell
+when B landed was four rows *identical to the tenth of a LU* for two takes that
+do not sound alike.
+
+⚠ **`tools/analyze-music.mjs` reports 63.83 BPM for this take.** That is half
+the real tempo; its octave test ties and breaks the tie on noise. Use
+`npm run audio:structure` for the tempo, or `lib/dsp.mjs`'s `localBeat`, both of
+which say 127.66. The older tool has deliberately not been changed.
+
+---
+
+## Cutting a version — the whole procedure
 
 Four commands. The only judgement in it is the one no command can make: whether
 the take is any good.
@@ -98,13 +136,31 @@ on at a bar line, so a take that fades has nothing to splice.
 between two.
 
 ```powershell
-Move-Item ~\Downloads\<new-take>.mp3 audio\source\
-Move-Item audio\source\confident-arrival.mp3 audio\takes\   # or anywhere out of source/
+Copy-Item ~\Downloads\<new-take>.mp3 audio\source\<kebab-case-name>.mp3
+Move-Item audio\source\<the-previous-take>.mp3 audio\takes\
 ```
 
-A's beds are already cut and measured, so moving its source out costs nothing —
-`public/audio/beds/A-confident-arrival/` and `music.json` are what make A
-renderable, not the take. (Put it back if you ever want to re-cut A.)
+**Copy, do not move.** The download is the only other copy of an irreproducible
+asset until the commit lands; there is no reason for a `git add` mistake to be
+able to lose it. Name it kebab-case — the version id is derived from the
+filename, so `Daylight Forward.mp3` would become `B-daylight-forward` anyway and
+having the two agree saves reading `plan-beds.mjs` to find out.
+
+The previous take's beds are already cut and measured, so moving its source out
+costs nothing — `public/audio/beds/<version>/` and `music.json` are what make a
+version renderable, not the take. (Put it back if you ever want to re-cut it.)
+
+### 1b. Measure it before you cut it
+
+```powershell
+npm run audio:structure          # the take in audio/source/
+```
+
+Not in the original four commands, and it belongs here: it writes
+`src/data/music-analysis/<slug>.json` plus an energy chart and a spectrogram
+under `docs/music/`, and it is the only thing in the pipeline that will tell you
+the take has no breakdown, no ending, or a tempo that wanders. Write the take up
+as `docs/music/<slug>.md` — `daylight-forward.md` is the template.
 
 ### 2. Cut the beds
 

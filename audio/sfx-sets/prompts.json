@@ -196,9 +196,10 @@
       "id": "sheet",
       "role": "appear",
       "desc": "The drafting sheet landing on the desk. Not in the commander's six roles; added so every canonical cue id has a mapping in this set rather than borrowing a whoosh for it.",
-      "text": "A large sheet of drafting paper settling onto a wooden desk: one soft slap, then a brief rustle as it flattens. Close microphone, completely dry. No music, no voices, no background noise.",
-      "durationSeconds": 1.5,
-      "promptInfluence": 0.5,
+      "$retake": "First take put its loudest moment in the rustle at 1.011s, well after the slap a viewer sees land, so the measured attack was a second late. Reworded to make the impact the loud event and the rustle a quiet tail, and shortened to 1.2s so there is less room for the tail to grow into.",
+      "text": "A single sheet of heavy drafting paper dropped flat onto a wooden desk. The impact is the loudest moment and it happens immediately, right at the start: one firm papery slap, then a much quieter, shorter rustle settling away behind it. Close microphone, completely dry, no reverb. No music, no voices, no background noise.",
+      "durationSeconds": 1.2,
+      "promptInfluence": 0.65,
       "norm": "transient"
     },
     {

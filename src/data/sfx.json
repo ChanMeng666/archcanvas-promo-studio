@@ -219,7 +219,7 @@
       "provenance": {
         "source": "elevenlabs",
         "tier": "free",
-        "generatedAt": "2026-09-20T03:45:01.481Z",
+        "generatedAt": "2026-09-20T04:07:34.891Z",
         "commercialUse": false
       },
       "aliases": {
@@ -823,33 +823,32 @@
           "concept": null,
           "desc": "The drafting sheet landing on the desk. Not in the commander's six roles; added so every canonical cue id has a mapping in this set rather than borrowing a whoosh for it.",
           "file": "audio/sfx/elevenlabs-audition/sheet.wav",
+          "durationSec": 0.3121,
+          "peakAtSec": 0.0346,
+          "alignBy": "attack",
+          "alignOffsetSec": 0.0033,
+          "peakDb": -3,
+          "rmsDb": -24.486,
+          "dcOffset": -0.000869,
+          "centroidHz": 2785.7,
+          "sampleRate": 48000,
+          "channels": 2,
+          "bytes": 60002,
           "prompt": {
-            "text": "A large sheet of drafting paper settling onto a wooden desk: one soft slap, then a brief rustle as it flattens. Close microphone, completely dry. No music, no voices, no background noise.",
-            "durationSeconds": 1.5,
-            "promptInfluence": 0.5,
+            "text": "A single sheet of heavy drafting paper dropped flat onto a wooden desk. The impact is the loudest moment and it happens immediately, right at the start: one firm papery slap, then a much quieter, shorter rustle settling away behind it. Close microphone, completely dry, no reverb. No music, no voices, no background noise.",
+            "durationSeconds": 1.2,
+            "promptInfluence": 0.65,
             "modelId": "eleven_text_to_sound_v2",
-            "outputFormat": "mp3_44100_128",
+            "outputFormat": "pcm_48000",
             "endpoint": "POST https://api.elevenlabs.io/v1/sound-generation",
             "seed": null
           },
           "provenance": {
             "source": "elevenlabs",
             "tier": "free",
-            "generatedAt": "2026-09-20T03:46:11.963Z",
-            "commercialUse": false,
-            "reconstructed": "manifest row rebuilt from the audio on disk; the audio itself was never regenerated"
-          },
-          "durationSec": 1.2968,
-          "peakAtSec": 1.0229,
-          "alignBy": "attack",
-          "alignOffsetSec": 1.0106,
-          "peakDb": -3,
-          "rmsDb": -27.166,
-          "dcOffset": -0.000282,
-          "centroidHz": 8260.9,
-          "sampleRate": 48000,
-          "channels": 2,
-          "bytes": 249062
+            "generatedAt": "2026-09-20T04:07:34.891Z",
+            "commercialUse": false
+          }
         },
         {
           "id": "shimmer",

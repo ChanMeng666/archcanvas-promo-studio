@@ -68,7 +68,17 @@ export const mixCut = async (cut, opts = {}) => {
   const frames = Math.round(durationSec * SAMPLE_RATE);
   const out = new Float32Array(frames * CHANNELS);
 
-  const bed = A.bedFor(cut);
+  /*
+   * `opts.version` mixes another take's bed under the ACTIVE take's cue sheet.
+   *
+   * That is not the same thing as that take's own mix and the gate says so: the
+   * cues are derived by walking the cut, and the cut is snapped to whichever
+   * take is active, so a non-active version's real sound sheet only exists while
+   * it is active. What this does measure honestly is the bed's own level, its
+   * true peak and its headroom under a representative cue load — which is what
+   * "has version A gone out of spec?" is actually asking.
+   */
+  const bed = A.bedFor(cut, opts.version);
   const bedPcm = decode(path.join(ROOT, "public", bed.file));
   const windows = A.duckWindows(cuesFor(cut));
   const trim = dbToGain(A.MASTER_TRIM_DB);
@@ -159,9 +169,9 @@ export const measure = (wavAbs) => {
 };
 
 /** Mix a cut, write it to a scratch WAV and measure it. */
-export const mixAndMeasure = async (cut, film) => {
-  const mix = await mixCut(cut, { film });
-  const wav = path.join(os.tmpdir(), `archcanvas-mix-${cut}.wav`);
+export const mixAndMeasure = async (cut, film, version) => {
+  const mix = await mixCut(cut, { film, version });
+  const wav = path.join(os.tmpdir(), `archcanvas-mix-${version ?? "active"}-${cut}.wav`);
   writeWav(mix.pcm, wav);
   const m = measure(wav);
   fs.rmSync(wav, { force: true });

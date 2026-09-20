@@ -127,6 +127,12 @@ public/audio/        beds/<version>/ — four beds per music take — + the
                      fourteen synthesised cues
 capture/             the gates, and `stills.mjs` — the look pass
 scripts/             sync-replica.mjs + verify-replica.mjs
+tools/               the audio pipeline — analyze-music (bed windows) ·
+                     analyze-structure (the ARRANGEMENT, for the edit) ·
+                     plan-beds -> prepare-bed.ps1 -> build-music · synth-sfx ·
+                     use-music · package-masters.ps1
+docs/music/          one write-up per take + its energy chart and spectrogram;
+src/data/music-analysis/   the same take's raw measurements, as JSON
 ```
 
 The React-free files are bundled and executed in Node by `capture/lib/load-core.mjs`, so
@@ -155,6 +161,8 @@ node capture/stills.mjs --sheet --comp <id>   # contact FRAMES for one cut
 npm run stills:sheet                          # tile them, once, from disk —
                                               #   BOTH aspects, grid aimed at 16:9
 node capture/stills.mjs --at 30-Land:7.4,9.1  # ad-hoc seconds, for a look-fix pass
+npm run audio:structure                       # READ a take: sections, fills, crashes,
+                                              #   drift, the octave test -> docs/music/
 node tools/use-music.mjs                      # the music versions; * is active
 node tools/use-music.mjs A-confident-arrival  # switch back to a built version
 pwsh -File ./render.ps1 -ListOnly             # the plan + the orphan scan, renders nothing
@@ -219,6 +227,24 @@ rediscover them.**
   an automatic variable; `@args` splats the empty automatic one, npx opens an interactive
   shell, that shell exits 0, and the summary reports a PREVIOUS render's master as this
   run's output. A green run that rendered nothing.
+- **A tempo detector's octave test can TIE, and then it is a coin flip wearing a
+  number.** `tools/analyze-music.mjs` reports **63.83 BPM** for
+  `daylight-forward.mp3` — half the real tempo, so every window it prints is two
+  bars wide. Its half/double test ranks candidates by phase drift, 63.83 and
+  127.65 both drift 0.050 s, and the tie falls to a score differing in the
+  *fourth decimal*. Broadband the question cannot be settled: a shaker plays
+  every off-beat, so the midpoints between a half-time grid's points score ~0.9
+  either way. On the **40–160 Hz** band they separate (0.912 against 0.808),
+  because a kick does not play the off-beats. `npm run audio:structure` and
+  `lib/dsp.mjs`'s `localBeat` both say 127.66. The older tool is kept unchanged
+  on purpose — it is a diffable port — so this is a trap, not a bug to fix.
+- **A gate that loops over N things can still be looking at one of them.**
+  `verify:loudness` iterated every music version and called a mixer that could
+  only reach the ACTIVE bed, so it measured one take four times and printed it
+  under each version's name. With one version on file it was accidentally right.
+  The tell, the day a second landed: four rows identical to the tenth of a LU
+  for two takes that do not sound alike. **Agreement that precise is not
+  confirmation, it is a shared input.**
 - **Check a vendor's plan tier BEFORE spending its credits, not before shipping.**
   ElevenLabs' free plan carries no commercial licence, and its terms say content created
   outside a paid subscription — *before or after* — cannot be used commercially.

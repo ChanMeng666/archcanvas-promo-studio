@@ -256,9 +256,27 @@ export const music: Music =
  */
 export const musicFor = (version: string): Music | undefined => doc.versions?.[version];
 
-export const bedFor = (cut: CutId): Bed => {
-  const bed = music.beds[cut];
-  if (!bed) throw new Error(`no music bed for the ${cut}s cut — run \`npm run audio:beds\``);
+/**
+ * The bed the film plays for a cut — or, with `version`, that version's.
+ *
+ * The film never passes `version`: there is one active take and everything reads
+ * it through here, which is the "one clock" rule `src/data/music-grid.ts`
+ * records. The argument exists for the GATES, which are supposed to measure
+ * every version on disk and could not.
+ *
+ * ⚠ `capture/verify-loudness.mjs` looped over `musicVersions()` and called a
+ * mixer that had no way to ask for anything but the active bed, so it measured
+ * the active take once per version and printed it under each version's name.
+ * With one version on file that was accidentally right. The day version B landed
+ * it reported four identical rows — same LUFS, same true peak, same LRA to a
+ * tenth — for two takes that do not sound alike, and a gate that agrees with
+ * itself that precisely is a gate that is not looking.
+ */
+export const bedFor = (cut: CutId, version?: string): Bed => {
+  const doc = version ? musicFor(version) : music;
+  if (!doc) throw new Error(`no music version "${version}" in music.json — have ${musicVersions().join(", ")}`);
+  const bed = doc.beds[cut];
+  if (!bed) throw new Error(`no music bed for the ${cut}s cut${version ? ` of ${version}` : ""} — run \`npm run audio:beds\``);
   return bed;
 };
 
