@@ -107,7 +107,15 @@ master is never the answer.
 ## Loudness
 
 Targets: **−16 LUFS integrated, −1.5 dBTP** for a bed (`audio/bed-plan.json`); the gate
-allows ±0.5 LU and **≤ −1.0 dBTP** for the mix (`capture/verify-loudness.mjs`).
+allows ±0.5 LU and **≤ −1.5 dBTP** for the mix (`capture/verify-loudness.mjs`), measured on
+an **AAC encode** of the offline mix rather than on the float.
+
+⚠ **The float mix is optimistic about true peak.** A lossy encoder reconstructs a waveform
+that is close in the ear and not identical on the sample, and the difference lands on
+transients. Measured on B+el's 15 s cut: float −1.4, AAC −1.1, delivered master −1.0. The
+dial for a cut that goes over is `versions.<id>.openingCueTrimDb` — the OPENING cue's gain,
+never the bed's — because every bed enters at 0 s and the first cue lands 40 ms later, so
+the highest sample in a master is almost always their sum in the first ~64 ms (D40).
 
 Beds are made two-pass (`tools/prepare-bed.ps1`): `loudnorm` measures, then re-runs with
 the measured `I`/`TP`/`LRA`/`thresh`/`offset` **and `linear=true`** so it cannot fall into

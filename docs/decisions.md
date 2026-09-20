@@ -1985,3 +1985,121 @@ The nudge is untested by the shipping geometry, and that is stated rather than
 hidden. If the 9:16 arrangement ever moves a text row back across the clip, the
 assertion fires and the mechanism is already there; until then it is insurance
 with a probe attached rather than a proven fix.
+
+---
+
+## D40. The drawing's own labels, and the number that was optimistic.
+
+Two founder-reported defects, and each turned out to be a rule that was asking
+the wrong question rather than a framing or a level that needed nudging.
+
+### The 9:16 render beat cropped the thing the beat is about
+
+Reported as "the sheet crops at the right edge through the room labels".
+Shooting the frame showed worse: half the frame empty dot-grid, the sheet cut
+through `Powder room`, and the building **656 px off the right edge** of a
+1080-wide frame.
+
+**Two causes, both the same shape — a step change part way through a beat.**
+
+- The pill's protection switched on the frame `state.rendering.p` crossed 0.5.
+  A protection that appears on one frame yanks the framing on that frame. It is
+  the third time this round a boolean in the middle of a beat has produced a
+  defect (the drafting card's `visible`, D39-c; `drafting.visible` again in the
+  protection attempt; now this).
+- The camera's travel and that obligation had **separate clocks**. Half way
+  through the move the framing was still the drawing at 0.94 fill — scale 2.4 —
+  while the card was already 57 % opaque and had to be kept whole. Those two
+  cannot both be satisfied, and the solver did the only thing it could.
+
+So the protection ramps in over the card's own fade and is fully protective by
+the 0.5 line `verify:honesty` reads, and the travel is never behind the
+obligation. Stated as a rule: **by the time a thing must be whole, the camera
+must already be framing for it.**
+
+A third defect fell out of fixing it. A travelling beat interpolated the focus
+RECT and solved once — and because the solver clamps, the framing it returns for
+an intermediate rect is *not* between the framings for the two ends. It now
+interpolates the two solved PUSHES, scale on a log axis. Both ends are
+compositions the clamp agreed to, so every frame between them is bounded by the
+two; the rect version could swing outside both, and did.
+
+⚠ **The lean check could not have caught any of it**, because a travelling
+camera is exempt from lean — and travelling is exactly when this happens. An
+exemption that is right about the general case can hide the specific one.
+
+### The rule: room labels, and two scoping decisions
+
+`roomLabelRects` derives every room name and area from the compiler's own
+`<text>` leaves through the same `planToWorld`/`worldToDesign` pair `PlanSvg`
+draws them with, so it cannot drift from what is on screen.
+
+Both scoping decisions were measured, not assumed:
+
+| scope | red beats (B / A) |
+|---|---|
+| every `<text>` on the sheet | **42 / 41** |
+| room labels only | 8 / 14 |
+| room labels, 9:16 only, after the fix | **0 / 0** |
+
+- **Room labels, not every text.** `page.texts` also carries the dimension
+  chains — `7800`, `1400`, `550` — and those are a TEXTURE that runs off a
+  punched-in shot by design. A rule that banned it would ban the film's entire
+  camera language, and 42 red beats out of ~45 is a gate telling you it is
+  asking the wrong question rather than a film with 42 defects.
+- **9:16 only.** A 16:9 punch-in that clips `Hall 18.0 m²` at the top edge is an
+  authored framing doing what a punch-in does — checked by opening the frame,
+  where both rooms the beat is about stay perfectly legible. In 9:16 the picture
+  meets a clip and a chrome band it did not choose.
+
+The tolerance is the **model's own error**, stated rather than tuned: text
+cannot be measured without fonts (`CLAUDE.md`), so a label's box is
+`characters × font-size × advance` with the advance set above the real average
+on purpose. An overhang under a fifth of the box is the model; more is a word
+with a piece missing.
+
+The command bar leaves the row rule. It is a control the picture runs under,
+like a `split` scene's band, and its only text is a placeholder; it cannot be
+nudged clear of the clip here without pushing the pill behind platform chrome,
+and the pill wins.
+
+MUTATION: untie the travel from the obligation → 2 failures in B, 3 in A, all on
+the 9:16 render beats.
+
+### The true-peak number was optimistic about the one thing with no margin
+
+`B-daylight-forward+el`'s 15 s master measured **−1.0 dBTP** on the delivered
+file — 0.027 dB under the ceiling — while the gate predicted −1.4 and called it
+fine.
+
+The prediction was not wrong about the MIX. A lossy encoder reconstructs a
+waveform that is close in the ear and not identical on the sample, and the
+difference lands on transients, which is what a true-peak meter is about. D33's
+table already carried the same gap — the 60 s cut predicted −2.4 and measured
+−1.2 — recorded as "unmodelled headroom" and left alone. That was defensible
+until a master came within three hundredths of the line.
+
+**So the gate stops predicting and encodes.** `mixAndMeasure` writes the float
+mix, encodes it to the same AAC at the same bitrate `package-masters.ps1`
+delivers, and measures that:
+
+| | dBTP |
+|---|---|
+| float mix (what the gate used to report) | −1.4 |
+| AAC encode (what it reports now) | −1.1 |
+| rendered master (what the file measured) | **−1.0** |
+
+LUFS is still read off the float mix — integrated loudness is a long-window
+average the encode moves by hundredths, and true peak is the one it changes.
+
+The ceiling moves to **−1.5 dBTP**, so a cut has half a decibel before the line
+a platform limiter enforces rather than being declared fine at −1.0.
+
+**And the dial is the opening cue.** Every bed enters at 0 s and the film's first
+cue lands 40 ms later, so a master's highest sample is almost always their sum in
+the first ~64 ms. `versions.<id>.openingCueTrimDb` is a per-cut trim on that one
+cue — a CUE gain and never a bed level, which is the rule D33 set the first time
+a cut came close. Two cuts needed one; all sixteen now sit at −1.8 dBTP or
+better, and integrated loudness moved by at most 0.1 LU on any of them.
+
+MUTATION: remove the trims → 1 `peak`, `B-daylight-forward+el` 15 s.
