@@ -47,8 +47,7 @@
             "pencil-line"
           ],
           "gainDb": -9,
-          "perMusic": {},
-          "$perMusicWhy": "EMPTY ON PURPOSE, and it is not the same as absent. The role's perMusic block is -14 dB plus a high shelf, measured against a 7.69 s broadband ElevenLabs texture under bed A. The synthesised stroke is a narrow-band click; inheriting those numbers put version A's approved money shot 5 dB down with every gate green. A per-set block's material-calibrated fields do not fall through — see audio.ts § roleView.",
+          "$perMusicWhy": "ABSENT ON PURPOSE. The role's perMusic block is -14 dB plus a high shelf, measured against a 7.69 s broadband ElevenLabs texture under bed A; the synthesised stroke is a narrow-band click, and inheriting those numbers put version A's approved money shot 5 dB down with every gate green. Absence is the whole answer, because a per-set block's material-calibrated fields do not fall through (audio.ts § roleView) and `verify:audio`'s `fallthrough` check asserts it. Restating the field as an empty object would be a second guard that makes the first untestable.",
           "loop": {
             "crossfadeSec": 0.12,
             "$why": "0.25 s is a third of this file. The synthesised stroke is 0.647 s, so the crossfade scales with it — a quarter-second seam on a 0.647 s loop would be crossfading almost as much as it was playing."
@@ -96,8 +95,7 @@
             "key-3"
           ],
           "gainDb": -9,
-          "minGapSec": 0,
-          "$minGapWhy": "ZERO, explicitly. The role's 1.3 s is the gap between two ElevenLabs typing CLUSTERS of 1.36-1.92 s. Applied to 70 ms single presses it thinned the 15 s cut's typing from twelve cues to one. At this length the floors that matter are MAX_KEYS_PER_SEC and the physical one derived from the sample.",
+          "$minGapWhy": "ABSENT ON PURPOSE, same rule as draw's perMusic. The role's 1.3 s is the gap between two ElevenLabs typing CLUSTERS of 1.36-1.92 s; applied to 70 ms single presses it thinned the 15 s cut's typing from twelve cues to one. At this length the floors that matter are MAX_KEYS_PER_SEC and the physical one derived from the sample.",
           "$why": "Three single presses of ~0.07 s, at the level version A was approved at. `MAX_KEYS_PER_SEC` in cues.ts and the physical floor derived from the cue's own length are what keep the two sets apart in WHEN; this is the only difference in WHAT."
         }
       }

@@ -10,7 +10,7 @@
  * necessary, because a derivation can produce a cue for a file that is not
  * there, at a second past the end of the cut, or four at once.
  *
- * Four checks, and each one has cost somebody a render somewhere:
+ * Eight checks, and each one has cost somebody a render somewhere:
  *
  *   1. **every cue names a file the manifest carries, and that file is on
  *      disk.** `staticFile()` fails SOFTLY in Remotion — a missing sample is
@@ -41,6 +41,12 @@
  *   7. **anchoring is applied.** A cue's file starts at `action − alignOffset`,
  *      to within a frame. Nothing applied it at all until this round, and the
  *      ElevenLabs typing clusters ran 157 ms behind their characters.
+ *   8. **every role/intent resolves in EVERY set, and no per-set block inherits
+ *      a number measured on another set's material.** The second half is the
+ *      only check here that no other gate can stand in for: `perMusic` falling
+ *      through put version A's synthesised stroke five decibels down on the
+ *      money shot, and the loudness gate measured the same -15.5 LUFS either
+ *      way, because one quiet cue does not move a figure the bed dominates.
  *
  * And the vacuity question, out loud: it prints how many cues it looked at, and
  * a cut with ZERO is a failure rather than a tick. A gate whose input set can go
@@ -67,7 +73,7 @@ const film = await loadFilm();
 const { CUT_IDS, FPS } = film.layout;
 const { TIMELINES } = film.timeline;
 const { cuesFor, cueProblems, drawBeatsFor, MAX_SIMULTANEOUS, MAX_KEYS_PER_SEC } = film.cues;
-const { allSfx, audioProblems, bedFor, resolveCue, roleCue, SFX_SET_IDS } = film.audio;
+const { allSfx, audioProblems, bedFor, resolveCue, role, roleCue, roleView, ROLE_IDS, SFX_SET_IDS } = film.audio;
 const { VERSION, EDIT_ID } = film.version;
 
 /** How far a derived cue may sit from the moment it is derived FROM. */
@@ -125,6 +131,40 @@ for (const setId of SFX_SET_IDS) {
   }
 }
 if (mappingsChecked === 0) fail("vacuous", "roles", "no role mapping was resolved — the sheets name nothing");
+
+/*
+ * A per-set block's MATERIAL-CALIBRATED fields come from the block or from
+ * nowhere — never from the role.
+ *
+ * This is a property of `roleView`, asserted rather than trusted, because the
+ * bug it is about is invisible everywhere else. `perMusic` falling through put
+ * version A's 0.65 s synthesised stroke at the -14 dB measured for a 7.69 s
+ * ElevenLabs texture: five decibels down on the money shot, and
+ * `verify:loudness` measured -15.5 LUFS either way, because one cue five
+ * decibels quieter does not move an integrated figure the bed dominates. Nothing
+ * in the repo could have said so — which is the shape this project has paid for
+ * before.
+ */
+const SET_SCOPED = ["perMusic", "perFile", "loop", "bandTick", "minGapSec"];
+let scopedChecked = 0;
+for (const setId of SFX_SET_IDS) {
+  for (const roleId of ROLE_IDS) {
+    const block = role(roleId).perSet?.[setId];
+    if (block === undefined) continue;
+    const view = roleView(roleId, setId);
+    for (const field of SET_SCOPED) {
+      scopedChecked += 1;
+      if (JSON.stringify(view[field] ?? null) === JSON.stringify(block[field] ?? null)) continue;
+      fail(
+        "fallthrough",
+        `${setId} · ${roleId}.${field}`,
+        `resolves to ${JSON.stringify(view[field])} but this set's own block says ${JSON.stringify(block[field] ?? null)} — ` +
+          "a set names its own files because its material is different, so a number measured on the other set's " +
+          "material is wrong here by construction",
+      );
+    }
+  }
+}
 
 /* ── 3. the cue sheets ────────────────────────────────────────────────────── */
 
@@ -322,6 +362,7 @@ console.log(
     `${bandTicksChecked} band tick(s), worst ${worstTickFrames.toFixed(2)} frame off its knot`,
 );
 console.log(`    ${mappingsChecked} role→file mapping(s) resolved across ${SFX_SET_IDS.length} set(s): ${SFX_SET_IDS.join(", ")}`);
+console.log(`    ${scopedChecked} per-set field(s) checked for fall-through from the role`);
 
 if (!failures.length) {
   console.log("\n  ✓ every cue has a file, is anchored, lands inside its cut, and nothing piles up\n");
