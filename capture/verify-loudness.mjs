@@ -62,8 +62,40 @@
  * Usage:  node capture/verify-loudness.mjs [--json]
  */
 
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
 import { loadFilm, loadFilmForVersion } from "./lib/load-core.mjs";
-import { mixAndMeasure } from "./lib/mix.mjs";
+import { deliverySettings, mixAndMeasure } from "./lib/mix.mjs";
+
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+
+/**
+ * How far the PREDICTION may sit from the film that was actually delivered.
+ *
+ * ⚠ This is the check that matters, and it is the only one here that compares
+ * the gate against reality rather than against itself. Every other assertion is
+ * the model marking its own homework: it mixes from the manifests, measures
+ * what it mixed, and agrees with itself. `MANIFEST.json` records the true peak
+ * MEASURED from the delivered file, so wherever a master has been rendered the
+ * gate can be told it was wrong.
+ *
+ * It is reported for every cut that has a manifest and fatal past this bound.
+ */
+const REAL_TOLERANCE_DB = 0.3;
+
+/** The delivered true peak for a version x cut, from the tracked manifest. */
+const recordedPeaks = (version, cut) => {
+  const file = path.join(ROOT, "out", "masters", version, "MANIFEST.json");
+  if (!fs.existsSync(file)) return [];
+  let doc;
+  try { doc = JSON.parse(fs.readFileSync(file, "utf8")); } catch { return []; }
+  const rows = Array.isArray(doc) ? doc : (doc.masters ?? doc.files ?? []);
+  return rows
+    .filter((r) => typeof r?.file === "string" && r.file.includes(`_${cut}s_`) && Number.isFinite(r.truePeakDb))
+    .map((r) => ({ file: r.file, truePeakDb: r.truePeakDb }));
+};
 
 const AS_JSON = process.argv.includes("--json");
 
@@ -112,7 +144,9 @@ const TRUE_PEAK_MAX = -1.5;
 const DUCK_MAX_FRACTION = 0.3;
 
 const rows = [];
+const realRows = [];
 let measured = 0;
+let realChecked = 0;
 
 for (const versionId of VERSIONS) {
   // Each version is evaluated on its own terms: its music, its edit, its sound
@@ -162,6 +196,35 @@ for (const versionId of VERSIONS) {
           "a platform limiter will pull it down and the mix will not be the mix that was approved",
       );
     }
+    /*
+     * ⚠ The gate against REALITY, wherever reality is on disk.
+     *
+     * Everything above is the model agreeing with itself. This is the one
+     * assertion that can tell the model it is wrong, and it earned its place:
+     * the offline mix predicted -2.3 dBTP for A's 60 s cut and the delivered
+     * film measured **-1.2** — over the ceiling, reported green, for two
+     * rounds. The manifests are tracked even though the masters are not, so
+     * this works in a fresh clone.
+     */
+    for (const rec of recordedPeaks(version, cut)) {
+      realChecked += 1;
+      const delta = r.truePeakDb - rec.truePeakDb;
+      realRows.push(
+        `${version.padEnd(24)} ${(cut + "s").padStart(5)} predicted ${r.truePeakDb.toFixed(1)}  ` +
+          `delivered ${rec.truePeakDb.toFixed(1)}  delta ${delta >= 0 ? "+" : ""}${delta.toFixed(1)}  ${rec.file}`,
+      );
+      if (Math.abs(delta) > REAL_TOLERANCE_DB + 1e-9) {
+        fail(
+          "model",
+          `${version} ${cut}s`,
+          `the offline mix predicts ${r.truePeakDb.toFixed(1)} dBTP and the delivered film measured ` +
+            `${rec.truePeakDb.toFixed(1)} — ${Math.abs(delta).toFixed(1)} dB apart, past the ` +
+            `${REAL_TOLERANCE_DB} dB tolerance. A prediction that is optimistic about the one number with no ` +
+            "margin left is worse than no prediction (" + rec.file + ")",
+        );
+      }
+    }
+
     if (r.duckedFraction > DUCK_MAX_FRACTION + 1e-9) {
       fail(
         "duck",
@@ -189,6 +252,15 @@ if (AS_JSON) {
       `peak ≤ ${TRUE_PEAK_MAX} dBTP, duck ≤ ${(DUCK_MAX_FRACTION * 100).toFixed(0)} %`,
   );
   for (const r of rows) console.log(`      ${r}`);
+  const d = deliverySettings();
+  console.log(`
+    encoded as delivered: ${d.codec} ${Math.round(d.bitrate / 1000)} kbps ${d.sampleRate} Hz (${d.from})`);
+  if (realChecked === 0) {
+    console.log("    no delivered master on record yet — the model is unchecked against reality");
+  } else {
+    console.log(`    ${realChecked} cut(s) checked against the delivered film, tolerance ±${REAL_TOLERANCE_DB} dB:`);
+    for (const r of realRows) console.log(`      ${r}`);
+  }
   if (failures.length === 0) {
     console.log("\n  ✓ every cut lands in the window, under the peak, with the duck a duck\n");
   } else {
