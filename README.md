@@ -10,7 +10,11 @@
 
 ### ArchCanvas studio film
 
-<!-- FILM: archcanvas-studio-film · 16:9 · 120 s — Chan uploads the video here in GitHub's web editor -->
+
+
+https://github.com/user-attachments/assets/f3686aaa-8bdf-4a8c-88b4-7f33aca8f18a
+
+
 
 ▶ Watch on YouTube: https://youtu.be/rUZAiXgt9JY
 
