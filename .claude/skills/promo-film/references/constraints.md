@@ -8,7 +8,7 @@ says **human judgement** — those are the ones that get lost.
 **Every word on screen is cleared or it does not ship.** `docs/copy-clearance.md` is the
 table; `capture/verify-copy.mjs` reads every backticked string in it as a cleared row and
 fails on on-screen prose with no row. The line nobody cleared is exactly the line that
-slips. Authority is `../archcanvas-growth` (positioning, founder brief §7 = bans B1–B14,
+slips. Authority is the product's private positioning notes (positioning, founder brief §7 = bans B1–B14,
 voice.md, category.md §6) — or shipped product copy, which is stronger still.
 
 The bans that bite, summarised (the full lists are 30 phrases, 29 words and 14 regexes at
@@ -17,7 +17,7 @@ The bans that bite, summarised (the full lists are 30 phrases, 29 words and 14 r
 - **"AI architect" is banned on legal grounds and is not on the B1–B14 card.** UK
   Architects Act 1997 s.20 and NZ Registered Architects Act 2005 s.7 — NZ is the law the
   Terms chose. Write **"AI architectural designer"**. Enforced by
-  `/\bAI architect(?!ural)/i`. ⚠ The growth repo has not been updated, so do not copy
+  `/\bAI architect(?!ural)/i`. ⚠ The positioning notes have not been updated, so do not copy
   from it verbatim.
 - **B4 — the language is never named**, no `.arch` source, no "as code", no DSL jargon.
   `verify:replica` greps the synced replica for it too, comments included.

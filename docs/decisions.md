@@ -1223,7 +1223,7 @@ a measurement rather than rediscovering a 2 dB mystery.
 
 ## D33. `Tweak a number.` is cleared. The flag stays.
 
-The one line in the film that no growth-repo or product line says, and the only
+The one line in the film that no positioning-note or product line says, and the only
 one ever registered `needs founder`. **Approved by the founder on 2026-09-20**,
 so the clearance row names a date rather than a file — the approval *is* the
 source — and `NEEDS_FOUNDER` in `src/copy.ts` is empty for the first time.

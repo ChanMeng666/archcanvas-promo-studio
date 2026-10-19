@@ -1,7 +1,7 @@
 {
   "name": "archcanvas-promo-studio",
   "version": "0.1.0",
-  "license": "UNLICENSED",
+  "license": "MIT",
   "private": true,
   "type": "module",
   "engines": {

@@ -99,7 +99,7 @@ export const PRICE: CopyLine = {
     portrait: ["You pay only", "when you get", "a result you keep —", "no subscription."],
   },
   source:
-    "archcanvas-growth/strategy/positioning.md §Positioning statement, line 36: 'You pay only when you get a result you keep — no subscription.' Verbatim, re-broken for the frame",
+    "positioning-notes/strategy/positioning.md §Positioning statement, line 36: 'You pay only when you get a result you keep — no subscription.' Verbatim, re-broken for the frame",
   cleared: true,
   note: "The verbatim-locked no-subscription framing. No figure, no currency, and no promise credits do not keep (they never expire; they are not a refund).",
 };
@@ -166,7 +166,7 @@ export const RECEIPT: CopyLine = {
     portrait: ["…and a written list", "of everything", "we couldn't get right."],
   },
   source:
-    "archcanvas-growth/strategy/positioning.md §The three-layer ladder, Layer 2: 'Describe your home. Get a dimensioned floor plan — and a written list of everything we couldn't get right.' Verbatim tail",
+    "positioning-notes/strategy/positioning.md §The three-layer ladder, Layer 2: 'Describe your home. Get a dimensioned floor plan — and a written list of everything we couldn't get right.' Verbatim tail",
   cleared: true,
   note: "The receipt frame, the only claim backed by shipped code that no competitor in the set makes. Stated as disclosure, which is what the code does.",
 };
@@ -199,7 +199,7 @@ export const END_DOMAIN: CopyLine = {
  * Act 1997 s.20 and NZ Registered Architects Act 2005 s.7, and NZ is the law the
  * product's own Terms choose. ARB has said it cannot police "architectural"
  * derivatives, so the substitution is expressly outside its reach and means the
- * same thing. The growth repo still carries the banned form in places; it is not
+ * same thing. The positioning notes still carry the banned form in places; it is not
  * a verbatim truth source.
  */
 export const END_DESCRIPTOR: CopyLine = {
@@ -209,7 +209,7 @@ export const END_DESCRIPTOR: CopyLine = {
     portrait: ["AI architectural designer"],
   },
   source:
-    "archcanvas-growth/marketing/copy/messaging-library.md §Product boilerplate (25 words) and the wording rule beneath the taglines, 2026-09-14",
+    "positioning-notes/marketing/copy/messaging-library.md §Product boilerplate (25 words) and the wording rule beneath the taglines, 2026-09-14",
   cleared: true,
   note: "The approved substitute for the protected title. The product repo enforces /\\bAI architect(?!ural)/i in CI and this gate repeats the needle byte-identically.",
 };
@@ -251,7 +251,7 @@ export const HONESTY: CopyLine = {
  * Lines that are on screen by a decision that was not final.
  *
  * `tweakLine` is `Tweak a number.` — the single sentence in this film that no
- * growth-repo or product line says. **The founder approved it on 2026-09-20**,
+ * positioning-note or product line says. **The founder approved it on 2026-09-20**,
  * so it is cleared copy now and the flag stays `true`; `NEEDS_FOUNDER` is empty
  * for the first time.
  *

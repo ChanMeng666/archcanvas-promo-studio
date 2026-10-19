@@ -48,8 +48,8 @@ contain a frame literal. Never write a frame number in a `from={}` or
 
 ## Copy law — read before writing a single word
 
-The authority is `../archcanvas-growth`: `strategy/positioning.md`,
-`investor/founder-brief.md` §7 (bans B1–B14), `marketing/content/voice.md` (banned
+The authority is the product's private positioning notes: `strategy/positioning.md`,
+`founder-brief.md` §7 (bans B1–B14), `marketing/content/voice.md` (banned
 words), `strategy/category.md` §6.
 
 **A promo is the consumer room. Layer 1 and Layer 2 only, never Layer 3.**
@@ -60,7 +60,7 @@ Six that will bite:
   Architects Act 1997 s.20 (to £2,500 per offence; ARB's misuse policy names "websites
   (including URLs and metadata)" specifically) and NZ Registered Architects Act 2005 s.7
   (to NZ$10,000 — and NZ is the law the Terms chose). Write **"AI architectural
-  designer"**. The product repo enforces `/\bAI architect(?!ural)/i`; **the growth repo
+  designer"**. The product repo enforces `/\bAI architect(?!ural)/i`; **the positioning notes
   has not been updated**, so do not copy from it verbatim.
 - **B11 — only three things may be called measurement:** reachability, exact areas and
   byte-identical determinism. Clear widths, walk distances and furniture clearances are

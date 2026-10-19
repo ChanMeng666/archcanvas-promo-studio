@@ -153,7 +153,7 @@ const BANNED_PATTERNS = [
   },
   {
     re: /[　-〿぀-ヿ㐀-䶿一-鿿豈-﫿＀-￯]/,
-    why: "English only - the growth repo bans CJK outright",
+    why: "English only - the positioning notes ban CJK outright",
   },
 ];
 

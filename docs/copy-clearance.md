@@ -29,8 +29,8 @@ must not render.
 
 ## How to add a row
 
-1. Find the line in the authority: `../archcanvas-growth` —
-   `strategy/positioning.md`, `investor/founder-brief.md` §7 (bans B1–B14),
+1. Find the line in the authority: the product's private positioning notes —
+   `strategy/positioning.md`, `founder-brief.md` §7 (bans B1–B14),
    `marketing/content/voice.md` (banned words), `strategy/category.md` §6 — or
    the **shipped product copy**, which is a stronger source still: a sentence
    already live on archcanvas.uk has been through the same argument.
@@ -43,7 +43,7 @@ must not render.
 4. If it is a paraphrase or a truncation rather than a quotation, say so and say
    why the change was needed.
 
-⚠ **The growth repo is not a verbatim truth source.** It has not been updated for
+⚠ **The positioning notes are not a verbatim truth source.** It has not been updated for
 the B15 finding, so `positioning.md`, `messaging-library.md` (tagline #7, all the
 boilerplate, the founder bio) and `category.md` still contain the banned phrase
 "AI architect". Write **"AI architectural designer"**. Do not copy from them
@@ -72,7 +72,7 @@ Each line is registered separately because a line is the unit the gate checks.
 | `dimensioned floor plan.` | L | 15 · 30 · 60 · 120 | `HeroCompile.tsx` — `HERO_COPY.h1[2]`, verbatim | ✅ | "Dimensioned" is compiled geometry, not a clearance figure — B11 clear. |
 | `dimensioned` | P | 15 · 30 · 60 · 120 | Same, re-broken | ✅ | |
 | `floor plan.` | P | 15 · 30 · 60 · 120 | Same, re-broken | ✅ | |
-| `You pay only when you get` | L | 30 · 60 · 120 | `archcanvas-growth/strategy/positioning.md` §Positioning statement, line 36: *"You pay only when you get a result you keep — no subscription."* Verbatim, re-broken | ✅ | The verbatim-locked no-subscription framing. |
+| `You pay only when you get` | L | 30 · 60 · 120 | `positioning-notes/strategy/positioning.md` §Positioning statement, line 36: *"You pay only when you get a result you keep — no subscription."* Verbatim, re-broken | ✅ | The verbatim-locked no-subscription framing. |
 | `a result you keep —` | L+P | 30 · 60 · 120 | Same | ✅ | **No figure and no currency.** A bare `$`+digit on a `.uk` surface is DMCCA drip-pricing exposure; the gate greps for it. |
 | `no subscription.` | L+P | 30 · 60 · 120 | Same | ✅ | Promises nothing credits do not do: they never expire, and they are not a refund. |
 | `You pay only` | P | 30 · 60 · 120 | Same, re-broken | ✅ | |
@@ -83,10 +83,10 @@ Each line is registered separately because a line is the unit the gate checks.
 | Line | Break | Cut(s) | Source | Cleared? | Note |
 | --- | --- | --- | --- | --- | --- |
 | `Say the change.` | L+P | 60 · 120 | `archcanvas/src/components/landing/StudioSection.tsx` — the live section caption *"Select a room, say the change, watch the plan recompile"*, truncated to its middle clause | ✅ | A truncation of shipped copy, not a paraphrase. Describes the interaction on screen and claims nothing about the result. |
-| `Tweak a number.` | L+P | 60 · 120 | **Founder approval, 2026-09-20.** Drafted for this film; nearest prior authority is the product's own panel title *"Tweak parameters"* (`TweaksPanel.tsx`, mirrored as `TWEAKS_TITLE` in the replica's `strings.ts`) | ✅ | Literal — a named parameter is dragged and the plan redraws — and it breaks no ban. No growth-repo line says it, so it is the film's own sentence: **the founder is the source, which is why this row names a date rather than a file.** It was the only line in the film ever in that state. |
+| `Tweak a number.` | L+P | 60 · 120 | **Founder approval, 2026-09-20.** Drafted for this film; nearest prior authority is the product's own panel title *"Tweak parameters"* (`TweaksPanel.tsx`, mirrored as `TWEAKS_TITLE` in the replica's `strings.ts`) | ✅ | Literal — a named parameter is dragged and the plan redraws — and it breaks no ban. No positioning-note line says it, so it is the film's own sentence: **the founder is the source, which is why this row names a date rather than a file.** It was the only line in the film ever in that state. |
 | `Every room reachable.` | L+P | 60 · 120 | `archcanvas/src/components/landing/CompileScrollBand.tsx` — `BAND_COPY.process`, *"Every room reachable, every area exact"*, verbatim, split into its own sentence | ✅ | **B11 clear by construction.** Reachability is a real modeled access graph — one of only three things this company may call measurement. |
 | `Every area exact.` | L+P | 60 · 120 | Same constant, second clause | ✅ | Exact areas are shoelace / πR² — the second of the three. The third, byte-identical determinism, is a developer-room claim and is not used. **Nothing here says the check BLOCKS anything (B12).** |
-| `…and a written list of` | L | 30 · 60 · 120 | `archcanvas-growth/strategy/positioning.md` §The three-layer ladder, Layer 2: *"Describe your home. Get a dimensioned floor plan — and a written list of everything we couldn't get right."* Verbatim tail | ✅ | The receipt frame — the only claim backed by shipped code (`SHIP_RESIDUAL`) that no competitor in the set makes. |
+| `…and a written list of` | L | 30 · 60 · 120 | `positioning-notes/strategy/positioning.md` §The three-layer ladder, Layer 2: *"Describe your home. Get a dimensioned floor plan — and a written list of everything we couldn't get right."* Verbatim tail | ✅ | The receipt frame — the only claim backed by shipped code (`SHIP_RESIDUAL`) that no competitor in the set makes. |
 | `everything we couldn't get right.` | L | 30 · 60 · 120 | Same | ✅ | A claim about what the product **writes down**, never about what it prevents. Out of budget with defects left it charges and ships and names them: a governor, not a gate. |
 | `…and a written list` | P | 30 · 60 · 120 | Same, re-broken | ✅ | |
 | `of everything` | P | 30 · 60 · 120 | Same, re-broken | ✅ | |
@@ -98,7 +98,7 @@ Each line is registered separately because a line is the unit the gate checks.
 | Line | Break | Cut(s) | Source | Cleared? | Note |
 | --- | --- | --- | --- | --- | --- |
 | `archcanvas.uk` | L+P | all eight | The live product domain (`archcanvas/CLAUDE.md`; the legacy host 308-redirects to it) | ✅ | A fact, not a claim. |
-| `AI architectural designer` | L+P | all eight | `archcanvas-growth/marketing/copy/messaging-library.md` §Product boilerplate (25 words), and the wording rule beneath the taglines, 2026-09-14 | ✅ | **The approved substitute for a protected title.** UK Architects Act 1997 s.20 and NZ Registered Architects Act 2005 s.7 — and NZ is the law the product's Terms choose. ARB has said it cannot police the "architectural" derivatives. The gate carries the product repo's own needle `/\bAI architect(?!ural)/i` byte-identically. |
+| `AI architectural designer` | L+P | all eight | `positioning-notes/marketing/copy/messaging-library.md` §Product boilerplate (25 words), and the wording rule beneath the taglines, 2026-09-14 | ✅ | **The approved substitute for a protected title.** UK Architects Act 1997 s.20 and NZ Registered Architects Act 2005 s.7 — and NZ is the law the product's Terms choose. ARB has said it cannot police the "architectural" derivatives. The gate carries the product repo's own needle `/\bAI architect(?!ural)/i` byte-identically. |
 
 ### The honesty caption
 
@@ -234,7 +234,7 @@ landing page's chapter tabs. Product vocabulary, not the film's.
 
 `COPY_FLAGS.tweakLine` in `src/copy.ts`, `true`.
 
-`Tweak a number.` is the single sentence in this film that no growth-repo or
+`Tweak a number.` is the single sentence in this film that no positioning-note or
 product line says. It is literal — a named parameter is dragged and the plan
 redraws — and it breaks no ban, but it was the film's own and the founder had not
 seen it. **The founder approved it on 2026-09-20**, so the row above is cleared

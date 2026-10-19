@@ -5,11 +5,11 @@ are required and they are different jobs.
 
 ## Clearing a new line (the mechanical half)
 
-1. **Find it in an authority.** `../archcanvas-growth` — `strategy/positioning.md`,
-   `investor/founder-brief.md` §7 (bans B1–B14), `marketing/content/voice.md`,
+1. **Find it in an authority.** The product's private positioning notes — `strategy/positioning.md`,
+   `founder-brief.md` §7 (bans B1–B14), `marketing/content/voice.md`,
    `strategy/category.md` §6. **Shipped product copy is a stronger source still**: a
    sentence already live on archcanvas.uk has been through the same argument once.
-   ⚠ The growth repo has not been updated for the "AI architect" ban — do not copy from
+   ⚠ The positioning notes have not been updated for the "AI architect" ban — do not copy from
    it verbatim (`references/constraints.md`).
 2. **Add a row to `docs/copy-clearance.md`** with the phrase in backticks, **exactly as
    it reaches the screen** — punctuation, capitalisation and the authored break included.
